@@ -212,7 +212,7 @@ AC_DEFUN(TCL_TOOL_SHARED_LIB_LONGNAME, [
 AC_DEFUN(TCL_TOOL_LIB_SHORTNAME, [
   libname=$2
   version=$3
-
+TCL_LIB_SUFFIX=.a
   if test "$TCL_LIB_SUFFIX" = "" ; then
     AC_MSG_ERROR([The TCL_LIB_SUFFIX variable is not defined])
   fi

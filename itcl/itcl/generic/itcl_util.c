@@ -20,8 +20,6 @@
  *           Bell Labs Innovations for Lucent Technologies
  *           mmclennan@lucent.com
  *           http://www.tcltk.com/itcl
- *
- *     RCS:  $Id$
  * ========================================================================
  *           Copyright (c) 1993-1998  Lucent Technologies, Inc.
  * ------------------------------------------------------------------------
@@ -29,7 +27,6 @@
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  */
 #include "itclInt.h"
-#include "tclCompile.h"
 
 /*
  *  POOL OF LIST ELEMENTS FOR LINKED LIST
@@ -52,7 +49,7 @@ typedef struct ItclPreservedData {
 } ItclPreservedData;
 
 static Tcl_HashTable *ItclPreservedList = NULL;
-
+TCL_DECLARE_MUTEX(ItclPreservedListLock)
 
 /*
  *  This structure is used to take a snapshot of the interpreter
@@ -70,7 +67,6 @@ typedef struct InterpState {
 
 #define TCL_STATE_VALID 0x01233210  /* magic bit pattern for validation */
 
-
 
 /*
  * ------------------------------------------------------------------------
@@ -83,15 +79,12 @@ typedef struct InterpState {
 
 void
 Itcl_Assert(testExpr, fileName, lineNumber)
-    char *testExpr;   /* string representing test expression */
-    char *fileName;   /* file name containing this call */
-    int lineNumber;   /* line number containing this call */
+    CONST char *testExpr;   /* string representing test expression */
+    CONST char *fileName;   /* file name containing this call */
+    int lineNumber;	    /* line number containing this call */
 {
-#ifndef NDEBUG
-    fprintf(stderr, "Assertion failed: \"%s\" (line %d of %s)",
-        testExpr, lineNumber, fileName);
-    abort();
-#endif
+    Tcl_Panic("Itcl Assertion failed: \"%s\" (line %d of %s)",
+	testExpr, lineNumber, fileName);
 }
 
 
@@ -506,9 +499,9 @@ Itcl_SetListValue(elemPtr,val)
     Itcl_ListElem *elemPtr; /* list element being modified */
     ClientData val;         /* new value associated with element */
 {
-    Itcl_List *listPtr = elemPtr->owner;
-    assert(listPtr->validate == ITCL_VALID_LIST);
     assert(elemPtr != NULL);
+    assert(elemPtr->owner != NULL);
+    assert(elemPtr->owner->validate == ITCL_VALID_LIST);
 
     elemPtr->value = val;
 }
@@ -556,6 +549,7 @@ Itcl_EventuallyFree(cdata, fproc)
      *  If a list has not yet been created to manage bits of
      *  preserved data, then create it.
      */
+    Tcl_MutexLock(&ItclPreservedListLock);
     if (!ItclPreservedList) {
         ItclPreservedList = (Tcl_HashTable*)ckalloc(
             (unsigned)sizeof(Tcl_HashTable)
@@ -585,12 +579,15 @@ Itcl_EventuallyFree(cdata, fproc)
      *  If the usage count is zero, then delete the data now.
      */
     if (chunk->usage == 0) {
-        chunk->usage = -1;  /* cannot preserve/release anymore */
+	chunk->usage = -1;  /* cannot preserve/release anymore */
 
-        (*chunk->fproc)((char*)chunk->data);
-        Tcl_DeleteHashEntry(entry);
-        ckfree((char*)chunk);
+	Tcl_MutexUnlock(&ItclPreservedListLock);
+	(*chunk->fproc)((char*)chunk->data);
+	Tcl_MutexLock(&ItclPreservedListLock);
+	Tcl_DeleteHashEntry(entry);
+	ckfree((char*)chunk);
     }
+    Tcl_MutexUnlock(&ItclPreservedListLock);
 }
 
 /*
@@ -624,6 +621,7 @@ Itcl_PreserveData(cdata)
      *  If a list has not yet been created to manage bits of
      *  preserved data, then create it.
      */
+    Tcl_MutexLock(&ItclPreservedListLock);
     if (!ItclPreservedList) {
         ItclPreservedList = (Tcl_HashTable*)ckalloc(
             (unsigned)sizeof(Tcl_HashTable)
@@ -657,6 +655,7 @@ Itcl_PreserveData(cdata)
     if (chunk->usage >= 0) {
         chunk->usage++;
     }
+    Tcl_MutexUnlock(&ItclPreservedListLock);
 }
 
 /*
@@ -688,11 +687,13 @@ Itcl_ReleaseData(cdata)
      *  decrement its usage count.
      */
     entry = NULL;
+    Tcl_MutexLock(&ItclPreservedListLock);
     if (ItclPreservedList) {
         entry = Tcl_FindHashEntry(ItclPreservedList,(char*)cdata);
     }
     if (!entry) {
-        panic("Itcl_ReleaseData can't find reference for 0x%x", cdata);
+	Tcl_MutexUnlock(&ItclPreservedListLock);
+        Tcl_Panic("Itcl_ReleaseData can't find reference for 0x%p", cdata);
     }
 
     /*
@@ -705,14 +706,17 @@ Itcl_ReleaseData(cdata)
     chunk = (ItclPreservedData*)Tcl_GetHashValue(entry);
     if (chunk->usage > 0 && --chunk->usage == 0) {
 
-        if (chunk->fproc) {
-            chunk->usage = -1;  /* cannot preserve/release anymore */
-            (*chunk->fproc)((char*)chunk->data);
+	if (chunk->fproc) {
+	    chunk->usage = -1;  /* cannot preserve/release anymore */
+	    Tcl_MutexUnlock(&ItclPreservedListLock);
+	    (*chunk->fproc)((char*)chunk->data);
+	    Tcl_MutexLock(&ItclPreservedListLock);
         }
 
         Tcl_DeleteHashEntry(entry);
         ckfree((char*)chunk);
     }
+    Tcl_MutexUnlock(&ItclPreservedListLock);
 }
 
 
@@ -741,7 +745,23 @@ Itcl_SaveInterpState(interp, status)
     Interp *iPtr = (Interp*)interp;
 
     InterpState *info;
-    char *val;
+    CONST char *val;
+
+    /*
+     * ERR_IN_PROGRESS was replaced by new APIs in 8.5a2.  Call them if they
+     * are available, or somehow magic them in from the stubs table.
+     * Tcl_ChannelThreadActionProc is a stubs slot higher than the APIs we
+     * need, so its existence indicates slot-y goodness.
+     */
+#ifndef ERR_IN_PROGRESS
+    return (Itcl_InterpState) Tcl_SaveInterpState(interp, status);
+#elif defined(USE_TCL_STUBS) && defined(Tcl_ChannelThreadActionProc)
+    if (itclCompatFlags & ITCL_COMPAT_USE_ISTATE_API) {
+	Itcl_InterpState (*tcl_SaveInterpState)(Tcl_Interp *, int) =
+	    (Itcl_InterpState (*)(Tcl_Interp *, int)) tclStubsPtr->reserved535;
+	return (*tcl_SaveInterpState)(interp, status);
+    }
+#endif
 
     info = (InterpState*)ckalloc(sizeof(InterpState));
     info->validate = TCL_STATE_VALID;
@@ -760,7 +780,11 @@ Itcl_SaveInterpState(interp, status)
     /*
      *  If an error is in progress, preserve its state.
      */
+#ifdef ERR_IN_PROGRESS   /* this disappeared in 8.5a2 */
     if ((iPtr->flags & ERR_IN_PROGRESS) != 0) {
+#else
+    if (iPtr->errorInfo != NULL) {
+#endif
         val = Tcl_GetVar(interp, "errorInfo", TCL_GLOBAL_ONLY);
         if (val) {
             info->errorInfo = ckalloc((unsigned)(strlen(val)+1));
@@ -801,12 +825,26 @@ Itcl_RestoreInterpState(interp, state)
     Tcl_Interp* interp;       /* interpreter being modified */
     Itcl_InterpState state;   /* token representing interpreter state */
 {
-    Interp *iPtr = (Interp*)interp;
     InterpState *info = (InterpState*)state;
     int status;
 
+    /*
+     * ERR_IN_PROGRESS was replaced by new APIs in 8.5a2.  Call them if they
+     * are available, or somehow magic them in from the stubs table.
+     * Tcl_ChannelThreadActionProc is a stubs slot higher than the APIs we
+     * need, so its existence indicates slot-y goodness.
+     */
+#ifndef ERR_IN_PROGRESS
+    return Tcl_RestoreInterpState(interp, (Tcl_InterpState)state);
+#elif defined(USE_TCL_STUBS) && defined(Tcl_ChannelThreadActionProc)
+    if (itclCompatFlags & ITCL_COMPAT_USE_ISTATE_API) {
+	int (*tcl_RestoreInterpState)() = (int (*)()) tclStubsPtr->reserved536;
+ 	return (*tcl_RestoreInterpState)(interp, state);
+    }
+#endif
+
     if (info->validate != TCL_STATE_VALID) {
-        panic("bad token in Itcl_RestoreInterpState");
+        Tcl_Panic("bad token in Itcl_RestoreInterpState");
     }
     Tcl_ResetResult(interp);
 
@@ -822,10 +860,7 @@ Itcl_RestoreInterpState(interp, state)
     }
 
     if (info->errorCode) {
-        (void) Tcl_SetVar2(interp, "errorCode", (char*)NULL,
-            info->errorCode, TCL_GLOBAL_ONLY);
-        iPtr->flags |= ERROR_CODE_SET;
-
+        Tcl_SetObjErrorCode(interp, Tcl_NewStringObj(info->errorCode, -1));
         ckfree(info->errorCode);
     }
 
@@ -861,8 +896,26 @@ Itcl_DiscardInterpState(state)
 {
     InterpState *info = (InterpState*)state;
 
+    /*
+     * ERR_IN_PROGRESS was replaced by new APIs in 8.5a2.  Call them if they
+     * are available, or somehow magic them in from the stubs table.
+     * Tcl_ChannelThreadActionProc is a stubs slot higher than the APIs we
+     * need, so its existence indicates slot-y goodness.
+     */
+#ifndef ERR_IN_PROGRESS
+    Tcl_DiscardInterpState((Tcl_InterpState)state);
+    return;
+#elif defined(USE_TCL_STUBS) && defined(Tcl_ChannelThreadActionProc)
+    if (itclCompatFlags & ITCL_COMPAT_USE_ISTATE_API) {
+	void (* tcl_DiscardInterpState)() = (void (*)())
+	    tclStubsPtr->reserved537;
+	(*tcl_DiscardInterpState)(state);
+	return;
+    }
+#endif
+
     if (info->validate != TCL_STATE_VALID) {
-        panic("bad token in Itcl_DiscardInterpState");
+        Tcl_Panic("bad token in Itcl_DiscardInterpState");
     }
 
     if (info->errorInfo) {
@@ -1079,7 +1132,7 @@ Itcl_GetTrueNamespace(interp, info)
     ItclObjectInfo *info;      /* object info associated with interp */
 {
     int i, transparent;
-    Tcl_CallFrame *framePtr, *transFramePtr;
+    Itcl_CallFrame *framePtr, *transFramePtr;
     Tcl_Namespace *contextNs;
 
     /*
@@ -1090,7 +1143,7 @@ Itcl_GetTrueNamespace(interp, info)
 
     framePtr = _Tcl_GetCallFrame(interp, 0);
     for (i = Itcl_GetStackSize(&info->transparentFrames)-1; i >= 0; i--) {
-        transFramePtr = (Tcl_CallFrame*)
+        transFramePtr = (Itcl_CallFrame*)
             Itcl_GetStackValue(&info->transparentFrames, i);
 
         if (framePtr == transFramePtr) {
@@ -1139,12 +1192,12 @@ Itcl_GetTrueNamespace(interp, info)
  */
 void
 Itcl_ParseNamespPath(name, buffer, head, tail)
-    char *name;          /* path name to class member */
+    CONST char *name;    /* path name to class member */
     Tcl_DString *buffer; /* dynamic string buffer (uninitialized) */
     char **head;         /* returns "namesp::namesp::namesp" part */
     char **tail;         /* returns "element" part */
 {
-    register char *sep;
+    register char *sep, *newname;
 
     Tcl_DStringInit(buffer);
 
@@ -1154,12 +1207,12 @@ Itcl_ParseNamespPath(name, buffer, head, tail)
      *  scope qualifier.
      */
     Tcl_DStringAppend(buffer, name, -1);
-    name = Tcl_DStringValue(buffer);
+    newname = Tcl_DStringValue(buffer);
 
-    for (sep=name; *sep != '\0'; sep++)
+    for (sep=newname; *sep != '\0'; sep++)
         ;
 
-    while (--sep > name) {
+    while (--sep > newname) {
         if (*sep == ':' && *(sep-1) == ':') {
             break;
         }
@@ -1170,20 +1223,20 @@ Itcl_ParseNamespPath(name, buffer, head, tail)
      *  up until the head is found.  This supports the Tcl namespace
      *  behavior, which allows names like "foo:::bar".
      */
-    if (sep > name) {
+    if (sep > newname) {
         *tail = sep+1;
-        while (sep > name && *(sep-1) == ':') {
+        while (sep > newname && *(sep-1) == ':') {
             sep--;
         }
         *sep = '\0';
-        *head = name;
+        *head = newname;
     }
 
     /*
      *  No :: separators--the whole name is treated as a tail.
      */
     else {
-        *tail = name;
+        *tail = newname;
         *head = NULL;
     }
 }
@@ -1208,18 +1261,20 @@ Itcl_ParseNamespPath(name, buffer, head, tail)
  */
 int
 Itcl_DecodeScopedCommand(interp, name, rNsPtr, rCmdPtr)
-    Tcl_Interp *interp;      /* current interpreter */
-    char *name;              /* string to be decoded */
-    Tcl_Namespace **rNsPtr;  /* returns: namespace for scoped value */
-    char **rCmdPtr;          /* returns: simple command word */
+    Tcl_Interp *interp;		/* current interpreter */
+    CONST char *name;		/* string to be decoded */
+    Tcl_Namespace **rNsPtr;	/* returns: namespace for scoped value */
+    char **rCmdPtr;		/* returns: simple command word */
 {
     Tcl_Namespace *nsPtr = NULL;
-    char *cmdName = name;
+    char *cmdName;
     int len = strlen(name);
-
-    char *pos;
+    CONST char *pos;
     int listc, result;
-    char **listv;
+    CONST char **listv;
+
+    cmdName = ckalloc((unsigned)strlen(name)+1);
+    strcpy(cmdName, name);
 
     if ((*name == 'n') && (len > 17) && (strncmp(name, "namespace", 9) == 0)) {
 	for (pos = (name + 9);  (*pos == ' ');  pos++) {
@@ -1228,23 +1283,23 @@ Itcl_DecodeScopedCommand(interp, name, rNsPtr, rCmdPtr)
 	if ((*pos == 'i') && ((pos + 7) <= (name + len))
 	        && (strncmp(pos, "inscope", 7) == 0)) {
 
-            result = Tcl_SplitList(interp, name, &listc, &listv);
+            result = Tcl_SplitList(interp, name, &listc,
+		    &listv);
             if (result == TCL_OK) {
                 if (listc != 4) {
-                    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+                    Tcl_AppendResult(interp,
                         "malformed command \"", name, "\": should be \"",
                         "namespace inscope namesp command\"",
                         (char*)NULL);
                     result = TCL_ERROR;
-                }
-                else {
+                } else {
                     nsPtr = Tcl_FindNamespace(interp, listv[2],
                         (Tcl_Namespace*)NULL, TCL_LEAVE_ERR_MSG);
 
                     if (!nsPtr) {
                         result = TCL_ERROR;
-                    }
-                    else {
+                    } else {
+			ckfree(cmdName);
                         cmdName = ckalloc((unsigned)(strlen(listv[3])+1));
                         strcpy(cmdName, listv[3]);
                     }
@@ -1303,7 +1358,7 @@ Itcl_EvalArgs(interp, objc, objv)
     cmdPtr = (Command*)cmd;
 
     cmdlinec = objc;
-    cmdlinev = (Tcl_Obj**)objv;
+    cmdlinev = (Tcl_Obj	**) objv;
 
     /*
      * If the command is still not found, handle it with the
@@ -1315,18 +1370,15 @@ Itcl_EvalArgs(interp, objc, objv)
 
         if (cmd == NULL) {
             Tcl_ResetResult(interp);
-            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+            Tcl_AppendResult(interp,
                 "invalid command name \"",
-                Tcl_GetStringFromObj(objv[0], (int*)NULL), "\"",
-                (char*)NULL);
+                Tcl_GetStringFromObj(objv[0], NULL), "\"", NULL);
             return TCL_ERROR;
         }
         cmdPtr = (Command*)cmd;
 
         cmdlinePtr = Itcl_CreateArgs(interp, "unknown", objc, objv);
-
-        (void) Tcl_ListObjGetElements((Tcl_Interp*)NULL, cmdlinePtr,
-            &cmdlinec, &cmdlinev);
+        Tcl_ListObjGetElements(NULL, cmdlinePtr, &cmdlinec, &cmdlinev);
     }
 
     /*
@@ -1363,7 +1415,7 @@ Itcl_EvalArgs(interp, objc, objv)
 Tcl_Obj*
 Itcl_CreateArgs(interp, string, objc, objv)
     Tcl_Interp *interp;      /* current interpreter */
-    char *string;            /* first command word */
+    CONST char *string;      /* first command word */
     int objc;                /* number of arguments */
     Tcl_Obj *CONST objv[];   /* argument objects */
 {

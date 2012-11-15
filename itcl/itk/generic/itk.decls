@@ -4,12 +4,8 @@
 #	functions that are exported by the Itk library via the stubs table.
 #	This file is used to generate the itkDecls.h file.
 #	
-#
-# Copyright (c) 1998-1999 by XXXX
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
-# 
-# RCS: $Id$
 
 library itk
 interface itk
@@ -26,9 +22,9 @@ interface itk
 declare 0 generic {
     int Itk_Init (Tcl_Interp *interp)
 }
-#declare 1 generic {
-#    int Itk_SafeInit (Tcl_Interp *interp)
-#}
+declare 1 generic {
+    int Itk_SafeInit (Tcl_Interp *interp)
+}
 
 
 #
@@ -59,7 +55,7 @@ declare 5 generic {
 }
 declare 6 generic {
     int Itk_ConfigClassOption (Tcl_Interp *interp, ItclObject *contextObj, \
-        ClientData cdata, char* newVal)
+        ClientData cdata, CONST char* newVal)
 }
 declare 7 generic {
     ItkClassOptTable* Itk_CreateClassOptTable( Tcl_Interp *interp, \

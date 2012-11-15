@@ -4,13 +4,10 @@
  *	Stub object that will be statically linked into extensions that wish
  *	to access Itcl.
  *
- * Copyright (c) 1998-1999 by XXXX
  * Copyright (c) 1998 Paul Duffin.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: $Id$
  */
 
 /*
@@ -44,7 +41,7 @@ ItclIntStubs *itclIntStubsPtr;
  *
  * Itcl_InitStubs --
  *
- *	Tries to initialise the stub table pointers and ensures that
+ *	Tries to initialize the stub table pointers and ensures that
  *	the correct version of Itcl is loaded.
  *
  * Results:
@@ -57,13 +54,17 @@ ItclIntStubs *itclIntStubsPtr;
  *----------------------------------------------------------------------
  */
 
-char *
+#ifdef Itcl_InitStubs
+#undef Itcl_InitStubs
+#endif
+
+CONST char *
 Itcl_InitStubs (interp, version, exact)
     Tcl_Interp *interp;
-    char *version;
+    CONST char *version;
     int exact;
 {
-    char *actualVersion;
+    CONST char *actualVersion;
     
     actualVersion = Tcl_PkgRequireEx(interp, "Itcl", version, exact,
         (ClientData *) &itclStubsPtr);

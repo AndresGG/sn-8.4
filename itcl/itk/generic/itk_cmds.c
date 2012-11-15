@@ -15,8 +15,6 @@
  *           Bell Labs Innovations for Lucent Technologies
  *           mmclennan@lucent.com
  *           http://www.tcltk.com/itcl
- *
- *     RCS:  $Id$
  * ========================================================================
  *           Copyright (c) 1993-1998  Lucent Technologies, Inc.
  * ------------------------------------------------------------------------
@@ -25,11 +23,23 @@
  */
 #include "itk.h"
 
+/*  
+ * The following script is used to initialize Itcl in a safe interpreter.
+ */
+ 
+static char safeInitScript[] =
+"proc ::itcl::local {class name args} {\n\
+    set ptr [uplevel [list $class $name] $args]\n\
+    uplevel [list set itcl-local-$ptr $ptr]\n\
+    set cmd [uplevel namespace which -command $ptr]\n\
+    uplevel [list trace variable itcl-local-$ptr u \"::itcl::delete object $cmd; list\"]\n\
+    return $ptr\n\
+}";  
+
 /*
  *  FORWARD DECLARATIONS
  */
 static int Initialize _ANSI_ARGS_((Tcl_Interp *interp));
-
 /*
  * The following string is the startup script executed in new
  * interpreters.  It looks on disk in several different directories
@@ -61,6 +71,13 @@ namespace eval ::itk {\n\
             lappend dirs [file join $bindir .. library]\n\
             lappend dirs [file join $bindir .. .. library]\n\
             lappend dirs [file join $bindir .. .. itk library]\n\
+            # On MacOSX, check the directories in the tcl_pkgPath\n\
+            if {[string equal $::tcl_platform(platform) \"unix\"] && \
+                    [string equal $::tcl_platform(os) \"Darwin\"]} {\n\
+                foreach d $::tcl_pkgPath {\n\
+                    lappend dirs [file join $d itk$version]\n\
+                }\n\
+            }\n\
         }\n\
         foreach i $dirs {\n\
             set library $i\n\
@@ -79,9 +96,6 @@ namespace eval ::itk {\n\
     }\n\
     _find_init\n\
 }";
-
-extern ItkStubs itkStubs;
-
 
 /*
  * ------------------------------------------------------------------------
@@ -103,15 +117,27 @@ Initialize(interp)
     Tcl_Namespace *itkNs, *parserNs;
     ClientData parserInfo;
 
+#ifndef USE_TCL_STUBS
+    if (Tcl_PkgRequire(interp, "Tcl", TCL_VERSION, 0) == NULL) {
+      return TCL_ERROR;
+    }
+    if (Tcl_PkgRequire(interp, "Tk", TK_VERSION, 0) == NULL) {
+      return TCL_ERROR;
+    }
+    if (Tcl_PkgRequire(interp, "Itcl", ITCL_VERSION, 0) == NULL) {
+      return TCL_ERROR;
+    }
+#else
     if (Tcl_InitStubs(interp, "8.1", 0) == NULL) {
-	return TCL_ERROR;
-    };
+      return TCL_ERROR;
+    }
     if (Tk_InitStubs(interp, "8.1", 0) == NULL) {
 	return TCL_ERROR;
     };
-    if (Itcl_InitStubs(interp, ITCL_VERSION, 0) == NULL) {
+    if (Itcl_InitStubs(interp, ITCL_VERSION, 1) == NULL) {
 	return TCL_ERROR;
     }
+#endif
 
 
     /*
@@ -121,7 +147,7 @@ Initialize(interp)
         (Tcl_Namespace*)NULL, /* flags */ 0);
 
     if (!parserNs) {
-        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+        Tcl_AppendResult(interp,
             "cannot initialize [incr Tk]: [incr Tcl] has not been installed\n",
             "Make sure that Itcl_Init() is called before Itk_Init()",
             (char*)NULL);
@@ -189,16 +215,29 @@ Initialize(interp)
     Tcl_CreateObjCommand(interp, "::itcl::configbody", Itk_ConfigBodyCmd,
         (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
 
-    Tcl_SetVar(interp, "::itk::version", ITCL_VERSION, 0);
-    Tcl_SetVar(interp, "::itk::patchLevel", ITCL_PATCH_LEVEL, 0);
+    Tcl_SetVar(interp, "::itk::version", ITK_VERSION, 0);
+    Tcl_SetVar(interp, "::itk::patchLevel", ITK_PATCH_LEVEL, 0);
 
     /*
-     *  Signal that the package has been loaded.
+     *  Signal that the package has been loaded and provide the Itk Stubs table
+     *  for dependent modules.  I know this is unlikely, but possible that
+     *  someone could be extending Itk.  Who is to say that Itk is the
+     *  end-of-the-line?
      */
-    if (Tcl_PkgProvideEx(interp, "Itk", ITCL_VERSION,
-            (ClientData) &itkStubs) != TCL_OK) {
+
+#if TCL_DOES_STUBS
+    {
+	extern ItkStubs itkStubs;
+	if (Tcl_PkgProvideEx(interp, "Itk", ITK_VERSION,
+		(ClientData) &itkStubs) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+    }
+#else
+    if (Tcl_PkgProvide(interp, "Itk", ITK_VERSION) != TCL_OK) {
 	return TCL_ERROR;
     }
+#endif
     return TCL_OK;
 }
 
@@ -225,6 +264,31 @@ Itk_Init(interp)
     }
     return Tcl_Eval(interp, initScript);
     return TCL_OK;
+}
+
+
+/*
+ * ------------------------------------------------------------------------
+ *  Itk_SafeInit()
+ *   
+ *  Invoked whenever a new SAFE INTERPRETER is created to install
+ *  the [incr Tcl] package.
+ *      
+ *  Creates the "::itk" namespace and installs access commands for
+ *  creating classes and querying info.
+ *  
+ *  Returns TCL_OK on success, or TCL_ERROR (along with an error 
+ *  message in the interpreter) if anything goes wrong.
+ * ------------------------------------------------------------------------
+ */  
+int 
+Itk_SafeInit(interp)
+    Tcl_Interp *interp;  /* interpreter to be updated */ 
+{   
+    if (Initialize(interp) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    return Tcl_Eval(interp, safeInitScript);
 }
 
 
@@ -282,7 +346,7 @@ Itk_ConfigBodyCmd(dummy, interp, objc, objv)
     Itcl_ParseNamespPath(token, &buffer, &head, &tail);
 
     if (!head || *head == '\0') {
-        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+        Tcl_AppendResult(interp,
             "missing class specifier for body declaration \"", token, "\"",
             (char*)NULL);
         result = TCL_ERROR;
@@ -337,7 +401,7 @@ Itk_ConfigBodyCmd(dummy, interp, objc, objv)
     }
 
     Itcl_PreserveData((ClientData)mcode);
-    Itcl_EventuallyFree((ClientData)mcode, Itcl_DeleteMemberCode);
+    Itcl_EventuallyFree((ClientData)mcode, (Tcl_FreeProc *)Itcl_DeleteMemberCode);
 
     if (opt->member->code) {
         Itcl_ReleaseData((ClientData)opt->member->code);

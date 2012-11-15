@@ -5,8 +5,6 @@
 #            Bell Labs Innovations for Lucent Technologies
 #            mmclennan@lucent.com
 #            http://www.tcltk.com/itcl
-#
-#      RCS:  $Id$
 # ----------------------------------------------------------------------
 #            Copyright (c) 1993-1998  Lucent Technologies, Inc.
 # ======================================================================
@@ -16,9 +14,8 @@
 package require tcltest
 namespace import -force ::tcltest::*
 
-if {[string compare test [info procs test]] == 1} then {source defs}
+::tcltest::loadTestedCommands
 
-package require Itk
 
 # ----------------------------------------------------------------------
 #  Simple mega-widget

@@ -21,8 +21,6 @@
  *           Bell Labs Innovations for Lucent Technologies
  *           mmclennan@lucent.com
  *           http://www.tcltk.com/itcl
- *
- *     RCS:  $Id$
  * ========================================================================
  *           Copyright (c) 1993-1998  Lucent Technologies, Inc.
  * ------------------------------------------------------------------------
@@ -76,7 +74,7 @@ static void ItclFreeC _ANSI_ARGS_((ClientData clientData, Tcl_Interp *interp));
 int
 Itcl_RegisterC(interp, name, proc, clientData, deleteProc)
     Tcl_Interp *interp;             /* interpreter handling this registration */
-    char *name;                     /* symbolic name for procedure */
+    CONST char *name;               /* symbolic name for procedure */
     Tcl_CmdProc *proc;              /* procedure handling Tcl command */
     ClientData clientData;          /* client data associated with proc */
     Tcl_CmdDeleteProc *deleteProc;  /* proc called to free up client data */
@@ -161,7 +159,7 @@ Itcl_RegisterC(interp, name, proc, clientData, deleteProc)
 int
 Itcl_RegisterObjC(interp, name, proc, clientData, deleteProc)
     Tcl_Interp *interp;     /* interpreter handling this registration */
-    char *name;             /* symbolic name for procedure */
+    CONST char *name;       /* symbolic name for procedure */
     Tcl_ObjCmdProc *proc;   /* procedure handling Tcl command */
     ClientData clientData;          /* client data associated with proc */
     Tcl_CmdDeleteProc *deleteProc;  /* proc called to free up client data */
@@ -230,7 +228,7 @@ Itcl_RegisterObjC(interp, name, proc, clientData, deleteProc)
 int
 Itcl_FindC(interp, name, argProcPtr, objProcPtr, cDataPtr)
     Tcl_Interp *interp;           /* interpreter handling this registration */
-    char *name;                   /* symbolic name for procedure */
+    CONST char *name;             /* symbolic name for procedure */
     Tcl_CmdProc **argProcPtr;     /* returns (argc,argv) command handler */
     Tcl_ObjCmdProc **objProcPtr;  /* returns (objc,objv) command handler */
     ClientData *cDataPtr;         /* returns client data */

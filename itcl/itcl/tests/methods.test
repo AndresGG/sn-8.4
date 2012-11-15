@@ -5,20 +5,16 @@
 #            Bell Labs Innovations for Lucent Technologies
 #            mmclennan@lucent.com
 #            http://www.tcltk.com/itcl
-#
-#      RCS:  $Id$
 # ----------------------------------------------------------------------
 #            Copyright (c) 1993-1998  Lucent Technologies, Inc.
 # ======================================================================
 # See the file "license.terms" for information on usage and
 # redistribution of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 
-package require tcltest
-namespace import -force ::tcltest::*
+package require tcltest 2.1
+namespace import ::tcltest::test
 
-if {[string compare test [info procs test]] == 1} then {source defs}
-
-package require Itcl
+::tcltest::loadTestedCommands
 
 # ----------------------------------------------------------------------
 #  Methods with various argument lists
@@ -146,6 +142,17 @@ test methods-1.12 {formal args don't clobber class members, even in "time"} {
          [ta info variable bang -value] \
          [ta info variable boom -value]
 } {0 {crash_time: a b c} ok no-problem}
+
+test methods-2.1 {covers leak condition test for compiled locals, no args} {
+    for {set i 0} {$i < 100} {incr i} {
+	::itcl::class LeakClass {
+            proc leakProc {} { set n 1 }
+	}
+	LeakClass::leakProc
+	::itcl::delete class LeakClass
+    }
+    list 0
+} 0
 
 # ----------------------------------------------------------------------
 #  Clean up

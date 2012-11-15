@@ -20,8 +20,6 @@
  *           Bell Labs Innovations for Lucent Technologies
  *           mmclennan@lucent.com
  *           http://www.tcltk.com/itcl
- *
- *     RCS:  $Id$
  * ========================================================================
  *           Copyright (c) 1993-1998  Lucent Technologies, Inc.
  * ------------------------------------------------------------------------
@@ -69,6 +67,13 @@ namespace eval ::itcl {\n\
             lappend dirs [file join $bindir .. .. library]\n\
             lappend dirs [file join $bindir .. .. itcl library]\n\
             lappend dirs [file join $bindir .. .. .. itcl library]\n\
+            # On MacOSX, check the directories in the tcl_pkgPath\n\
+            if {[string equal $::tcl_platform(platform) \"unix\"] && \
+                    [string equal $::tcl_platform(os) \"Darwin\"]} {\n\
+                foreach d $::tcl_pkgPath {\n\
+                    lappend dirs [file join $d itcl$version]\n\
+                }\n\
+            }\n\
         }\n\
         foreach i $dirs {\n\
             set library $i\n\
@@ -101,7 +106,15 @@ static char safeInitScript[] =
     return $ptr\n\
 }";
 
-extern ItclStubs itclStubs;
+int itclCompatFlags = -1;
+
+#if ITCL_TCL_PRE_8_5
+int itclVarFlagOffset; 
+int itclVarRefCountOffset;
+int itclVarInHashSize;
+int itclVarLocalSize;
+int itclVarValueOffset;
+#endif
 
 
 /*
@@ -127,9 +140,15 @@ Initialize(interp)
     Tcl_Namespace *itclNs;
     ItclObjectInfo *info;
 
-    if (Tcl_InitStubs(interp, "8.1", 0) == NULL) {
-	return TCL_ERROR;
-    };
+#ifndef USE_TCL_STUBS
+    if (Tcl_PkgRequire(interp, "Tcl", TCL_VERSION, 0) == NULL) {
+      return TCL_ERROR;
+    }
+#else
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+      return TCL_ERROR;
+    }
+#endif
 
     /*
      *  See if [incr Tcl] is already installed.
@@ -140,13 +159,55 @@ Initialize(interp)
     }
 
     /*
+     *  Set the compatability options.  Stubs allows us to load into many
+     *  version of the Tcl core.  Some problems have crept-in, and we need
+     *  to adapt dynamically regarding use of some internal structures and
+     *  functions that have changed (or have been added) since 8.1.0
+     */
+    if (itclCompatFlags == -1) {
+	int maj, min, ptch, type;
+
+	itclCompatFlags = 0;
+	Tcl_GetVersion(&maj, &min, &ptch, &type);
+
+#if USE_TCL_STUBS
+	if ((maj == 8) && (min > 4) &&
+		((type > TCL_ALPHA_RELEASE) || (ptch > 2))) {
+	    itclCompatFlags |= ITCL_COMPAT_USE_ISTATE_API;
+	}
+#else
+    itclCompatFlags = 0;
+#endif
+
+#if ITCL_TCL_PRE_8_5
+#if USE_TCL_STUBS
+	if ((maj == 8) && (min < 5)) {
+#endif
+	    itclVarFlagOffset     = ItclOffset(Var, flags);
+	    itclVarRefCountOffset = ItclOffset(Var, refCount);
+	    itclVarValueOffset    = ItclOffset(Var, value);
+	    itclVarInHashSize     = sizeof(Var);
+	    itclVarLocalSize	  = sizeof(Var);
+#if USE_TCL_STUBS
+	} else {
+	    itclVarFlagOffset     = ItclOffset(ItclShortVar, flags);
+	    itclVarRefCountOffset = ItclOffset(ItclVarInHash, refCount);
+	    itclVarValueOffset    = ItclOffset(ItclShortVar, value);
+	    itclVarInHashSize     = sizeof(ItclVarInHash);
+	    itclVarLocalSize	  = sizeof(ItclShortVar);  
+	}
+#endif
+#endif
+    }
+
+    /*
      *  Initialize the ensemble package first, since we need this
      *  for other parts of [incr Tcl].
      */
     if (Itcl_EnsembleInit(interp) != TCL_OK) {
         return TCL_ERROR;
     }
-
+    
     /*
      *  Create the top-level data structure for tracking objects.
      *  Store this as "associated data" for easy access, but link
@@ -225,6 +286,28 @@ Initialize(interp)
     Itcl_PreserveData((ClientData)info);
 
     /*
+     *  Create the "itcl::is" command to test object
+     *  and classes existence.
+     */
+    if (Itcl_CreateEnsemble(interp, "::itcl::is") != TCL_OK) {
+        return TCL_ERROR;
+    }
+    if (Itcl_AddEnsemblePart(interp, "::itcl::is",
+            "class", "name", Itcl_IsClassCmd,
+            (ClientData)info, Itcl_ReleaseData) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    Itcl_PreserveData((ClientData)info);
+
+    if (Itcl_AddEnsemblePart(interp, "::itcl::is",
+            "object", "?-class classname? name", Itcl_IsObjectCmd,
+            (ClientData)info, Itcl_ReleaseData) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    Itcl_PreserveData((ClientData)info);
+
+
+    /*
      *  Add "code" and "scope" commands for handling scoped values.
      */
     Tcl_CreateObjCommand(interp, "::itcl::code", Itcl_CodeCmd,
@@ -255,7 +338,8 @@ Initialize(interp)
      *  values everywhere within the interpreter.
      */
     Tcl_AddInterpResolvers(interp, "itcl", (Tcl_ResolveCmdProc*)NULL,
-        Itcl_ScopedVarResolver, (Tcl_ResolveCompiledVarProc*)NULL);
+	    (Tcl_ResolveVarProc*)Itcl_ScopedVarResolver,
+	    (Tcl_ResolveCompiledVarProc*)NULL);
 
     /*
      *  Install the "itcl::parser" namespace used to parse the
@@ -274,22 +358,29 @@ Initialize(interp)
     }
 
     /*
-     *  Install stuff needed for backward compatibility with previous
-     *  version of [incr Tcl].
-     */
-    if (Itcl_OldInit(interp, info) != TCL_OK) {
-        return TCL_ERROR;
-    }
-
-    /*
      *  Export all commands in the "itcl" namespace so that they
      *  can be imported with something like "namespace import itcl::*"
      */
     itclNs = Tcl_FindNamespace(interp, "::itcl", (Tcl_Namespace*)NULL,
         TCL_LEAVE_ERR_MSG);
 
+    /*
+     *  This was changed from a glob export (itcl::*) to explicit
+     *  command exports, so that the itcl::is command can *not* be
+     *  exported. This is done for concern that the itcl::is command
+     *  imported might be confusing ("is").
+     */   
     if (!itclNs ||
-        Tcl_Export(interp, itclNs, "*", /* resetListFirst */ 1) != TCL_OK) {
+	    (Tcl_Export(interp, itclNs, "body", /* reset */ 1) != TCL_OK) ||
+	    (Tcl_Export(interp, itclNs, "class", 0) != TCL_OK) ||
+	    (Tcl_Export(interp, itclNs, "code", 0) != TCL_OK) ||
+	    (Tcl_Export(interp, itclNs, "configbody", 0) != TCL_OK) ||
+	    (Tcl_Export(interp, itclNs, "delete", 0) != TCL_OK) ||
+	    (Tcl_Export(interp, itclNs, "delete_helper", 0) != TCL_OK) ||
+	    (Tcl_Export(interp, itclNs, "ensemble", 0) != TCL_OK) ||
+	    (Tcl_Export(interp, itclNs, "find", 0) != TCL_OK) ||
+	    (Tcl_Export(interp, itclNs, "local", 0) != TCL_OK) ||
+	    (Tcl_Export(interp, itclNs, "scope", 0) != TCL_OK)) {
         return TCL_ERROR;
     }
 
@@ -306,10 +397,14 @@ Initialize(interp)
     /*
      *  Package is now loaded.
      */
-    if (Tcl_PkgProvideEx(interp, "Itcl", ITCL_VERSION,
-            (ClientData) &itclStubs) != TCL_OK) {
-	return TCL_ERROR;
+    {
+	extern ItclStubs itclStubs;
+	if (Tcl_PkgProvideEx(interp, "Itcl", ITCL_VERSION,
+		(ClientData)&itclStubs) != TCL_OK) {
+	    return TCL_ERROR;
+	}
     }
+
     return TCL_OK;
 }
 
@@ -392,7 +487,15 @@ ItclDelObjectInfo(cdata)
     while (entry) {
         contextObj = (ItclObject*)Tcl_GetHashValue(entry);
         Tcl_DeleteCommandFromToken(info->interp, contextObj->accessCmd);
-        entry = Tcl_NextHashEntry(&place);
+	    /*
+	     * Fix 227804: Whenever an object to delete was found we
+	     * have to reset the search to the beginning as the
+	     * current entry in the search was deleted and accessing it
+	     * is therefore not allowed anymore.
+	     */
+
+	    entry = Tcl_FirstHashEntry(&info->objects, &place);
+	    /*entry = Tcl_NextHashEntry(&place);*/
     }
     Tcl_DeleteHashTable(&info->objects);
 
@@ -438,15 +541,15 @@ Itcl_FindClassesCmd(clientData, interp, objc, objv)
     int forceFullNames = 0;
 
     char *pattern;
-    char *name;
-    int i, newEntry, handledActiveNs;
+    CONST char *cmdName;
+    int newEntry, handledActiveNs;
     Tcl_HashTable unique;
     Tcl_HashEntry *entry;
     Tcl_HashSearch place;
     Itcl_Stack search;
     Tcl_Command cmd, originalCmd;
     Namespace *nsPtr;
-    Tcl_Obj *listPtr, *objPtr;
+    Tcl_Obj *objPtr;
 
     if (objc > 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "?pattern?");
@@ -454,7 +557,7 @@ Itcl_FindClassesCmd(clientData, interp, objc, objv)
     }
 
     if (objc == 2) {
-        pattern = Tcl_GetStringFromObj(objv[1], (int*)NULL);
+        pattern = Tcl_GetString(objv[1]);
         forceFullNames = (strstr(pattern, "::") != NULL);
     } else {
         pattern = NULL;
@@ -466,7 +569,6 @@ Itcl_FindClassesCmd(clientData, interp, objc, objv)
      *  in this interpreter.  If we find any commands that
      *  represent classes, report them.
      */
-    listPtr = Tcl_NewListObj(0, (Tcl_Obj* CONST*)NULL);
 
     Itcl_InitStack(&search);
     Itcl_PushStack((ClientData)globalNs, &search);
@@ -501,10 +603,10 @@ Itcl_FindClassesCmd(clientData, interp, objc, objv)
 
                     objPtr = Tcl_NewStringObj((char*)NULL, 0);
                     Tcl_GetCommandFullName(interp, cmd, objPtr);
-                    name = Tcl_GetStringFromObj(objPtr, (int*)NULL);
+                    cmdName = Tcl_GetString(objPtr);
                 } else {
-                    name = Tcl_GetCommandName(interp, cmd);
-                    objPtr = Tcl_NewStringObj(name, -1);
+                    cmdName = Tcl_GetCommandName(interp, cmd);
+                    objPtr = Tcl_NewStringObj(cmdName, -1);
                 }
 
                 if (originalCmd) {
@@ -512,10 +614,16 @@ Itcl_FindClassesCmd(clientData, interp, objc, objv)
                 }
                 Tcl_CreateHashEntry(&unique, (char*)cmd, &newEntry);
 
-                if (newEntry && (!pattern || Tcl_StringMatch(name, pattern))) {
+                if (newEntry &&
+			(!pattern || Tcl_StringMatch(cmdName,
+			pattern))) {
                     Tcl_ListObjAppendElement((Tcl_Interp*)NULL,
-                        listPtr, objPtr);
-                }
+			    Tcl_GetObjResult(interp), objPtr);
+                } else {
+		    /* if not appended to the result, free objPtr. */
+		    Tcl_DecrRefCount(objPtr);
+		}
+
             }
             entry = Tcl_NextHashEntry(&place);
         }
@@ -534,7 +642,6 @@ Itcl_FindClassesCmd(clientData, interp, objc, objv)
     Tcl_DeleteHashTable(&unique);
     Itcl_DeleteStack(&search);
 
-    Tcl_SetObjResult(interp, listPtr);
     return TCL_OK;
 }
 
@@ -567,8 +674,9 @@ Itcl_FindObjectsCmd(clientData, interp, objc, objv)
     ItclClass *classDefn = NULL;
     ItclClass *isaDefn = NULL;
 
-    char *name, *token;
-    int i, pos, newEntry, match, handledActiveNs;
+    char *name = NULL, *token = NULL;
+    CONST char *cmdName = NULL;
+    int pos, newEntry, match, handledActiveNs;
     ItclObject *contextObj;
     Tcl_HashTable unique;
     Tcl_HashEntry *entry;
@@ -577,7 +685,7 @@ Itcl_FindObjectsCmd(clientData, interp, objc, objv)
     Tcl_Command cmd, originalCmd;
     Namespace *nsPtr;
     Command *cmdPtr;
-    Tcl_Obj *listPtr, *objPtr;
+    Tcl_Obj *objPtr;
 
     /*
      *  Parse arguments:
@@ -585,7 +693,7 @@ Itcl_FindObjectsCmd(clientData, interp, objc, objv)
      */
     pos = 0;
     while (++pos < objc) {
-        token = Tcl_GetStringFromObj(objv[pos], (int*)NULL);
+        token = Tcl_GetString(objv[pos]);
         if (*token != '-') {
             if (!pattern) {
                 pattern = token;
@@ -595,7 +703,7 @@ Itcl_FindObjectsCmd(clientData, interp, objc, objv)
             }
         }
         else if ((pos+1 < objc) && (strcmp(token,"-class") == 0)) {
-            name = Tcl_GetStringFromObj(objv[pos+1], (int*)NULL);
+            name = Tcl_GetString(objv[pos+1]);
             classDefn = Itcl_FindClass(interp, name, /* autoload */ 1);
             if (classDefn == NULL) {
                 return TCL_ERROR;
@@ -603,7 +711,7 @@ Itcl_FindObjectsCmd(clientData, interp, objc, objv)
             pos++;
         }
         else if ((pos+1 < objc) && (strcmp(token,"-isa") == 0)) {
-            name = Tcl_GetStringFromObj(objv[pos+1], (int*)NULL);
+            name = Tcl_GetString(objv[pos+1]);
             isaDefn = Itcl_FindClass(interp, name, /* autoload */ 1);
             if (isaDefn == NULL) {
                 return TCL_ERROR;
@@ -637,7 +745,6 @@ Itcl_FindObjectsCmd(clientData, interp, objc, objv)
      *  in this interpreter.  If we find any commands that
      *  represent objects, report them.
      */
-    listPtr = Tcl_NewListObj(0, (Tcl_Obj* CONST*)NULL);
 
     Itcl_InitStack(&search);
     Itcl_PushStack((ClientData)globalNs, &search);
@@ -677,16 +784,18 @@ Itcl_FindObjectsCmd(clientData, interp, objc, objv)
 
                     objPtr = Tcl_NewStringObj((char*)NULL, 0);
                     Tcl_GetCommandFullName(interp, cmd, objPtr);
-                    name = Tcl_GetStringFromObj(objPtr, (int*)NULL);
+		    cmdName = Tcl_GetString(objPtr);
                 } else {
-                    name = Tcl_GetCommandName(interp, cmd);
-                    objPtr = Tcl_NewStringObj(name, -1);
+                    cmdName = Tcl_GetCommandName(interp, cmd);
+                    objPtr = Tcl_NewStringObj(cmdName, -1);
                 }
 
                 Tcl_CreateHashEntry(&unique, (char*)cmd, &newEntry);
 
                 match = 0;
-                if (newEntry && (!pattern || Tcl_StringMatch(name, pattern))) {
+		if (newEntry &&
+			(!pattern || Tcl_StringMatch(cmdName,
+			pattern))) {
                     if (!classDefn || (contextObj->classDefn == classDefn)) {
                         if (!isaDefn) {
                             match = 1;
@@ -704,10 +813,9 @@ Itcl_FindObjectsCmd(clientData, interp, objc, objv)
 
                 if (match) {
                     Tcl_ListObjAppendElement((Tcl_Interp*)NULL,
-                        listPtr, objPtr);
+                        Tcl_GetObjResult(interp), objPtr);
                 } else {
-                    Tcl_IncrRefCount(objPtr);  /* throw away the name */
-                    Tcl_DecrRefCount(objPtr);
+                    Tcl_DecrRefCount(objPtr);  /* throw away the name */
                 }
             }
             entry = Tcl_NextHashEntry(&place);
@@ -727,7 +835,6 @@ Itcl_FindObjectsCmd(clientData, interp, objc, objv)
     Tcl_DeleteHashTable(&unique);
     Itcl_DeleteStack(&search);
 
-    Tcl_SetObjResult(interp, listPtr);
     return TCL_OK;
 }
 
@@ -772,13 +879,7 @@ Itcl_ProtectionCmd(clientData, interp, objc, objv)
     oldLevel = Itcl_Protection(interp, pLevel);
 
     if (objc == 2) {
-      /* CYGNUS LOCAL - Fix for 8.1 */
-#if TCL_MAJOR_VERSION == 8 && TCL_MINOR_VERSION == 1
-        result = Tcl_EvalObj(interp, objv[1], 0);
-#else
         result = Tcl_EvalObj(interp, objv[1]);
-#endif
-	/* END CYGNUS LOCAL */
     } else {
         result = Itcl_EvalArgs(interp, objc-1, objv+1);
     }
@@ -795,9 +896,9 @@ Itcl_ProtectionCmd(clientData, interp, objc, objv)
     }
     else if (result != TCL_OK) {
         char mesg[256], *name;
-        name = Tcl_GetStringFromObj(objv[0], (int*)NULL);
-        sprintf(mesg, "\n    (%.100s body line %d)",
-            name, interp->errorLine);
+        name = Tcl_GetString(objv[0]);
+        sprintf(mesg, "\n    (%.100s body line %d)", name,
+		Tcl_GetErrorLine(interp));
         Tcl_AddErrorInfo(interp, mesg);
     }
 
@@ -839,7 +940,7 @@ Itcl_DelClassCmd(clientData, interp, objc, objv)
      *  then delete them.
      */
     for (i=1; i < objc; i++) {
-        name = Tcl_GetStringFromObj(objv[i], (int*)NULL);
+        name = Tcl_GetString(objv[i]);
         cdefn = Itcl_FindClass(interp, name, /* autoload */ 1);
         if (cdefn == NULL) {
             return TCL_ERROR;
@@ -847,7 +948,7 @@ Itcl_DelClassCmd(clientData, interp, objc, objv)
     }
 
     for (i=1; i < objc; i++) {
-        name = Tcl_GetStringFromObj(objv[i], (int*)NULL);
+        name = Tcl_GetString(objv[i]);
         cdefn = Itcl_FindClass(interp, name, /* autoload */ 0);
 
         if (cdefn) {
@@ -898,7 +999,7 @@ Itcl_DelObjectCmd(clientData, interp, objc, objv)
         }
 
         if (contextObj == NULL) {
-            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+            Tcl_AppendResult(interp,
                 "object \"", name, "\" not found",
                 (char*)NULL);
             return TCL_ERROR;
@@ -958,7 +1059,7 @@ Itcl_ScopeCmd(dummy, interp, objc, objv)
     ItclClass *contextClass;
     ItclObject *contextObj;
     ItclObjectInfo *info;
-    Tcl_CallFrame *framePtr;
+    Itcl_CallFrame *framePtr;
     Tcl_HashEntry *entry;
     ItclVarLookup *vlookup;
     Tcl_Obj *objPtr;
@@ -1012,7 +1113,7 @@ Itcl_ScopeCmd(dummy, interp, objc, objv)
 
         entry = Tcl_FindHashEntry(&contextClass->resolveVars, token);
         if (!entry) {
-            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+            Tcl_AppendResult(interp,
                 "variable \"", token, "\" not found in class \"",
                 contextClass->fullname, "\"",
                 (char*)NULL);
@@ -1042,7 +1143,7 @@ Itcl_ScopeCmd(dummy, interp, objc, objv)
 
         entry = Tcl_FindHashEntry(&info->contextFrames, (char*)framePtr);
         if (!entry) {
-            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+            Tcl_AppendResult(interp,
                 "can't scope variable \"", token,
                 "\": missing object context\"",
                 (char*)NULL);
@@ -1088,7 +1189,7 @@ Itcl_ScopeCmd(dummy, interp, objc, objv)
             TCL_NAMESPACE_ONLY);
 
         if (!var) {
-            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+            Tcl_AppendResult(interp,
                 "variable \"", token, "\" not found in namespace \"",
                 contextNs->fullName, "\"",
                 (char*)NULL);
@@ -1176,7 +1277,7 @@ Itcl_CodeCmd(dummy, interp, objc, objv)
             break;
         }
         else {
-            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+            Tcl_AppendResult(interp,
                 "bad option \"", token, "\": should be -namespace or --",
                 (char*)NULL);
             return TCL_ERROR;
@@ -1390,7 +1491,7 @@ ItclHandleStubCmd(clientData, interp, objc, objv)
     result = Tcl_GetIntFromObj(interp, objPtr, &loaded);
     if (result != TCL_OK || !loaded) {
         Tcl_ResetResult(interp);
-        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+        Tcl_AppendResult(interp,
             "can't autoload \"", cmdName, "\"", (char*)NULL);
         Tcl_DecrRefCount(cmdNamePtr);
         return TCL_ERROR;
@@ -1428,3 +1529,180 @@ ItclDeleteStub(cdata)
 {
     /* do nothing */
 }
+
+
+/*
+ * ------------------------------------------------------------------------
+ *  Itcl_IsObjectCmd()
+ *
+ *  Invoked by Tcl whenever the user issues an "itcl::is object"
+ *  command to test whether the argument is an object or not.
+ *  syntax:
+ *
+ *    itcl::is object ?-class classname? commandname
+ *
+ *  Sets interp result to 1 if it is an object, 0 otherwise
+ * ------------------------------------------------------------------------
+ */
+int
+Itcl_IsObjectCmd(clientData, interp, objc, objv)
+    ClientData clientData;   /* class/object info */
+    Tcl_Interp *interp;      /* current interpreter */
+    int objc;                /* number of arguments */
+    Tcl_Obj *CONST objv[];   /* argument objects */
+{
+
+    int             classFlag = 0;
+    int             idx = 0;
+    char            *name = "";
+    char            *cname;
+    char            *cmdName;
+    char            *token;
+    Tcl_Command     cmd;
+    Command         *cmdPtr;
+    Tcl_Namespace   *contextNs = NULL;
+    ItclClass       *classDefn = NULL;
+    ItclObject      *contextObj;
+
+    /*
+     *    Handle the arguments.
+     *    objc needs to be either:
+     *        2    itcl::is object commandname
+     *        4    itcl::is object -class classname commandname
+     */
+    if (objc != 2 && objc != 4) {
+        Tcl_WrongNumArgs(interp, 1, objv, "?-class classname? commandname");
+        return TCL_ERROR;
+    }
+
+    /*
+     *    Parse the command args. Look for the -class
+     *    keyword.
+     */
+    for (idx=1; idx < objc; idx++) {
+        token = Tcl_GetString(objv[idx]);
+
+        if (strcmp(token,"-class") == 0) {
+            cname = Tcl_GetString(objv[idx+1]);
+            classDefn = Itcl_FindClass(interp, cname, /* no autoload */ 0);
+
+            if (classDefn == NULL) {
+                    return TCL_ERROR;
+            }
+
+            idx++;
+            classFlag = 1;
+        } else {
+            name = Tcl_GetString(objv[idx]);
+        }
+
+    } /* end for objc loop */
+
+    /*
+     *  The object name may be a scoped value of the form
+     *  "namespace inscope <namesp> <command>".  If it is,
+     *  decode it.
+     */
+    if (Itcl_DecodeScopedCommand(interp, name, &contextNs, &cmdName)
+        != TCL_OK) {
+        return TCL_ERROR;
+    }
+
+    cmd = Tcl_FindCommand(interp, cmdName, contextNs, /* flags */ 0);
+
+    /*
+     *    Need the NULL test, or the test will fail if cmd is NULL
+     */
+    if (cmd == NULL || ! Itcl_IsObject(cmd)) {
+        Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
+        return TCL_OK;
+    }
+
+    /*
+     *    Handle the case when the -class flag is given
+     */
+    if (classFlag) {
+        cmdPtr = (Command*)cmd;
+        contextObj = (ItclObject*)cmdPtr->objClientData;
+
+        if (! Itcl_ObjectIsa(contextObj, classDefn)) {
+
+            Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
+            return TCL_OK;
+        }
+
+    }
+
+    /*
+     *    Got this far, so assume that it is a valid object
+     */
+    Tcl_SetObjResult(interp, Tcl_NewBooleanObj(1));
+    ckfree(cmdName);
+
+    return TCL_OK;
+}
+
+
+
+/*
+ * ------------------------------------------------------------------------
+ *  Itcl_IsClassCmd()
+ *
+ *  Invoked by Tcl whenever the user issues an "itcl::is class"
+ *  command to test whether the argument is an itcl class or not
+ *  syntax:
+ *
+ *    itcl::is class commandname
+ *
+ *  Sets interp result to 1 if it is a class, 0 otherwise
+ * ------------------------------------------------------------------------
+ */
+int
+Itcl_IsClassCmd(clientData, interp, objc, objv)
+    ClientData clientData;   /* class/object info */
+    Tcl_Interp *interp;      /* current interpreter */
+    int objc;                /* number of arguments */
+    Tcl_Obj *CONST objv[];   /* argument objects */
+{
+
+    char           *cname;
+    char           *name;
+    ItclClass      *classDefn = NULL;
+    Tcl_Namespace  *contextNs = NULL;
+
+    /*
+     *    Need itcl::is class classname
+     */
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "commandname");
+        return TCL_ERROR;
+    }
+
+    name = Tcl_GetString(objv[1]);
+
+    /*
+     *    The object name may be a scoped value of the form
+     *    "namespace inscope <namesp> <command>".  If it is,
+     *    decode it.
+     */
+    if (Itcl_DecodeScopedCommand(interp, name, &contextNs, &cname) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
+    classDefn = Itcl_FindClass(interp, cname, /* no autoload */ 0);
+
+    /*
+     *    If classDefn is NULL, then it wasn't found, hence it
+     *    isn't a class
+     */
+    if (classDefn != NULL) {
+        Tcl_SetObjResult(interp, Tcl_NewBooleanObj(1));
+    } else {
+        Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
+    }
+
+    ckfree(cname);
+
+    return TCL_OK;
+
+} /* end Itcl_IsClassCmd function */
