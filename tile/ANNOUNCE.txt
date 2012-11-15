@@ -1,0 +1,57 @@
+[29 Nov 2010]
+
+ANNOUNCE: Tile Widget Set, version 0.8.4.0
+
+~ What is it?
+
+The Tile widget set is an experimental reimplementation
+of some of the standard Tk widgets.  It is provided as an
+extension for use with Tk 8.4.  Since it has been incorporated
+into Tk 8.5 you probably don't need this extension.
+
+~ What's New in 0.8.4.0
+
+Tile 0.8.4.0 is a checkpoint release, matching what is included
+in Tk 8.5.9 (including all bugs).  It will most likely also match
+what is eventually to be available in Tk 8.6.0.
+
+~ Changes since 0.8.2
+
+    + Support for Windows Vista
+    + New [ttk::spinbox] widget
+    + Improved MouseWheel bindings
+    + Improved tag support in treeview widget; new methods
+      'tag has', 'tag add', 'tag remove', and 'tag names'
+    + Uniform support for [$w identify] methods.
+    + Widget states user1, user2, and user3 available for custom widgets
+    + Not enough bugfixes
+
+~ On version numbers
+
+The version numbering scheme has changed again.  To prevent conflicts
+when application code that calls [package require tile] is run
+in a Tk 8.5+ interpreter, the tile extension currently provides
+version "0.8.4.0".  Subsequent releases, if any, will be numbered
+"0.8.4.X".
+
+As before, the last component of the version number will be incremented
+immediately before and immediately after making a release.  Thus
+odd-numbered versions indicate a CVS snapshot.
+
+~ Availability
+
+The tile widget set is hosted under the tktable project
+at SourceForge:
+
+    <URL: http://tktable.sourceforge.net/tile/ >
+    <URL: http://sourceforge.net/projects/tktable/ >
+
+Sources are available under the 'tile' module in CVS.
+A prebundled tarball is available in the file release area:
+
+    <URL: http://sourceforge.net/project/showfiles.php?group_id=11464 >
+
+Documentation is available here:
+
+    <URL: http://tktable.sourceforge.net/tile/doc/ >
+

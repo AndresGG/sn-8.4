@@ -1,0 +1,78 @@
+# 
+# configure.in,v 1.56 2010/11/29 18:29:04 jenglish Exp
+#
+builtin(include, ../tclconfig/tcl.m4)
+builtin(include, ../tclconfig/teax.m4)
+
+AC_INIT([tile],[0.8.4.0])
+AC_CONFIG_AUX_DIR(../tclconfig)
+AC_REVISION(1.56)
+
+# Usual Tcl stuff:
+#
+TEA_INIT([3.9])
+TEA_PATH_TCLCONFIG
+TEA_LOAD_TCLCONFIG
+TEA_PATH_TKCONFIG
+TEA_LOAD_TKCONFIG
+TEA_PREFIX
+
+dnl 
+dnl Alternative to TEA_SETUP_COMPILER:
+dnl (TEA_SETUP_COMPILER is for building Tcl itself)
+dnl
+AC_PROG_CC
+AC_PROG_INSTALL
+AC_PROG_RANLIB
+AC_OBJEXT
+
+TEA_PRIVATE_TCL_HEADERS
+TEA_PRIVATE_TK_HEADERS
+
+TEA_PROG_TCLSH
+TEA_PROG_WISH
+
+# Build stuff:
+#
+TEA_CONFIG_CFLAGS
+TEA_PATH_X
+dnl TEA_ENABLE_THREADS
+TEA_ENABLE_SHARED
+TEA_ENABLE_SYMBOLS
+
+AC_DEFINE(USE_TCL_STUBS,1,[Use Tcl stub library])
+AC_DEFINE(USE_TK_STUBS,1,[Use Tk stub library])
+dnl AC_DEFINE(BUILD_tile,1,[Source for tile package])
+
+TEAX_CONFIG_LDFLAGS
+TEAX_FIX_LIB_SPECS
+TEAX_EXPAND_CFLAGS
+
+# Platform-specific stuff:
+#
+case "${TEA_WINDOWINGSYSTEM}" in
+    win32)
+	PLATFORM_OBJS='$(WIN_OBJS)'
+	PKG_LIBS="${PKG_LIBS}"
+	TEA_ADD_LIBS([user32.lib gdi32.lib])
+	AC_CHECK_HEADER([uxtheme.h], 
+		[AC_DEFINE(HAVE_UXTHEME_H,1,[XP uxtheme.h available])],
+		[AC_MSG_NOTICE([xpnative theme will be unavailable])],
+		[#include <windows.h>])
+	;;
+    aqua)
+	PLATFORM_OBJS='$(MAC_OBJS)'	; # Ignore autoconf warning, it's bogus
+	PKG_LIBS="${PKG_LIBS} -framework Carbon"
+	;;
+    x11)
+	PLATFORM_OBJS='$(X11_OBJS)'
+	;;
+esac;
+AC_SUBST(PLATFORM_OBJS)
+
+#--------------------------------------------------------------------
+
+AC_CONFIG_FILES([Makefile pkgIndex.tcl])
+AC_OUTPUT
+
+#*EOF*
