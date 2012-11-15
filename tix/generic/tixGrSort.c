@@ -1,3 +1,6 @@
+
+/*	$Id: tixGrSort.c,v 1.3 2008/02/28 04:05:29 hobbs Exp $	*/
+
 /* 
  * tixGrSel.c --
  *
@@ -43,11 +46,6 @@ static int sortCode;			/* Anything other than TCL_OK means a
 /*
  * Forward declarations for procedures defined in this file:
  */
-
-#ifdef BUILD_tix
-# undef TCL_STORAGE_CLASS
-# define TCL_STORAGE_CLASS DLLEXPORT
-#endif
 
 EXTERN TIX_DECLARE_SUBCMD(Tix_GrSort);
 
@@ -148,14 +146,14 @@ Tix_GrSort(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int i, axis, otherAxis, start, end;
     size_t len;
     Tix_GrSortItem *items = NULL;
     int numItems;
-    char *command = NULL;		/* Initialization needed only to
+    CONST84 char *command = NULL;	/* Initialization needed only to
 					 * prevent compiler warning. */
     int sortKeyIndex;
     int gridSize[2];
@@ -165,7 +163,9 @@ Tix_GrSort(clientData, interp, argc, argv)
      *-------------------------------------------------------------------
      */
     if (sortInterp != NULL) {
-	interp->result = "can't invoke the tixGrid sort command recursively";
+	Tcl_SetResult(interp,
+		"can't invoke the tixGrid sort command recursively",
+		TCL_STATIC);
 	return TCL_ERROR;
     }
 
@@ -383,7 +383,7 @@ SortCompareProc(first, second)
     }
     if (secondString == NULL) {
 	/* first larger than second */
-	order = 1;	
+	order = 1;
 	goto done;
     }
     if (firstString == NULL) {

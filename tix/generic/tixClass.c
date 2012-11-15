@@ -3,12 +3,14 @@
  *
  *	Implements the basic OOP class mechanism for the Tix Intrinsics.
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000-2001 Tix Project Group.
  *
  * See the file "license.terms" for information on usage and
  * redistribution of this file, and for a DISCLAIMER OF ALL
  * WARRANTIES.
  *
+ * $Id: tixClass.c,v 1.7 2008/02/28 04:29:47 hobbs Exp $
  */
 
 /*
@@ -26,7 +28,6 @@
 #include <tk.h>
 #include <tixPort.h>
 #include <tixInt.h>
-#include <tixItcl.h>
 
 /*
  * Access control is not enabled yet.
@@ -38,9 +39,9 @@ static void		ClassTableDeleteProc _ANSI_ARGS_((
 			    ClientData clientData, Tcl_Interp *interp));
 static TixConfigSpec *	CopySpec _ANSI_ARGS_((TixConfigSpec *spec));
 static TixClassRecord * CreateClassByName _ANSI_ARGS_((Tcl_Interp * interp,
-			    char * classRec));
+			    CONST84 char * classRec));
 static TixClassRecord * CreateClassRecord _ANSI_ARGS_((Tcl_Interp *interp,
-			    char * classRec, Tk_Window mainWindow,
+			    CONST84 char * classRec, Tk_Window mainWindow,
 			    int isWidget));
 static void		FreeClassRecord _ANSI_ARGS_((
 			    TixClassRecord *cPtr));
@@ -48,38 +49,38 @@ static void		FreeParseOptions _ANSI_ARGS_((
 			    TixClassParseStruct * parsePtr));
 static void		FreeSpec _ANSI_ARGS_((TixConfigSpec *spec));
 static TixClassRecord * GetClassByName _ANSI_ARGS_((Tcl_Interp * interp,
-			    char * classRec));
+			    CONST84 char * classRec));
 static TixConfigSpec *	InitAlias _ANSI_ARGS_((Tcl_Interp *interp,
-			    TixClassRecord * cPtr, char *s));
+			    TixClassRecord * cPtr, CONST84 char *s));
 static int		InitHashEntries _ANSI_ARGS_((
 			    Tcl_Interp *interp,TixClassRecord * cPtr));
 static int		InitClass _ANSI_ARGS_((Tcl_Interp * interp,
-			    char * classRec, TixClassRecord * cPtr,
+			    CONST84 char * classRec, TixClassRecord * cPtr,
 			    TixClassRecord * scPtr,
 			    TixClassParseStruct * parsePtr));
 static TixConfigSpec *	InitSpec _ANSI_ARGS_((Tcl_Interp * interp,
-			    char * s, int isWidget));
+			    CONST84 char * s, int isWidget));
 static int 		ParseClassOptions _ANSI_ARGS_((
-			    Tcl_Interp * interp, char * opts,
+			    Tcl_Interp * interp, CONST84 char * opts,
 			    TixClassParseStruct * rec));
 static int		ParseInstanceOptions _ANSI_ARGS_((
 			    Tcl_Interp * interp,TixClassRecord * cPtr,
-			    char *widRec, int argc, char** argv));
+			    CONST84 char *widRec, int argc, CONST84 char** argv));
 static int 		SetupAlias _ANSI_ARGS_((Tcl_Interp *interp,
-			    TixClassRecord * cPtr, char *s));
+			    TixClassRecord * cPtr, CONST84 char *s));
 static int		SetupAttribute _ANSI_ARGS_((Tcl_Interp *interp,
-			    TixClassRecord * cPtr, char *s,
+			    TixClassRecord * cPtr, CONST84 char *s,
 			    int which));
 static int 		SetupMethod _ANSI_ARGS_((Tcl_Interp *interp,
-			    TixClassRecord * cPtr, char *s));
+			    TixClassRecord * cPtr, CONST84 char *s));
 static int 		SetupDefault _ANSI_ARGS_((Tcl_Interp *interp,
-			    TixClassRecord * cPtr, char *s));
+			    TixClassRecord * cPtr, CONST84 char *s));
 #if USE_ACCESS_CONTROL
 static int 		SetupSubWidget _ANSI_ARGS_((Tcl_Interp *interp,
-			    TixClassRecord * cPtr, char *s));
+			    TixClassRecord * cPtr, CONST84 char *s));
 #endif
 static int 		SetupSpec _ANSI_ARGS_((Tcl_Interp *interp,
-			    TixClassRecord * cPtr, char *s,
+			    TixClassRecord * cPtr, CONST84 char *s,
 			    int isWidget));
 
 TIX_DECLARE_CMD(Tix_CreateWidgetCmd);
@@ -88,11 +89,14 @@ TIX_DECLARE_CMD(Tix_InstanceCmd);
 TIX_DECLARE_CMD(Tix_UninitializedClassCmd);
 
 /*
- * Hash tables used to store the classes and class specs.
+ * Per-interpreter hashtables used to store the classes and class specs. 
  */
 
-#define GetClassTable(interp) _TixGetHashTable(interp, "tixClassTab",  ClassTableDeleteProc)
-#define GetSpecTable(interp)  _TixGetHashTable(interp, "tixSpecTab", NULL)
+#define GetClassTable(interp) \
+    (TixGetHashTable(interp, "tixClassTab",  ClassTableDeleteProc, \
+            TCL_STRING_KEYS))
+#define GetSpecTable(interp)  \
+    (TixGetHashTable(interp, "tixSpecTab", NULL, TCL_STRING_KEYS))
 
 static char * TIX_EMPTY_STRING = "";
 
@@ -108,7 +112,7 @@ static char * TIX_EMPTY_STRING = "";
 static TixClassRecord *
 GetClassByName(interp, classRec)
     Tcl_Interp * interp;
-    char * classRec;
+    CONST84 char * classRec;
 {
     Tcl_HashEntry *hashPtr;
 
@@ -123,22 +127,22 @@ GetClassByName(interp, classRec)
 static TixClassRecord *
 CreateClassByName(interp, classRec)
     Tcl_Interp * interp;
-    char * classRec;
+    CONST84 char * classRec;
 {
     TixClassRecord * cPtr;
-    TixInterpState state;
+    Tcl_SavedResult state;
 
-    TixSaveInterpState(interp, &state);
     cPtr = GetClassByName(interp, classRec);
     if (cPtr == NULL) {
+	Tcl_SaveResult(interp, &state);
 	if (Tix_GlobalVarEval(interp, classRec, ":AutoLoad", (char*)NULL)
 	        == TCL_ERROR){
 	    cPtr = NULL;
 	} else {
 	    cPtr = GetClassByName(interp, classRec);
 	}
+	Tcl_RestoreResult(interp, &state);
     }
-    TixRestoreInterpState(interp, &state);
 
     return cPtr;
 }
@@ -155,7 +159,7 @@ CreateClassByName(interp, classRec)
 static TixClassRecord *
 CreateClassRecord(interp, classRec, mainWindow, isWidget)
     Tcl_Interp * interp;
-    char * classRec;
+    CONST84 char * classRec;
     Tk_Window mainWindow;
     int isWidget;
 {
@@ -166,13 +170,13 @@ CreateClassRecord(interp, classRec, mainWindow, isWidget)
     hashPtr = Tcl_CreateHashEntry(GetClassTable(interp), classRec, &isNew);
 
     if (isNew) {
-	cPtr = (TixClassRecord *)ckalloc(sizeof(TixClassRecord));
+	cPtr = (TixClassRecord *)Tix_ZAlloc(sizeof(TixClassRecord));
 #if USE_ACCESS_CONTROL
 	cPtr->next       = NULL;
 #endif
 	cPtr->superClass = NULL;
 	cPtr->isWidget   = isWidget;
-	cPtr->className  = (char*)tixStrDup(classRec);
+	cPtr->className  = tixStrDup(classRec);
 	cPtr->ClassName  = NULL;
 	cPtr->nSpecs     = 0;
 	cPtr->specs      = 0;
@@ -218,9 +222,8 @@ TIX_DEFINE_CMD(Tix_ClassCmd)
     int	isWidget, code = TCL_OK;
     TixClassParseStruct * parsePtr;
     TixClassRecord * cPtr, * scPtr;
-    char * classRec = argv[1];
+    CONST84 char * classRec = argv[1];
     Tk_Window mainWindow = (Tk_Window)clientData;
-    DECLARE_ITCL_NAMESP(nameSp, interp);
 
     if (strcmp(argv[0], "tixClass")==0) {
 	isWidget = 0;
@@ -231,13 +234,20 @@ TIX_DEFINE_CMD(Tix_ClassCmd)
     if (argc != 3) {
 	return Tix_ArgcError(interp, argc, argv, 1, "className {...}");
     }
-    if (!TixItclSetGlobalNameSp(&nameSp, interp)) {
-	parsePtr = NULL;
-        code = TCL_ERROR;
-	goto done;
+
+    if (strstr(argv[1], "::") != NULL) {
+        /*
+         * Cannot contain :: in instance name, otherwise all hell will
+         * rise w.r.t. namespace
+         */
+
+        Tcl_AppendResult(interp, "invalid class name \"", argv[1],
+		"\": may not contain substring \"::\"", NULL);
+        return TCL_ERROR;
     }
 
-    parsePtr = (TixClassParseStruct *)ckalloc(sizeof(TixClassParseStruct));
+
+    parsePtr = (TixClassParseStruct *)Tix_ZAlloc(sizeof(TixClassParseStruct));
     if (ParseClassOptions(interp, argv[2], parsePtr) != TCL_OK) {
 	ckfree((char*)parsePtr);
 	parsePtr = NULL;
@@ -296,14 +306,20 @@ TIX_DEFINE_CMD(Tix_ClassCmd)
 	/*
 	 * It is safe to initialized the class now.
 	 */
+
 	code = InitClass(interp, classRec, cPtr, scPtr, parsePtr);
 	FreeParseOptions(parsePtr);
+        parsePtr = NULL;
 	cPtr->parsePtr = NULL;
     } else {
 	/*
 	 * This class has an uninitialized superclass. We wait until the
 	 * superclass is initialized before we initialize this class.
+         *
+         * Because there is no :: inside the cPtr->className, the command is
+         * created in the global namespace.
 	 */
+
 	Tix_SimpleListAppend(&scPtr->unInitSubCls, (char*)cPtr, 0);
 	Tcl_CreateCommand(interp, cPtr->className,
 		Tix_UninitializedClassCmd, (ClientData)cPtr, NULL);
@@ -311,7 +327,6 @@ TIX_DEFINE_CMD(Tix_ClassCmd)
     }
 
 done:
-    TixItclRestoreGlobalNameSp(&nameSp, interp);
     if (code == TCL_ERROR) {
 	if (parsePtr != NULL) {
 	    FreeParseOptions(parsePtr);
@@ -323,11 +338,10 @@ done:
 static int
 ParseClassOptions(interp, opts, parsePtr)
     Tcl_Interp * interp;
-    char * opts;
+    CONST84 char * opts;
     TixClassParseStruct * parsePtr;
 {
     int	   i;
-    char * buff, *s, *p;
     int code = TCL_OK;
 
     parsePtr->alias		= TIX_EMPTY_STRING;
@@ -342,37 +356,9 @@ ParseClassOptions(interp, opts, parsePtr)
     parsePtr->subWidget		= TIX_EMPTY_STRING;
     parsePtr->superClass	= TIX_EMPTY_STRING;
     parsePtr->isVirtual		= TIX_EMPTY_STRING;
-
     parsePtr->optArgv		= NULL;
 
-    /*
-     * Get rid of the comments
-     */
-    buff = (char*)ckalloc((strlen(opts)+1) * sizeof(char));
-    for (s=opts,p=buff; *s;) {
-	/* Skip starting spaces */
-	while (isspace(*s)) {
-	    s++;
-	}
-	if (*s == '#') {
-	    while (*s && *s != '\n') {
-		s++;
-	    }
-	    if (*s) {
-		s++;
-	    }
-	    continue;
-	}
-	while (*s && *s != '\n') {
-	    *p++ = *s++;
-	}
-	if (*s) {
-	    *p++ = *s++;
-	}
-    }
-    *p = '\0';
-
-    if (Tcl_SplitList(interp, buff, &parsePtr->optArgc, &parsePtr->optArgv)
+    if (Tcl_SplitList(interp, opts, &parsePtr->optArgc, &parsePtr->optArgv)
 	    != TCL_OK) {
 	code = TCL_ERROR;
 	goto done;
@@ -439,7 +425,6 @@ ParseClassOptions(interp, opts, parsePtr)
 	    parsePtr->optArgv = NULL;
 	}
     }
-    ckfree((char*)buff);
     return code;
 }
 
@@ -470,7 +455,7 @@ FreeParseOptions(parsePtr)
 static int
 InitClass(interp, classRec, cPtr, scPtr, parsePtr)
     Tcl_Interp * interp;
-    char * classRec;
+    CONST84 char * classRec;
     TixClassRecord * cPtr;
     TixClassRecord * scPtr;
     TixClassParseStruct * parsePtr;
@@ -481,7 +466,7 @@ InitClass(interp, classRec, cPtr, scPtr, parsePtr)
     Tix_ListIterator li;
     TixClassRecord * subPtr;
 
-    cPtr->ClassName = (char*)tixStrDup(parsePtr->ClassName);
+    cPtr->ClassName = tixStrDup(parsePtr->ClassName);
 
     /*
      * (3) Set up the methods.
@@ -577,6 +562,7 @@ InitClass(interp, classRec, cPtr, scPtr, parsePtr)
      * some operations because the look-up of these variables are done
      * by hash tables.
      */
+
     flag = TCL_GLOBAL_ONLY;
     if (parsePtr->superClass) {
 	Tcl_SetVar2(interp, classRec, "superClass", parsePtr->superClass,flag);
@@ -605,8 +591,11 @@ InitClass(interp, classRec, cPtr, scPtr, parsePtr)
     }
 
     /*
-     * Now create the instantiation command.
+     * Now create the instantiation command. Because there is no ::
+     * inside the cPtr->className, the command is created in the
+     * global namespace.
      */
+
     if (isWidget) {
 	Tcl_CreateCommand(interp, cPtr->className, Tix_CreateWidgetCmd,
 		(ClientData)cPtr, NULL);
@@ -619,6 +608,7 @@ InitClass(interp, classRec, cPtr, scPtr, parsePtr)
      * Create an "AutoLoad" command. This is needed so that class
      * definitions can be auto-loaded properly
      */
+
     if (Tix_GlobalVarEval(interp, "proc ", cPtr->className, ":AutoLoad {} {}",
 	    (char *) NULL) != TCL_OK) {
 	code = TCL_ERROR;
@@ -688,7 +678,9 @@ FreeClassRecord(cPtr)
 	ckfree(cPtr->ClassName);
     }
     for (i=0; i<cPtr->nSpecs; i++) {
-	FreeSpec(cPtr->specs[i]);
+        if (cPtr->specs[i] != NULL) {
+            FreeSpec(cPtr->specs[i]);
+        }
     }
     if (cPtr->specs) {
 	ckfree((char*)cPtr->specs);
@@ -759,38 +751,52 @@ TIX_DEFINE_CMD(Tix_UninitializedClassCmd)
 TIX_DEFINE_CMD(Tix_CreateInstanceCmd)
 {
     TixClassRecord * cPtr;
-    char * widRec;
+    CONST84 char * widRec;
+    CONST84 char * value;
     int i, code = TCL_OK;
     TixConfigSpec * spec;
-    char * value;
-    DECLARE_ITCL_NAMESP(nameSp, interp);
 
     if (argc <= 1) {
 	return Tix_ArgcError(interp, argc, argv, 1, "name ?arg? ...");
     }
 
+    if (strstr(argv[1], "::") != NULL) {
+        /*
+         * Cannot contain :: in instance name, otherwise all hell will
+         * rise w.r.t. namespace
+         */
+
+        Tcl_AppendResult(interp, "invalid instance name \"", argv[1],
+		"\": may not contain substring \"::\"", NULL);
+        return TCL_ERROR;
+    }
+
     cPtr = (TixClassRecord *)clientData;
     widRec = argv[1];
-
-    if (!TixItclSetGlobalNameSp(&nameSp, interp)) {
-        code = TCL_ERROR;
-	goto done;
-    }
 
     Tcl_SetVar2(interp, widRec, "className", cPtr->className, TCL_GLOBAL_ONLY);
     Tcl_SetVar2(interp, widRec, "ClassName", cPtr->ClassName, TCL_GLOBAL_ONLY);
     Tcl_SetVar2(interp, widRec, "context",   cPtr->className, TCL_GLOBAL_ONLY);
 
-    /* This is the command that access the widget */
+    /*
+     * This is the command that access the class instace. Because there
+     * is no :: inside widRec, it's created in the global namespace
+     */
+
     Tcl_CreateCommand(interp, widRec, Tix_InstanceCmd,
 	(ClientData)cPtr, NULL);
 
-    /* Set up the widget record according to defaults and arguments */
+    /*
+     * Set up the widget record according to defaults and arguments
+     */
+
     ParseInstanceOptions(interp, cPtr, widRec, argc-2, argv+2);
 
-    /* Call the constructor method */
+    /*
+     * Call the constructor method
+     */
     if (Tix_CallMethod(interp, cPtr->className, widRec, "Constructor",
-		0, 0) != TCL_OK) {
+		0, 0, NULL) != TCL_OK) {
 	code = TCL_ERROR;
 	goto done;
     }
@@ -802,22 +808,23 @@ TIX_DEFINE_CMD(Tix_CreateInstanceCmd)
      *
      * todo: please explain the above in the programming guide.
      */
+
     for (i=0; i<cPtr->nSpecs; i++) {
 	spec = cPtr->specs[i];
 	if (spec->forceCall) {
-	  value = Tcl_GetVar2(interp, widRec, spec->argvName,
-	      TCL_GLOBAL_ONLY);
-	  if (Tix_CallConfigMethod(interp, cPtr, widRec, spec, value)!=TCL_OK){
-	      code = TCL_ERROR;
-	      goto done;
-	  }
+            value = Tcl_GetVar2(interp, widRec, spec->argvName,
+	            TCL_GLOBAL_ONLY);
+            if (Tix_CallConfigMethod(interp, cPtr, widRec, spec, value)
+                    !=TCL_OK){
+                code = TCL_ERROR;
+                goto done;
+            }
 	}
     }
 
-    Tcl_SetResult(interp, widRec, TCL_VOLATILE);
+    Tcl_SetResult(interp, (char *) widRec, TCL_VOLATILE);
 
   done:
-    TixItclRestoreGlobalNameSp(&nameSp, interp);
     return code;
 }
 
@@ -833,14 +840,14 @@ TIX_DEFINE_CMD(Tix_CreateInstanceCmd)
 TIX_DEFINE_CMD(Tix_InstanceCmd)
 {
     TixClassRecord * cPtr;
-    char * widRec = argv[0];
-    char * method = argv[1];
-    char * classRec;
-    char * methodName;		/* full name of the method -- method may be
+    CONST84 char * widRec = argv[0];
+    CONST84 char * method = argv[1];
+    CONST84 char * classRec;
+    CONST84 char * methodName;	/* full name of the method -- method may be
 				 * abbreviated */
-    int len;
+    unsigned int len;
     int code;
-    DECLARE_ITCL_NAMESP(nameSp, interp);
+    int foundMethod;
 
     cPtr = (TixClassRecord *)clientData;
     classRec = cPtr->className;
@@ -850,10 +857,6 @@ TIX_DEFINE_CMD(Tix_InstanceCmd)
     }
 
     Tk_Preserve((ClientData) cPtr);
-    if (!TixItclSetGlobalNameSp(&nameSp, interp)) {
-        code = TCL_ERROR;
-	goto done;
-    }
 
     len = strlen(method);
 
@@ -862,17 +865,28 @@ TIX_DEFINE_CMD(Tix_InstanceCmd)
 	goto done;
     }
 
-    if (Tix_CallMethod(interp, classRec, widRec, methodName,
-	    argc-2, argv+2) == TCL_OK) {
-	code = TCL_OK;
+    if ((code = Tix_CallMethod(interp, classRec, widRec, methodName,
+	    argc-2, argv+2, &foundMethod)) == TCL_OK) {
 	goto done;
     }
+
+    if (foundMethod) {
+        /*
+         * The method is found, but its execution caused error. Return now.
+         * Don't try to run it again with the code below.
+         */
+        goto done;
+    }
+
     /*
-     * We will have an "unknown error" return value here, now
-     * try to execute the command as a "Intrinsics" command
-     *		configure, cget, subwidget or subwidgets
+     * The method was not defined in Tcl code. See if it's one of
+     * the built-in methods: configure, cget or subwidget.
+     *
+     * Note that the "subwidgets" method is implemented in Tcl code
+     * (Primitiv.tcl) so we don't need to worry about it here.
      */
-    else if (strncmp(method, "configure", len) == 0) {
+
+    if (strncmp(method, "configure", len) == 0) {
 	Tcl_ResetResult(interp);
 
 	if (argc==2) {
@@ -898,23 +912,40 @@ TIX_DEFINE_CMD(Tix_InstanceCmd)
 	    goto done;
 	}
     }
-    else if (cPtr->isWidget && strncmp(method, "subwidget", len) == 0) {
-
 #if 0
-	/* Subwidget protection is not yet implemented */
-	Tix_SubWidgetSpec * ssPtr;
-	ssPtr = GetSubWidgetSpec(cPtr, argv[2]);
+    else if (cPtr->isWidget && strcmp(method, "subwidgets") == 0) {
+	Tcl_ResetResult(interp);
+
+	code = Tix_CallMethod(interp, classRec, widRec, "subwidgets",
+	        argc-2, argv+2, NULL);
+	goto done;
+    }
 #endif
-	char * swName, buff[40];
+    else if (cPtr->isWidget && strncmp(method, "subwidget", len) == 0) {
+        /*
+         * TODO: Subwidget protection is not yet implemented
+         */
 
 	Tcl_ResetResult(interp);
 	if (argc >= 3) {
-	    sprintf(buff, "w:%s", argv[2]);
-	    swName = Tcl_GetVar2(interp, widRec, buff, TCL_GLOBAL_ONLY);
+#define STATIC_SPACE_SIZE 60
+	    char buff[STATIC_SPACE_SIZE];
+	    char *index = buff;
+            CONST84 char *swName;
+
+            if ((strlen(argv[2]) + 3) > STATIC_SPACE_SIZE) {
+                index = (char*)ckalloc(strlen(argv[2]) + 3);
+            }
+
+	    sprintf(index, "w:%s", argv[2]);
+	    swName = Tcl_GetVar2(interp, widRec, index, TCL_GLOBAL_ONLY);
+            if (index != buff) {
+                ckfree((char*)index);
+            }
 
 	    if (swName) {
 		if (argc == 3) {
-		    Tcl_SetResult(interp, swName, TCL_VOLATILE);
+		    Tcl_SetResult(interp, (char *) swName, TCL_VOLATILE);
 		    code = TCL_OK;
 		    goto done;
 		} else {
@@ -927,17 +958,11 @@ TIX_DEFINE_CMD(Tix_InstanceCmd)
 		"\"", NULL);
 	    code = TCL_ERROR;
 	    goto done;
+#undef STATIC_SPACE_SIZE
 	} else {
 	    code = Tix_ArgcError(interp, argc, argv, 2, "name ?args ...?");
 	    goto done;
 	}
-    }
-    else if (cPtr->isWidget && strncmp(method, "subwidgets", len) == 0) {
-	Tcl_ResetResult(interp);
-
-	code = Tix_CallMethod(interp, classRec, widRec, "subwidgets",
-	    argc-2, argv+2);
-	goto done;
     } else {
 	/*
 	 * error message already append by Tix_CallMethod()
@@ -947,7 +972,6 @@ TIX_DEFINE_CMD(Tix_InstanceCmd)
     }
 
   done:
-    TixItclRestoreGlobalNameSp(&nameSp, interp);
     Tk_Release((ClientData) cPtr);
     return code;
 }
@@ -961,10 +985,10 @@ TIX_DEFINE_CMD(Tix_InstanceCmd)
 static int SetupMethod(interp, cPtr, s)
     Tcl_Interp * interp;
     TixClassRecord * cPtr;
-    char * s;
+    CONST84 char * s;
 {
     TixClassRecord * scPtr = cPtr->superClass;
-    char ** listArgv;
+    CONST84 char ** listArgv;
     int listArgc, i;
     int nMethods;
 
@@ -984,14 +1008,14 @@ static int SetupMethod(interp, cPtr, s)
 	nMethods += scPtr->nMethods;
     }
     cPtr->nMethods = nMethods;
-    cPtr->methods  = (char**)ckalloc(nMethods*sizeof(char*));
+    cPtr->methods  = (char**)Tix_ZAlloc(nMethods*sizeof(char*));
     /* Copy the methods of this class */
     for (i=0; i<listArgc; i++) {
-	cPtr->methods[i] = (char*)tixStrDup(listArgv[i]);
+	cPtr->methods[i] = tixStrDup(listArgv[i]);
     }
     /* Copy the methods of the super class */
     for (; i<nMethods; i++) {
-	cPtr->methods[i] = (char*)tixStrDup(scPtr->methods[i-listArgc]);
+	cPtr->methods[i] = tixStrDup(scPtr->methods[i-listArgc]);
     }
 
     if (listArgv) {
@@ -1005,13 +1029,14 @@ static int
 SetupDefault(interp, cPtr, s)
     Tcl_Interp * interp;
     TixClassRecord * cPtr;
-    char * s;
+    CONST84 char * s;
 {
-    char ** listArgv;
+    CONST84 char ** listArgv;
     int listArgc, i;
     TixClassRecord * scPtr = cPtr->superClass;
     Tix_ListIterator li;
     Tix_SubwidgetDef *defPtr;
+    Tcl_Obj *objv[5];
 
     if (s && *s) {
 	if (Tcl_SplitList(interp, s, &listArgc, &listArgv) != TCL_OK) {
@@ -1032,9 +1057,9 @@ SetupDefault(interp, cPtr, s)
 
 	    Tix_SubwidgetDef * p = (Tix_SubwidgetDef*)li.curr;
 
-	    defPtr = (Tix_SubwidgetDef*)ckalloc(sizeof(Tix_SubwidgetDef));
-	    defPtr->spec  = (char*)tixStrDup(p->spec);
-	    defPtr->value = (char*)tixStrDup(p->value);
+	    defPtr = (Tix_SubwidgetDef*)Tix_ZAlloc(sizeof(Tix_SubwidgetDef));
+	    defPtr->spec  = tixStrDup(p->spec);
+	    defPtr->value = tixStrDup(p->value);
 
 	    Tix_SimpleListAppend(&cPtr->subWDefs, (char*)defPtr, 0);
 	}
@@ -1044,7 +1069,7 @@ SetupDefault(interp, cPtr, s)
      * Merge with the new default specs
      */
     for (i=0; i<listArgc; i++) {
-	char **list;
+	CONST84 char **list;
 	int n;
 
 	if (Tcl_SplitList(interp, listArgv[i], &n, &list) != TCL_OK) {
@@ -1074,9 +1099,9 @@ SetupDefault(interp, cPtr, s)
 	}
 	/* Append this spec to the end
 	 */
-	defPtr = (Tix_SubwidgetDef*)ckalloc(sizeof(Tix_SubwidgetDef));
-	defPtr->spec  = (char*)tixStrDup(list[0]);
-	defPtr->value = (char*)tixStrDup(list[1]);
+	defPtr = (Tix_SubwidgetDef*)Tix_ZAlloc(sizeof(Tix_SubwidgetDef));
+	defPtr->spec  = tixStrDup(list[0]);
+	defPtr->value = tixStrDup(list[1]);
 
 	Tix_SimpleListAppend(&cPtr->subWDefs, (char*)defPtr, 0);
 
@@ -1085,20 +1110,34 @@ SetupDefault(interp, cPtr, s)
 
     /*
      * Add the defaults into the options database.
+     * Be efficient with objects, reusing the middle 2.
      */
+
+    objv[0] = Tcl_NewStringObj("option", -1); Tcl_IncrRefCount(objv[0]);
+    objv[1] = Tcl_NewStringObj("add", -1); Tcl_IncrRefCount(objv[1]);
+    objv[4] = Tcl_NewStringObj("widgetDefault", -1); Tcl_IncrRefCount(objv[4]);
     Tix_SimpleListIteratorInit(&li);
     for (Tix_SimpleListStart(&cPtr->subWDefs, &li);
 	 !Tix_SimpleListDone(&li);
 	 Tix_SimpleListNext (&cPtr->subWDefs, &li)) {
-
 	Tix_SubwidgetDef * p = (Tix_SubwidgetDef*)li.curr;
 
-	if (Tix_GlobalVarEval(interp, "option add *", cPtr->ClassName, 
-		p->spec, " [list ", p->value, "] widgetDefault",
-		NULL) != TCL_OK) {
+	objv[2] = Tcl_NewStringObj("*", -1);
+	Tcl_AppendStringsToObj(objv[2], cPtr->ClassName, p->spec, NULL);
+	objv[3] = Tcl_NewStringObj(p->value, -1);
+	Tcl_IncrRefCount(objv[2]);
+	Tcl_IncrRefCount(objv[3]);
+
+	if (Tcl_EvalObjv(interp, 5, objv, TCL_EVAL_GLOBAL) != TCL_OK) {
+	    for (i = 0; i < 5; i++) { Tcl_DecrRefCount(objv[i]); }
 	    goto error;
 	}
+	Tcl_DecrRefCount(objv[2]);
+	Tcl_DecrRefCount(objv[3]);
     }
+    Tcl_DecrRefCount(objv[0]);
+    Tcl_DecrRefCount(objv[1]);
+    Tcl_DecrRefCount(objv[4]);
 
     if (listArgv) {
 	ckfree((char*)listArgv);
@@ -1116,11 +1155,11 @@ static int
 SetupSpec(interp, cPtr, s, isWidget)
     Tcl_Interp * interp;
     TixClassRecord * cPtr;
-    char * s;
+    CONST84 char * s;
     int isWidget;
 {
     TixClassRecord * scPtr = cPtr->superClass;
-    char ** listArgv;
+    CONST84 char ** listArgv;
     int listArgc, i;
     TixConfigSpec * dupSpec;
     int nSpecs;
@@ -1146,7 +1185,7 @@ SetupSpec(interp, cPtr, s, isWidget)
     }
 
     cPtr->nSpecs = nSpecs;
-    cPtr->specs  = (TixConfigSpec**)ckalloc(nAlloc*sizeof(TixConfigSpec*));
+    cPtr->specs  = (TixConfigSpec**)Tix_ZAlloc(nAlloc*sizeof(TixConfigSpec*));
 
     /*
      * Initialize the specs of this class
@@ -1208,35 +1247,15 @@ SetupSpec(interp, cPtr, s, isWidget)
 }
 
 static TixConfigSpec *
-InitSpec(interp, s, isWidget)
+InitSpec(interp, specList, isWidget)
     Tcl_Interp * interp;
-    char * s;
+    CONST84 char * specList;
     int isWidget;
 {
-    char ** listArgv = NULL;
+    CONST84 char ** listArgv = NULL;
     int listArgc;
     TixConfigSpec * sPtr = NULL;
-    char * specList = NULL;
-    char * cmdArgv[2];
-
-    /* KLUDGE
-     *
-     * The following call will try to substitute the contents inside
-     * the string s. Since s was originally in curly brackets,
-     * setting s to {-bitmap bitmap Bitmap [tix getbitmap mybitmap]}
-     * will cause the defValue to be "[tix" because the nested
-     * expression is never evaluated.
-     *
-     */
-    cmdArgv[0] = "subst";
-    cmdArgv[1] = s;
-
-    if (Tix_EvalArgv(interp, 2, cmdArgv)!= TCL_OK) {
-	goto done;
-    }
-
-    specList = (char*)tixStrDup(interp->result);
-
+    
     if (Tcl_SplitList(interp, specList, &listArgc, &listArgv)!= TCL_OK) {
 	goto done;
     }
@@ -1248,7 +1267,7 @@ InitSpec(interp, s, isWidget)
 	goto done;
     }
 
-    sPtr = (TixConfigSpec * )ckalloc(sizeof(TixConfigSpec));
+    sPtr = (TixConfigSpec * )Tix_ZAlloc(sizeof(TixConfigSpec));
 
     sPtr->isAlias   = 0;
     sPtr->readOnly  = 0;
@@ -1257,16 +1276,16 @@ InitSpec(interp, s, isWidget)
     sPtr->realPtr   = NULL;
 
     if (isWidget) {
-	sPtr->argvName = (char*)tixStrDup(listArgv[0]);
-	sPtr->dbName   = (char*)tixStrDup(listArgv[1]);
-	sPtr->dbClass  = (char*)tixStrDup(listArgv[2]);
-	sPtr->defValue = (char*)tixStrDup(listArgv[3]);
+	sPtr->argvName = tixStrDup(listArgv[0]);
+	sPtr->dbName   = tixStrDup(listArgv[1]);
+	sPtr->dbClass  = tixStrDup(listArgv[2]);
+	sPtr->defValue = tixStrDup(listArgv[3]);
     }
     else {
-	sPtr->argvName = (char*)tixStrDup(listArgv[0]);
+	sPtr->argvName = tixStrDup(listArgv[0]);
 	sPtr->dbClass  = TIX_EMPTY_STRING;
 	sPtr->dbName   = TIX_EMPTY_STRING;
-	sPtr->defValue = (char*)tixStrDup(listArgv[1]);
+	sPtr->defValue = tixStrDup(listArgv[1]);
     }
 
     /* Set up the verifyCmd */
@@ -1279,7 +1298,7 @@ InitSpec(interp, s, isWidget)
 	    n = 2;
 	}
 
-	sPtr->verifyCmd = (char*)tixStrDup(listArgv[n]);
+	sPtr->verifyCmd = tixStrDup(listArgv[n]);
     } else {
 	sPtr->verifyCmd = NULL;
     }
@@ -1288,9 +1307,6 @@ InitSpec(interp, s, isWidget)
     if (listArgv) {
 	ckfree((char *) listArgv);
     }
-    if (specList) {
-	ckfree(specList);
-    }
     return sPtr;
 }
 
@@ -1298,7 +1314,7 @@ static TixConfigSpec *
 CopySpec(sPtr)
     TixConfigSpec *sPtr;	/* The spec record from the super class. */
 {
-    TixConfigSpec *nPtr = (TixConfigSpec *)ckalloc(sizeof(TixConfigSpec));
+    TixConfigSpec *nPtr = (TixConfigSpec *)Tix_ZAlloc(sizeof(TixConfigSpec));
 
     nPtr->isAlias   = sPtr->isAlias;
     nPtr->readOnly  = sPtr->readOnly;
@@ -1306,27 +1322,27 @@ CopySpec(sPtr)
     nPtr->forceCall = sPtr->forceCall;
 
     if (sPtr->argvName != NULL &&  sPtr->argvName != TIX_EMPTY_STRING) {
-	nPtr->argvName = (char*)tixStrDup(sPtr->argvName);
+	nPtr->argvName = tixStrDup(sPtr->argvName);
     } else {
 	nPtr->argvName = TIX_EMPTY_STRING;
     }
     if (sPtr->defValue != NULL &&  sPtr->defValue != TIX_EMPTY_STRING) {
-	nPtr->defValue = (char*)tixStrDup(sPtr->defValue);
+	nPtr->defValue = tixStrDup(sPtr->defValue);
     } else {
 	nPtr->defValue = TIX_EMPTY_STRING;
     }
     if (sPtr->dbName != NULL &&  sPtr->dbName != TIX_EMPTY_STRING) {
-	nPtr->dbName = (char*)tixStrDup(sPtr->dbName);
+	nPtr->dbName = tixStrDup(sPtr->dbName);
     } else {
 	nPtr->dbName = TIX_EMPTY_STRING;
     }
     if (sPtr->dbClass != NULL &&  sPtr->dbClass != TIX_EMPTY_STRING) {
-	nPtr->dbClass = (char*)tixStrDup(sPtr->dbClass);
+	nPtr->dbClass = tixStrDup(sPtr->dbClass);
     } else {
 	nPtr->dbClass = TIX_EMPTY_STRING;
     }
     if (sPtr->verifyCmd != NULL) {
-	nPtr->verifyCmd = (char*)tixStrDup(sPtr->verifyCmd);
+	nPtr->verifyCmd = tixStrDup(sPtr->verifyCmd);
     } else {
 	nPtr->verifyCmd = NULL;
     }
@@ -1377,10 +1393,10 @@ static int
 SetupAttribute(interp, cPtr, s, which)
     Tcl_Interp * interp;
     TixClassRecord * cPtr;
-    char * s;
+    CONST84 char * s;
     int which;
 {
-    char ** listArgv;
+    CONST84 char ** listArgv;
     int listArgc, i;
     TixConfigSpec  * spec;
 
@@ -1415,9 +1431,9 @@ static int
 SetupAlias(interp, cPtr, s)
     Tcl_Interp * interp;
     TixClassRecord * cPtr;
-    char * s;
+    CONST84 char * s;
 {
-    char ** listArgv;
+    CONST84 char ** listArgv;
     int listArgc, i;
 
     if (Tcl_SplitList(interp, s, &listArgc, &listArgv) != TCL_OK) {
@@ -1448,22 +1464,23 @@ static TixConfigSpec *
 InitAlias(interp, cPtr, s)
     Tcl_Interp * interp;
     TixClassRecord * cPtr;
-    char * s;
+    CONST84 char * s;
 {
-    char ** listArgv;
+    CONST84 char ** listArgv;
     int listArgc;
     TixConfigSpec  * sPtr;
 
-    if (Tcl_SplitList(interp, s, &listArgc, &listArgv) != TCL_OK) {
+    if (Tcl_SplitList(interp, s, &listArgc, &listArgv) != TCL_OK
+	    || 2 != listArgc) {
 	return NULL;
     } else {
-	sPtr = (TixConfigSpec*) ckalloc(sizeof(TixConfigSpec));
+	sPtr = (TixConfigSpec*) Tix_ZAlloc(sizeof(TixConfigSpec));
 	sPtr->isAlias    = 1;
 	sPtr->isStatic   = 0;
 	sPtr->forceCall  = 0;
 	sPtr->readOnly   = 0;
-	sPtr->argvName   = (char*)tixStrDup(listArgv[0]);
-	sPtr->dbName     = (char*)tixStrDup(listArgv[1]);
+	sPtr->argvName   = tixStrDup(listArgv[0]);
+	sPtr->dbName     = tixStrDup(listArgv[1]);
 	sPtr->dbClass    = TIX_EMPTY_STRING;
 	sPtr->defValue   = TIX_EMPTY_STRING;
 	sPtr->verifyCmd  = NULL;
@@ -1481,7 +1498,7 @@ InitHashEntries(interp, cPtr)
 {
     Tcl_HashEntry * hashPtr;
     int    	    isNew;
-    char	  * key;
+    CONST84 char  * key;
     int		    i;
     TixConfigSpec * sPtr;
 
@@ -1492,7 +1509,7 @@ InitHashEntries(interp, cPtr)
 	hashPtr = Tcl_CreateHashEntry(GetSpecTable(interp), key, &isNew);
 	Tcl_SetHashValue(hashPtr, (char*)sPtr);
 
-	ckfree(key);
+	ckfree((char *) key);
     }
 
     return TCL_OK;
@@ -1507,9 +1524,9 @@ static int
 ParseInstanceOptions(interp, cPtr, widRec, argc, argv)
     Tcl_Interp * interp;
     TixClassRecord * cPtr;
-    char *widRec;
+    CONST84 char *widRec;
     int argc;
-    char** argv;
+    CONST84 char** argv;
 {
     int i;
     TixConfigSpec *spec;
@@ -1616,9 +1633,9 @@ static Tix_LinkList * CopyStringList(list, newList)
     Tix_StringLink * ptr, * newLink;
 
     for (ptr=(Tix_StringLink*)list->head; ptr; ptr=ptr->next) {
-	newLink = (Tix_StringLink*)ckalloc(sizeof(Tix_StringLink));
+	newLink = (Tix_StringLink*)Tix_ZAlloc(sizeof(Tix_StringLink));
 
-	newLink->string = (char*)tixStrDup(ptr->string);
+	newLink->string = tixStrDup(ptr->string);
 	Tix_SimpleListAppend(newList, (char*)newLink, 0);
     }
 }
@@ -1695,12 +1712,12 @@ static int AppendStrings(interp, list, string)
     }
 
     for (i=0; i<listArgc; i++) {
-	ptr = (Tix_StringLink *)ckalloc(sizeof(Tix_StringLink));
+	ptr = (Tix_StringLink *)Tix_ZAlloc(sizeof(Tix_StringLink));
 
 	if (strcmp(listArgv[i], "all")==0) {
 	    ptr->string = NULL;
 	} else {
-	    ptr->string=(char*)tixStrDup(listArgv[i]);
+	    ptr->string = tixStrDup(listArgv[i]);
 	}
 	Tix_SimpleListAppend(list, (char*)ptr, 0);
     }
@@ -1850,7 +1867,7 @@ static int DefineExport(interp, exPtr, name, spec)
 static Tix_SubWidgetSpec *
 GetSubWidgetSpec(cPtr, name)
     TixClassRecord * cPtr;
-    char * name;
+    CONST84 char * name;
 {
     Tix_SubWidgetSpec *ptr;
 
@@ -1867,7 +1884,7 @@ static Tix_SubWidgetSpec *
 AllocSubWidgetSpec()
 {
     Tix_SubWidgetSpec * newPtr = 
-      (Tix_SubWidgetSpec *)ckalloc(sizeof(Tix_SubWidgetSpec));
+            (Tix_SubWidgetSpec *)Tix_ZAlloc(sizeof(Tix_SubWidgetSpec));
 
     newPtr->next 	= NULL;
     newPtr->name 	= NULL;
@@ -1889,7 +1906,7 @@ CopySubWidgetSpecs(scPtr, cPtr)
 	Tix_SubWidgetSpec *newPtr;
 	newPtr = AllocSubWidgetSpec();
 
-	newPtr->name = (char*)tixStrDup(ssPtr->name);
+	newPtr->name = tixStrDup(ssPtr->name);
 	CopyExportSpec(&ssPtr->exportSpec, & newPtr->exportSpec);
 
 	Tix_SimpleListAppend(&cPtr->subWidgets, (char*)newPtr, 0);
@@ -1900,7 +1917,7 @@ static int
 SetupSubWidget(interp, cPtr, s)
     Tcl_Interp * interp;
     TixClassRecord * cPtr;
-    char * s;
+    CONST84 char * s;
 {
     char ** listArgv;
     TixClassRecord * scPtr = cPtr->superClass;
@@ -1943,7 +1960,7 @@ SetupSubWidget(interp, cPtr, s)
 	}
 	else {
 	    newSpec = AllocSubWidgetSpec();
-	    newSpec->name = (char*)tixStrDup(name);
+	    newSpec->name = tixStrDup(name);
 
 	    Tix_SimpleListAppend(&cPtr->subWidgets, (char*)newSpec, 0);
 

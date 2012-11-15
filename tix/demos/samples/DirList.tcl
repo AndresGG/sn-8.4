@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: DirList.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -70,7 +74,7 @@ proc dlist:copy_name {w} {
 proc dlist:okcmd {w} {
     global demo_dlist_dir
 
-    puts "You have selected the directory $demo_dlist_dir"
+    tixDemo:Status "You have selected the directory $demo_dlist_dir"
 
     destroy $w
 }
@@ -81,7 +85,7 @@ proc dlist:okcmd {w} {
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
-    bind .demo <Destroy> "exit"
+    bind $w <Destroy> "exit"
 }

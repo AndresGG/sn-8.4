@@ -1,3 +1,6 @@
+
+/*	$Id: tixGeometry.c,v 1.4 2005/03/25 20:15:53 hobbs Exp $	*/
+
 /* 
  * tixGeometry.c --
  *
@@ -11,7 +14,7 @@
  */
 
 #include <tixPort.h>
-#include <tix.h>
+#include <tixInt.h>
 
 static Tcl_HashTable clientTable;	/* hash table for geometry managers */
 
@@ -183,12 +186,12 @@ TIX_DEFINE_CMD(Tix_ManageGeometryCmd)
     if (!isNew) {
 	cnPtr = (ClientStruct *) Tcl_GetHashValue(hashPtr);
 	ckfree(cnPtr->command);
-	cnPtr->command = (char*)tixStrDup(argv[2]);
+	cnPtr->command = tixStrDup(argv[2]);
     } else {
 	cnPtr = (ClientStruct *) ckalloc(sizeof(ClientStruct));
 	cnPtr->tkwin     = tkwin;
 	cnPtr->interp    = interp;
-	cnPtr->command   = (char*)tixStrDup(argv[2]);
+	cnPtr->command   = tixStrDup(argv[2]);
 	cnPtr->isDeleted = 0;
 	Tcl_SetHashValue(hashPtr, cnPtr);
 
@@ -328,7 +331,7 @@ TIX_DEFINE_CMD(Tix_FlushXCmd)
 	return TCL_ERROR;
     }
 
-#ifndef _WINDOWS
+#if !defined(__WIN32__) && !defined(MAC_TCL) && !defined(MAC_OSX_TK) /* UNIX */
     XFlush(Tk_Display(tkwin));
 #endif
     return TCL_OK;
@@ -353,27 +356,5 @@ TIX_DEFINE_CMD(Tix_UnmapWindowCmd)
     }
 
     Tk_UnmapWindow(tkwin);
-    return TCL_OK;
-}
-
-/*
- *
- * argv[1] = clientPathName
- *
- */
-TIX_DEFINE_CMD(Tix_RaiseWindowCmd)
-{
-    Tk_Window 		topLevel = (Tk_Window)clientData;
-    Tk_Window tkwin;
-
-    if (argc != 2) {
-	return Tix_ArgcError(interp, argc, argv, 1, "pathname");
-    }
-
-    if ((tkwin = Tk_NameToWindow(interp, argv[1], topLevel)) == NULL) {
-	return TCL_ERROR;
-    }
-
-    XRaiseWindow(Tk_Display(tkwin), Tk_WindowId(tkwin));
     return TCL_OK;
 }

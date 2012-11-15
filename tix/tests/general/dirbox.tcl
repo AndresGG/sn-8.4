@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: dirbox.tcl,v 1.3 2004/03/28 02:44:57 hobbs Exp $
+#
 # dirbox.tcl --
 #
 #	Tests the DirSelectBox and DirSelectDialog widgets.
@@ -37,7 +41,7 @@ proc TestConfigDirectory {class spec pack} {
 	#
 	$class .w
 	set value [$w cget $spec]
-	Assert {[tixFSIsNorm_os $value]} 0 cont
+	Assert {[tixFSIsNorm $value]} 0 cont
     }
     catch {
 	destroy .w
@@ -95,10 +99,10 @@ proc TestConfigDirectory {class spec pack} {
 		# Should hold the previous -value
 		#
 		set value [$w cget $spec]
-		Assert {[tixFSIsNorm_os $value]} 0 cont
+		Assert {[tixFSIsNorm $value]} 0 cont
 	    } else {
 		set value [$w cget $spec]
-		Assert {[tixFSIsNorm_os $value]} 0 cont
+		Assert {[tixFSIsNorm $value]} 0 cont
 
 		set want [tixFSDisplayName $want]
 		Assert {[tixStrEq $want $got]}

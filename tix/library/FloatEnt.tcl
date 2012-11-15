@@ -1,10 +1,16 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: FloatEnt.tcl,v 1.4 2004/03/28 02:44:57 hobbs Exp $
+#
 # FloatEnt.tcl --
 #
 #	An entry widget that can be attached on top of any widget to
 #	provide dynamic editing. It is used to provide dynamic editing
 #	for the tixGrid widget, among other things.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -52,7 +58,7 @@ proc tixFloatEntry:SetBindings {w} {
     upvar #0 $w data
 
     tixChainMethod $w SetBindings
-    tixBind $data(w:entry) <Return> "tixFloatEntry:invoke $w"
+    tixBind $data(w:entry) <Return> [list tixFloatEntry:invoke $w]
 }
 
 #----------------------------------------------------------------------
@@ -63,7 +69,7 @@ proc tixFloatEntry:SetBindings {w} {
 
 proc tixFloatEntryBind {} {
     tixBind TixFloatEntry <FocusIn>  {
-      if {![tixStrEq [focus -displayof [set %W(w:entry)]] [set %W(w:entry)]]} {
+      if {[focus -displayof [set %W(w:entry)]] ne [set %W(w:entry)]} {
 	  focus [%W subwidget entry]
 	  [set %W(w:entry)] selection from 0
 	  [set %W(w:entry)] selection to end
@@ -117,7 +123,7 @@ proc tixFloatEntry:config-value {w val} {
 proc tixFloatEntry:invoke {w} {
     upvar #0 $w data
 
-    if ![tixStrEq $data(-command) ""] {
+    if {[llength $data(-command)]} {
 	set bind(specs) {%V}
 	set bind(%V)    [$data(w:entry) get]
 

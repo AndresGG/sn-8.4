@@ -1,3 +1,6 @@
+
+/*	$Id: tixError.c,v 1.2 2004/03/28 02:44:56 hobbs Exp $	*/
+
 /*
  * tixError.c --
  *
@@ -14,11 +17,11 @@
 #include <tixInt.h>
 
 int Tix_ArgcError(interp, argc, argv, prefixCount, message)
-    Tcl_Interp 	      * interp;
+    Tcl_Interp	      * interp;
     int			argc;
-    char     	     ** argv;
+    CONST84 char     ** argv;
     int			prefixCount;
-    char	      * message;
+    CONST84 char      * message;
 {
     int i;
 
@@ -34,8 +37,8 @@ int Tix_ArgcError(interp, argc, argv, prefixCount, message)
 }
 
 int Tix_ValueMissingError(interp, spec)
-    Tcl_Interp 	      * interp;
-    char	      * spec;
+    Tcl_Interp	      * interp;
+    CONST84 char      * spec;
 {
     Tcl_AppendResult(interp, "value for \"", spec,
 	"\" missing", (char*)NULL);
@@ -51,13 +54,13 @@ int Tix_ValueMissingError(interp, spec)
  *----------------------------------------------------------------------
  */
 int Tix_UnknownPublicMethodError(interp, cPtr, widRec, method)
-    Tcl_Interp 	      * interp;
+    Tcl_Interp	      * interp;
     TixClassRecord    * cPtr;
-    char 	      * widRec;
-    char	      * method;
+    CONST84 char      * widRec;
+    CONST84 char      * method;
 {
-    int     i;
-    char  * lead = "";
+    int	    i;
+    CONST84 char  * lead = "";
 
     Tcl_AppendResult(interp, "unknown option \"", method, 
 	"\": must be ",

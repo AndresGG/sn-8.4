@@ -1,17 +1,22 @@
 /*
  * tixCmds.c --
  *
- *	Implements various TCL commands for Tix.
+ *	Implements various TCL commands for Tix. This file contains
+ *	misc small commands, or groups of commands, that are not big
+ *	enough to be put in a separate file.
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000	   Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tixCmds.c,v 1.4 2004/03/28 02:44:56 hobbs Exp $
  */
 
 #include <tixPort.h>
 #include <tixInt.h>
+#include <tixDef.h>
 #include <math.h>
 
 TIX_DECLARE_CMD(Tix_ParentWindow);
@@ -20,7 +25,7 @@ TIX_DECLARE_CMD(Tix_ParentWindow);
  * Maximum intensity for a color:
  */
 
-#define MAX_INTENSITY 65535
+#define MAX_INTENSITY ((int) 65535)
 
 /*
  * Data structure used by the tixDoWhenIdle command.
@@ -60,8 +65,8 @@ static void		EventProc _ANSI_ARGS_((ClientData clientData,
 			    XEvent *eventPtr));
 static void		MapEventProc _ANSI_ARGS_((ClientData clientData,
 			    XEvent *eventPtr));
-static int		IsOption _ANSI_ARGS_((char *option,
-			    int optArgc, char **optArgv));
+static int		IsOption _ANSI_ARGS_((CONST84 char *option,
+			    int optArgc, CONST84 char **optArgv));
 static XColor *		ScaleColor _ANSI_ARGS_((Tk_Window tkwin,
 			    XColor * color, double scale));
 static char *		NameOfColor _ANSI_ARGS_((XColor * colorPtr));
@@ -85,8 +90,8 @@ static char *		NameOfColor _ANSI_ARGS_((XColor * colorPtr));
 TIX_DEFINE_CMD(Tix_DoWhenIdleCmd)
 {
     int			isNew;
-    char       	      * command;
-    static int 	        inited = 0;
+    char	      * command;
+    static int		inited = 0;
     IdleStruct	      * iPtr;
     Tk_Window		tkwin;
     Tcl_HashEntry * hashPtr;
@@ -167,7 +172,7 @@ TIX_DEFINE_CMD(Tix_DoWhenMappedCmd)
     MapEventStruct    * mPtr;
     MapCmdLink	      * cmd;
     Tk_Window		tkwin;
-    static int 	        inited = 0;
+    static int		inited = 0;
 
     if (argc!=3) {
 	return Tix_ArgcError(interp, argc, argv, 1, " pathname command");
@@ -203,7 +208,7 @@ TIX_DEFINE_CMD(Tix_DoWhenMappedCmd)
      * Add this into a link list
      */
     cmd = (MapCmdLink*) ckalloc(sizeof(MapCmdLink));
-    cmd->command = (char*)tixStrDup(argv[2]);
+    cmd->command = tixStrDup(argv[2]);
 
     cmd->next = mPtr->cmds;
     mPtr->cmds = cmd;
@@ -212,95 +217,9 @@ TIX_DEFINE_CMD(Tix_DoWhenMappedCmd)
 }
 
 /*----------------------------------------------------------------------
- * Tix_FalseCmd --
- *
- *	Returns a false value regardless of the arguments. This is used to
- *	skip run-time debugging 
- *----------------------------------------------------------------------
- */
-
-TIX_DEFINE_CMD(Tix_FalseCmd)
-{
-    Tcl_SetResult(interp, "0",TCL_STATIC);
-    return TCL_OK;
-}
-
-/*----------------------------------------------------------------------
- * Tix_FileCmd --
- *
- *	(obsolete)
- *----------------------------------------------------------------------
- */
-
-TIX_DEFINE_CMD(Tix_FileCmd)
-{
-    char *expandedFileName;
-    Tcl_DString buffer;
-    size_t len;
-
-    if (argc!=3) {
-	return Tix_ArgcError(interp, argc, argv, 1, "option filename");
-    }
-    len = strlen(argv[1]);
-    if (argv[1][0]=='t' && strncmp(argv[1], "tildesubst", len)==0) {
-
-	expandedFileName = Tcl_TildeSubst(interp, argv[2], &buffer);
-	Tcl_ResetResult(interp);
-	if (expandedFileName == NULL) {
-	    Tcl_AppendResult(interp, argv[2], NULL);
-	} else {
-	    Tcl_AppendResult(interp, expandedFileName, NULL);
-	    Tcl_DStringFree(&buffer);	/* Was initialized by Tcl_TildeSubst */
-	}
-
-	return TCL_OK;
-    }
-    else if (argv[1][0]=='t' && strncmp(argv[1], "trimslash", len)==0) {
-	/*
-	 * Compress the extra "/"
-	 */
-	char *src, *dst, *p;
-	int isSlash = 0;
-
-	p = (char*)tixStrDup(argv[2]);
-
-	for (src=dst=p; *src; src++) {
-	    if (*src == '/') {
-		if (!isSlash) {
-		    *dst++ = *src;
-		    isSlash = 1;
-		}
-	    } else {
-		*dst++ = *src;
-		isSlash = 0;
-	    }
-	}
-	* dst = '\0';
-
-	if (dst > p) {
-	    /*
-	     * Trim the tariling "/", but only if this filename is not "/"
-	     */
-	    -- dst;
-	    if (*dst == '/') {
-		if (dst != p) {
-		    * dst = '\0';
-		}
-	    }
-	}
-	Tcl_SetResult(interp, p, TCL_DYNAMIC);
-	return TCL_OK;
-    }
-
-    Tcl_AppendResult(interp, "unknown option \"", argv[1], 
-	"\", must be tildesubst or trimslash", NULL);
-    return TCL_ERROR;
-}
-
-/*----------------------------------------------------------------------
  * Tix_Get3DBorderCmd
  *
- * 	Returns the upper and lower border shades of a color. Returns then
+ *	Returns the upper and lower border shades of a color. Returns then
  *	in a list of two X color names.
  *
  *	The color is not very useful if the display is a mono display:
@@ -346,133 +265,22 @@ TIX_DEFINE_CMD(Tix_Get3DBorderCmd)
 }
 
 /*----------------------------------------------------------------------
- * Tix_GetBooleanCmd
- *
- * 	Return "1" if is a true boolean number. "0" otherwise
- *
- * argv[1]  = string to test
- *----------------------------------------------------------------------
- */
-TIX_DEFINE_CMD(Tix_GetBooleanCmd)
-{
-    int value;
-    int nocomplain = 0;
-    char *string;
-    static char *results[2] = {"0", "1"};
-
-    if (argc == 3) {
-	if (strcmp(argv[1], "-nocomplain") != 0) {
-	    goto error;
-	}
-	nocomplain = 1;
-	string = argv[2];
-    }
-    else if (argc != 2) {
-	goto error;
-    }
-    else {
-	string = argv[1];
-    }
-
-    if (Tcl_GetBoolean(interp, string, &value) != TCL_OK) {
-	if (nocomplain) {
-	    value = 0;
-	}
-	else {
-	    return TCL_ERROR;
-	}
-    }
-
-    Tcl_SetResult(interp, results[value], TCL_STATIC);
-    return TCL_OK;
-
-  error:
-    return Tix_ArgcError(interp, argc, argv, 1, "?-nocomplain? string");
-}
-
-/*----------------------------------------------------------------------
- * Tix_GetIntCmd
- *
- * 	Return "1" if is a true boolean number. "0" otherwise
- *
- * argv[1]  = string to test
- *----------------------------------------------------------------------
- */
-TIX_DEFINE_CMD(Tix_GetIntCmd)
-{
-    int    i;
-    int    opTrunc = 0;
-    int    opNocomplain = 0;
-    int    i_value;
-    double f_value;
-    char * string = 0;
-    char   buff[20];
-
-    for (i=1; i<argc; i++) {
-	if (strcmp(argv[i], "-nocomplain") == 0) {
-	    opNocomplain = 1;
-	}
-	else if (strcmp(argv[i], "-trunc") == 0) {
-	    opTrunc = 1;
-	}
-	else {
-	    string = argv[i];
-	    break;
-	}
-    }
-    if (i != argc-1) {
-	return Tix_ArgcError(interp, argc, argv, 1, 
-	    "?-nocomplain? ?-trunc? string");
-    }
-
-    if (Tcl_GetInt(interp, string, &i_value) == TCL_OK) {
-	;
-    }
-    else if (Tcl_GetDouble(interp, string, &f_value) == TCL_OK) {
-#if 0
-	/* Some machines don't have the "trunc" function */
-	if (opTrunc) {
-	    i_value = (int) trunc(f_value);
-	}
-	else {
-	    i_value = (int) f_value;
-	}
-#else
-	i_value = (int) f_value;
-#endif
-    }
-    else if (opNocomplain) {
-	i_value = 0;
-    }
-    else {
-	Tcl_ResetResult(interp);
-	Tcl_AppendResult(interp, "\"", string, 
-	    "\" is not a valid numerical value", NULL);
-	return TCL_ERROR;
-    }
-    
-    sprintf(buff, "%d", i_value);
-    Tcl_SetResult(interp, buff, TCL_VOLATILE);
-    return TCL_OK;
-}
-
-/*----------------------------------------------------------------------
  * Tix_HandleOptionsCmd
  *
  * 
  * argv[1] = recordName
  * argv[2] = validOptions
  * argv[3] = argList
- *           if (argv[3][0] == "-nounknown") then 
- * 		don't complain about unknown options
+ *	     if (argv[3][0] == "-nounknown") then 
+ *		don't complain about unknown options
  *----------------------------------------------------------------------
  */
 TIX_DEFINE_CMD(Tix_HandleOptionsCmd)
 {
     int		listArgc;
     int		optArgc;
-    char     ** listArgv = 0;
-    char     ** optArgv  = 0;
+    CONST84 char ** listArgv = 0;
+    CONST84 char ** optArgv  = 0;
     int		i, code = TCL_OK;
     int		noUnknown = 0;
 
@@ -580,108 +388,9 @@ TIX_DEFINE_CMD(Tix_ParentWindow)
 }
 
 /*----------------------------------------------------------------------
- * Tix_StrEqCmd --
- *
- *	To test string equality. It is more readable to write
- *		if [tixStrEq $var1 $var2]
- *	than
- *		if ![string comp $var1 $var2]
- * 
- *----------------------------------------------------------------------
- */
-
-TIX_DEFINE_CMD(Tix_StrEqCmd)
-{
-    if (argc != 3) {
-	return Tix_ArgcError(interp, argc, argv, 1, "string1 string2");
-    }
-    if (strcmp(argv[1], argv[2]) == 0) {
-	Tcl_SetResult(interp, "1", TCL_STATIC);
-    } else {
-	Tcl_SetResult(interp, "0", TCL_STATIC);
-    }
-    return TCL_OK;
-}
-
-/*----------------------------------------------------------------------
- * Tix_StringSubCmd --
- *
- *	What does this do??
- *----------------------------------------------------------------------
- */
-
-TIX_DEFINE_CMD(Tix_StringSubCmd)
-{
-    Tcl_DString buffer;
-    char * str, *from, *to, *s, *e, *f;
-    int n, m, l, k;
-    int inited = 0;
-
-    if (argc!=4) {
-	return Tix_ArgcError(interp, argc, argv, 1, "strVar from to");
-    }
-    if ((str = Tcl_GetVar(interp, argv[1], 0)) == NULL) {
-	Tcl_AppendResult(interp, "variable ", argv[1]," does not exist", NULL);
-	return TCL_ERROR;
-    }
-    from = argv[2];
-    to = argv[3];
-
-    n = strlen(from);
-    l = strlen(to);
-
-    while (1) {
-	s = str;
-	k = 0;
-	
-	while (*s && *s != *from) {
-	    /* Find the beginning of token */
-	    s++; k++;
-	}
-
-	if (*s && *s == *from) {
-	    for (m=0,e=s,f=from; *e && *f && *e==*f && m<n; e++,f++,m++) {
-		;
-	    }
-	    if (!inited) {
-		Tcl_DStringInit(&buffer);
-		inited = 1;
-	    }
-	    if (m == n) {
-		/* We found a match */
-		if (s > str) {
-		    /* copy the unmatched prefix */
-		    Tcl_DStringAppend(&buffer, str, k);
-		}
-		Tcl_DStringAppend(&buffer, to, l);
-		str = e;
-	    } else {
-		Tcl_DStringAppend(&buffer, str, k+m);
-		str += k+m;
-	    }
-	    continue;
-	}
-
-	/* No match at all */
-	if (*str) {
-	    if (inited) {
-		Tcl_DStringAppend(&buffer, str, k);
-	    }
-	}
-	break;
-    }
-
-    if (inited) {
-	Tcl_SetVar(interp, argv[1], buffer.string, 0);
-	Tcl_DStringFree(&buffer);
-    }
-    return TCL_OK;
-}
-
-/*----------------------------------------------------------------------
  * Tix_TmpLineCmd
  *
- * 	Draw a temporary line on the root window
+ *	Draw a temporary line on the root window
  *
  * argv[1..] = x1 y1 x2 y2
  *----------------------------------------------------------------------
@@ -724,20 +433,6 @@ TIX_DEFINE_CMD(Tix_TmpLineCmd)
     }
 
     TixpDrawTmpLine(x1, y1, x2, y2, tkwin);
-    return TCL_OK;
-}
-
-/*----------------------------------------------------------------------
- * Tix_TrueCmd
- *
- *	Returns a true value regardless of the arguments. This is used to
- *	skip run-time debugging 
- *----------------------------------------------------------------------
- */
-
-TIX_DEFINE_CMD(Tix_TrueCmd)
-{
-    Tcl_SetResult(interp, "1",TCL_STATIC);
     return TCL_OK;
 }
 
@@ -831,9 +526,9 @@ static void IdleHandler(clientData)
  *----------------------------------------------------------------------
  */
 static int IsOption(option, optArgc, optArgv)
-    char *option;		/* Number of arguments. */ 
+    CONST84 char *option;	/* Number of arguments. */ 
     int optArgc;		/* Number of arguments. */
-    char **optArgv;		/* Argument strings. */
+    CONST84 char **optArgv;	/* Argument strings. */
 {
     int i;
 
@@ -916,20 +611,77 @@ ScaleColor(tkwin, color, scale)
     XColor * color;
     double scale;
 {
+    int r, g, b;
     XColor test;
 
-    test.red   = (int)((float)(color->red)   * scale);
-    test.green = (int)((float)(color->green) * scale);
-    test.blue  = (int)((float)(color->blue)  * scale);
-    if (test.red > MAX_INTENSITY) {
-	test.red = MAX_INTENSITY;
-    }
-    if (test.green > MAX_INTENSITY) {
-	test.green = MAX_INTENSITY;
-    }
-    if (test.blue > MAX_INTENSITY) {
-	test.blue = MAX_INTENSITY;
-    }
+    r = (int)((float)(color->red)   * scale);
+    g = (int)((float)(color->green) * scale);
+    b = (int)((float)(color->blue)  * scale);
+    if (r > MAX_INTENSITY) { r = MAX_INTENSITY; }
+    if (g > MAX_INTENSITY) { g = MAX_INTENSITY; }
+    if (b > MAX_INTENSITY) { b = MAX_INTENSITY; }
+    test.red   = (unsigned short) r;
+    test.green = (unsigned short) g;
+    test.blue  = (unsigned short) b;
 
     return Tk_GetColorByValue(tkwin, &test);
+}
+
+/*----------------------------------------------------------------------
+ * Tix_GetDefaultCmd
+ *
+ *	Implements the tixGetDefault command.
+ *
+ *	Returns values for various default configuration options,
+ *	as defined in tixDef.h and tkDefault.h.
+ *
+ *	This command makes it possible to define default options
+ *	for the Tcl-implemented widgets according to platform-
+ *	specific values set in the C header files.
+ *
+ *	Note: there is no reason to make this an ObjCmd because the
+ *	same Tcl command is unlikely to be executed twice. The old
+ *	style "string" command is more compact and less prone to
+ *	programming errors.
+ *----------------------------------------------------------------------
+ */
+
+TIX_DEFINE_CMD(Tix_GetDefaultCmd)
+{
+    unsigned int i;
+#   define OPT(x) {#x, x}
+    static char *table[][2] = {
+	OPT(ACTIVE_BG),
+	OPT(CTL_FONT),
+	OPT(DISABLED),
+	OPT(HIGHLIGHT),
+	OPT(INDICATOR),
+	OPT(MENU_BG),
+	OPT(MENU_FG),
+	OPT(NORMAL_BG),
+	OPT(NORMAL_FG),
+	OPT(SELECT_BG),
+	OPT(SELECT_FG),
+	OPT(TEXT_FG),
+	OPT(TROUGH),
+	
+	OPT(TIX_EDITOR_BG),
+	OPT(TIX_BORDER_WIDTH),
+	OPT(TIX_HIGHLIGHT_THICKNESS),
+    };
+
+    if (argc != 2) {
+	return Tix_ArgcError(interp, argc, argv, 1, "optionName");
+    }
+
+    for (i=0; i<Tix_ArraySize(table); i++) {
+	if (strcmp(argv[1], table[i][0]) == 0) {
+	    Tcl_SetResult(interp,   table[i][1], TCL_STATIC);
+	    return TCL_OK;
+	}
+    }
+
+    Tcl_AppendResult(interp, "unknown option \"", argv[1], 
+	    "\"", NULL);
+    return TCL_ERROR;
 }

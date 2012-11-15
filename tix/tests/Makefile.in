@@ -1,3 +1,7 @@
+# -*- mode: makefile; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+# $Id: Makefile.in,v 1.2 2002/11/13 21:12:17 idiscovery Exp $
+#
 #	This file is a Makefile for Tix. If it has the name
 #	"Makefile.in" Then it is a template for a Makefile; to
 #	generate the actual Makefile, run "./configure", which is a
@@ -47,7 +51,7 @@ demos-c::
 
 # Some versions of make, like SGI's, use the following variable to
 # determine which shell to use for executing commands:
-SHELL = @SHELL@
+SHELL =		/bin/sh
 
 SUBSETS=
 

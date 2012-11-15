@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: SHList2.tcl,v 1.4 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -74,20 +78,14 @@ proc RunSample {w} {
     }
 
     set style(mgr_name)  [tixDisplayStyle text  -refwindow $hlist \
-	-fg #202060 \
-	-selectforeground  #202060 \
 	-font [tix option get bold_font ]]
     set style(mgr_posn)  [tixDisplayStyle text  -refwindow $hlist \
-	-fg #202060 -padx 8 \
-	-selectforeground  #202060]
+	    -padx 8]
 
     set style(empl_name) [tixDisplayStyle text  -refwindow $hlist \
-	-fg #602020 \
-	-selectforeground  #602020  \
 	-font [tix option get bold_font ]]
     set style(empl_posn) [tixDisplayStyle text  -refwindow $hlist \
-	-fg #602020 -padx 8 \
-	-selectforeground  #602020 ]
+	    -padx 8 ]
 
     # Let configure the appearance of the HList subwidget 
     #
@@ -154,7 +152,7 @@ proc RunSample {w} {
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
     bind .demo <Destroy> exit
 }

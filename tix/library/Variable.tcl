@@ -1,9 +1,14 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: Variable.tcl,v 1.4 2001/12/09 05:04:02 idiscovery Exp $
+#
 # Variable.tcl --
 #
 #	Routines in this file are used to set up and operate variables
 #	for classes that support the -variable option
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -39,7 +44,7 @@ proc tixVariable:ConfigVariable {w arg} {
     }
 
     if {$arg != ""} {
-	if [uplevel #0 info exists [list $arg]] {
+	if {[uplevel #0 info exists [list $arg]]} {
 	    # This global variable exists, we use its value
 	    #
 	    set data(-value) [uplevel #0 set [list $arg]]
@@ -77,7 +82,7 @@ proc tixVariable:TraceProc {w name1 name2 op} {
     upvar #0 $w data
     set varname $data(-variable)
 
-    if [catch {$w config -value [uplevel #0 [list set $varname]]} err] {
+    if {[catch {$w config -value [uplevel #0 [list set $varname]]} err]} {
 	uplevel #0 [list set $varname [list [$w cget -value]]]
 	error $err
     }

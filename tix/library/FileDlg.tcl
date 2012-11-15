@@ -1,8 +1,13 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: FileDlg.tcl,v 1.3 2001/12/09 05:04:02 idiscovery Exp $
+#
 # FileDlg.tcl --
 #
 #	Implements the File Selection Dialog widget.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -29,7 +34,7 @@ proc tixFileSelectDialog:ConstructTopFrame {w frame} {
     tixChainMethod $w ConstructTopFrame $frame
 
     set data(w:fsbox) [tixFileSelectBox $frame.fsbox \
-	-command "tixFileSelectDialog:Invoke $w"]
+	-command [list tixFileSelectDialog:Invoke $w]]
     pack $data(w:fsbox) -expand yes -fill both
 }
 

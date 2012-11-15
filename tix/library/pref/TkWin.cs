@@ -1,3 +1,6 @@
+#
+# $Id: TkWin.cs,v 1.1 2000/10/12 01:41:04 idiscovery Exp $
+#
 proc tixSetScheme-Color {} {
     global tixOption
 

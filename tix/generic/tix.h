@@ -6,98 +6,120 @@
  *	write TCL commands and TK widgets in C. No more needs to write
  *	2000 line functions!
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000      Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tix.h,v 1.17 2008/02/28 04:35:16 hobbs Exp $
  */
 
 #ifndef _TIX_H_
 #define _TIX_H_
 
-#ifndef TIX_VERSION
-#define TIX_VERSION	"4.1"
-#endif
-#define TIX_PATCHLEVEL	"4.1.0"
-#define TIX_PATCH_LEVEL TIX_PATCHLEVEL
+/*
+ * For C++ compilers, use extern "C"
+ */
 
-#define TIX_RELEASE     "4.1.0.005"
-
-#ifndef RC_INVOKED
-
-#ifndef _TCL
-#include <tcl.h>
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #ifndef _TK
 #include <tk.h>
 #endif
 
-
-#if defined(__WIN32__) || defined(_WIN32) || defined (__BORLAND) || defined(_Windows)
-#ifndef _WINDOWS
-#define _WINDOWS
-#endif
+#ifndef _TCL
+#include <tcl.h>
 #endif
 
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+
+#ifndef CONST84
+#define CONST84
+#endif
+
+/*
+ * The following defines are used to indicate the various release levels.
+ */
+
+#define TIX_ALPHA_RELEASE	0
+#define TIX_BETA_RELEASE	1
+#define TIX_FINAL_RELEASE	2
+
+/*
+ * When version numbers change here, must also go into the following files
+ * and update the version numbers:
+ *
+ * unix/README.txt	(example directory name)
+ * configure.in		(1 LOC major/minor/patch), rerun autoconf
+ * library/Init.tcl	(1 LOC major/minor/patch)
+ * win/makefile.vc	(1 LOC major/minor/patch)
+ * tests/basic.test	(version checks)
+ * tests/README 	(example executable name)
+ */
+
+#define TIX_MAJOR_VERSION   8
+#define TIX_MINOR_VERSION   4
+#define TIX_RELEASE_LEVEL   TIX_FINAL_RELEASE
+#define TIX_RELEASE_SERIAL  3
+
+#define TIX_VERSION	    "8.4"
+#define TIX_PATCH_LEVEL	    "8.4.3"
+#define TIX_RELEASE         TIX_PATCH_LEVEL
+
+/*
+ * When building Tix itself, BUILD_tix should be defined by the makefile
+ * so that all EXTERN declarations get DLLEXPORT; when building apps
+ * using Tix, BUILD_tix should NOT be defined so that all EXTERN
+ * declarations get DLLIMPORT as defined in tcl.h
+ *
+ * NOTE: This ifdef MUST appear after the include of tcl.h and tk.h
+ * because the EXTERN declarations in those files need DLLIMPORT.
+ */
+/*
+ * These macros are used to control whether functions are being declared for
+ * import or export.  If a function is being declared while it is being built
+ * to be included in a shared library, then it should have the DLLEXPORT
+ * storage class.  If is being declared for use by a module that is going to
+ * link against the shared library, then it should have the DLLIMPORT storage
+ * class.  If the symbol is beind declared for a static build or for use from a
+ * stub library, then the storage class should be empty.
+ *
+ * The convention is that a macro called BUILD_xxxx, where xxxx is the
+ * name of a library we are building, is set on the compile line for sources
+ * that are to be placed in the library.  When this macro is set, the
+ * storage class will be set to DLLEXPORT.  At the end of the header file, the
+ * storage class will be reset to DLLIMPORt.
+ */
+
+#undef TCL_STORAGE_CLASS
 #ifdef BUILD_tix
-# undef TCL_STORAGE_CLASS
 # define TCL_STORAGE_CLASS DLLEXPORT
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#if (TCL_MAJOR_VERSION > 7)
-#  define TCL_7_5_OR_LATER
 #else
-#  if ((TCL_MAJOR_VERSION == 7) && (TCL_MINOR_VERSION >= 5))
-#    define TCL_7_5_OR_LATER
-#  endif
+# ifdef USE_TCL_STUBS
+#  define TCL_STORAGE_CLASS
+# else
+#  define TCL_STORAGE_CLASS DLLIMPORT
+# endif
 #endif
 
-
-#if (TK_MAJOR_VERSION > 4)
-#  define TK_4_1_OR_LATER
-#else
-#  if ((TK_MAJOR_VERSION == 4) && (TK_MINOR_VERSION >= 1))
-#    define TK_4_1_OR_LATER
-#  endif
-#endif /* TK_MAJOR_VERSION ... */
-
-#if (TK_MAJOR_VERSION >= 8)
-#  define TK_8_0_OR_LATER
-#endif
-
-#ifdef TK_4_1_OR_LATER
-    /* TK 4.1 or later */
-#  define Tix_FreeProc Tcl_FreeProc
-
-#else
-    /* TK 4.0 */
-#  define Tix_FreeProc Tk_FreeProc
-
-    /* These portable features were not defined in previous versions of
-     * TK but are used in Tix. Let's define them here.
-     */
-#  define TkPutImage(a, b, c, d, e, f, g, h, i, j, k, l) \
-	XPutImage(c, d, e, f, g, h, i, j, k, l)
-
-#  define TkStringToKeysym XStringToKeysym 
-
-#endif /* TK_4_1_OR_LATER */
-
+#define Tix_FreeProc Tcl_FreeProc
 
 #define TIX_STDIN_ALWAYS	0
 #define TIX_STDIN_OPTIONAL	1
 #define TIX_STDIN_NONE		2
 
 typedef struct {
-    char *name;			/* Name of command. */
+    CONST84 char *name;		/* Name of command. */
     int (*cmdProc) _ANSI_ARGS_((ClientData clientData, Tcl_Interp *interp,
-				int argc, char **argv));
+				int argc, CONST84 char **argv));
 				/* Command procedure. */
 } Tix_TclCmd;
 
@@ -111,11 +133,11 @@ typedef struct {
  *----------------------------------------------------------------------
  */
 typedef int (*Tix_CmdProc) _ANSI_ARGS_((ClientData clientData,
-	Tcl_Interp *interp, int argc, char ** argv));
+	Tcl_Interp *interp, int argc, CONST84 char ** argv));
 typedef int (*Tix_SubCmdProc) _ANSI_ARGS_((ClientData clientData,
-	Tcl_Interp *interp, int argc, char ** argv));
+	Tcl_Interp *interp, int argc, CONST84 char ** argv));
 typedef int (*Tix_CheckArgvProc) _ANSI_ARGS_((ClientData clientData,
-	Tcl_Interp *interp, int argc, char ** argv));
+	Tcl_Interp *interp, int argc, CONST84 char ** argv));
 
 typedef struct _Tix_CmdInfo {
     int		numSubCmds;
@@ -126,12 +148,12 @@ typedef struct _Tix_CmdInfo {
 
 typedef struct _Tix_SubCmdInfo {
     int			namelen;
-    char      	      * name;
+    CONST84 char       *name;
     int			minargc;
     int			maxargc;
-    Tix_SubCmdProc 	proc;
-    char      	      * info;
-    Tix_CheckArgvProc   checkArgvProc;
+    Tix_SubCmdProc	proc;
+    CONST84 char       *info;
+    Tix_CheckArgvProc	checkArgvProc;
 } Tix_SubCmdInfo;
 
 /*
@@ -172,8 +194,8 @@ typedef struct _Tix_SubCmdInfo {
  * command function.
  */
 #define TIX_DECLARE_CMD(func) \
-    int func _ANSI_ARGS_((ClientData clientData,\
-	Tcl_Interp *interp, int argc, char ** argv))
+    int func(ClientData clientData,\
+	Tcl_Interp *interp, int argc, CONST84 char ** argv)
 
 /*
  * TIX_DECLARE_SUBCMD --
@@ -182,8 +204,8 @@ typedef struct _Tix_SubCmdInfo {
  * sub command function.
  */
 #define TIX_DECLARE_SUBCMD(func) \
-    int func _ANSI_ARGS_((ClientData clientData,\
-	Tcl_Interp *interp, int argc, char ** argv))
+    int func(ClientData clientData,\
+	Tcl_Interp *interp, int argc, CONST84 char ** argv)
 
 /*
  * TIX_DEFINE_CMD --
@@ -197,7 +219,7 @@ int func(clientData, interp, argc, argv) \
 				 * interpreter. */		\
     Tcl_Interp *interp;		/* Current interpreter. */	\
     int argc;			/* Number of arguments. */	\
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 
 
 /*----------------------------------------------------------------------
@@ -314,9 +336,16 @@ EXTERN void		Tix_SimpleListIteratorInit _ANSI_ARGS_((
  *
  *  			CUSTOM CONFIG OPTIONS
  *
- *
  *----------------------------------------------------------------------
  */
+
+/*
+ * These values are similar to the TK_RELIEF_XXX values, except we added
+ * TIX_RELIEF_SOLID.
+ *
+ * TODO: is this option documented??
+ */
+
 #define TIX_RELIEF_RAISED	1
 #define TIX_RELIEF_FLAT		2
 #define TIX_RELIEF_SUNKEN	4
@@ -335,56 +364,43 @@ extern Tk_CustomOption tixConfigRelief;
  */
 
 EXTERN int		Tix_ArgcError _ANSI_ARGS_((Tcl_Interp *interp, 
-			    int argc, char ** argv, int prefixCount,
-			    char *message));
+			    int argc, CONST84 char ** argv, int prefixCount,
+			    CONST84 char *message));
 EXTERN void		Tix_CreateCommands _ANSI_ARGS_((
 			    Tcl_Interp *interp, Tix_TclCmd *commands,
 			    ClientData clientData,
 			    Tcl_CmdDeleteProc *deleteProc));
 EXTERN Tk_Window	Tix_CreateSubWindow _ANSI_ARGS_((
 			    Tcl_Interp * interp, Tk_Window tkwin,
-			    char * subPath));
+			    CONST84 char * subPath));
 EXTERN int		Tix_DefinePixmap _ANSI_ARGS_((
 			    Tcl_Interp * interp, Tk_Uid name, char **data));
 EXTERN void		Tix_DrawAnchorLines _ANSI_ARGS_((
 			    Display *display, Drawable drawable,
 			    GC gc, int x, int y, int w, int h));
 EXTERN int		Tix_EvalArgv _ANSI_ARGS_((
-    			    Tcl_Interp * interp, int argc, char ** argv));
+    			    Tcl_Interp * interp, int argc, CONST84 char ** argv));
 EXTERN int 		Tix_ExistMethod _ANSI_ARGS_((Tcl_Interp *interp,
-			    char *context, char *method));
+			    CONST84 char *context, CONST84 char *method));
 EXTERN void		Tix_Exit _ANSI_ARGS_((Tcl_Interp * interp, int code));
 EXTERN Pixmap		Tix_GetRenderBuffer _ANSI_ARGS_((Display *display,
 			    Drawable d, int width, int height, int depth));
-
-#ifdef TCL_VARARGS
-/*
- * The TCL_VARARGS macro is only defined in Tcl 7.5 or later
- */
+EXTERN GC               Tix_GetAnchorGC _ANSI_ARGS_((Tk_Window tkwin,
+			    XColor *bgColor));
 EXTERN int		Tix_GlobalVarEval _ANSI_ARGS_(
 			    TCL_VARARGS(Tcl_Interp *,interp));
-#else
-EXTERN int		Tix_GlobalVarEval _ANSI_ARGS_(
-			    VARARGS(Tcl_Interp *interp));
-#endif
-
 EXTERN int		Tix_HandleSubCmds _ANSI_ARGS_((
 			    Tix_CmdInfo * cmdInfo,
 			    Tix_SubCmdInfo * subCmdInfo,
 			    ClientData clientData, Tcl_Interp *interp,
-			    int argc, char **argv));
+			    int argc, CONST84 char **argv));
 EXTERN int 		Tix_Init _ANSI_ARGS_((Tcl_Interp *interp));
-
-EXTERN int		Tix_LoadTclLibrary _ANSI_ARGS_((
-			    Tcl_Interp *interp, char *envName,
-			    char *tclName, char *initFile,
-			    char *defDir, char * appName));
 EXTERN void 		Tix_OpenStdin _ANSI_ARGS_((Tcl_Interp *interp));
 EXTERN void 		Tix_SetArgv _ANSI_ARGS_((Tcl_Interp *interp, 
-			    int argc, char **argv));
+			    int argc, CONST84 char **argv));
 EXTERN void		Tix_SetRcFileName _ANSI_ARGS_((
-			    Tcl_Interp * interp,  char * rcFileName));
-
+			    Tcl_Interp * interp, CONST84 char * rcFileName));
+EXTERN char *           Tix_ZAlloc _ANSI_ARGS_((unsigned int nbytes));
 
 /*
  * Commands exported by Tix
@@ -396,15 +412,13 @@ extern TIX_DECLARE_CMD(Tix_ChainMethodCmd);
 extern TIX_DECLARE_CMD(Tix_ClassCmd);
 extern TIX_DECLARE_CMD(Tix_DoWhenIdleCmd);
 extern TIX_DECLARE_CMD(Tix_DoWhenMappedCmd);
-extern TIX_DECLARE_CMD(Tix_FalseCmd);
 extern TIX_DECLARE_CMD(Tix_FileCmd);
 extern TIX_DECLARE_CMD(Tix_FlushXCmd);
 extern TIX_DECLARE_CMD(Tix_FormCmd);
 extern TIX_DECLARE_CMD(Tix_GridCmd);
 extern TIX_DECLARE_CMD(Tix_GeometryRequestCmd);
 extern TIX_DECLARE_CMD(Tix_Get3DBorderCmd);
-extern TIX_DECLARE_CMD(Tix_GetBooleanCmd);
-extern TIX_DECLARE_CMD(Tix_GetIntCmd);
+extern TIX_DECLARE_CMD(Tix_GetDefaultCmd);
 extern TIX_DECLARE_CMD(Tix_GetMethodCmd);
 extern TIX_DECLARE_CMD(Tix_HListCmd);
 extern TIX_DECLARE_CMD(Tix_HandleOptionsCmd);
@@ -414,13 +428,9 @@ extern TIX_DECLARE_CMD(Tix_ManageGeometryCmd);
 extern TIX_DECLARE_CMD(Tix_MapWindowCmd);
 extern TIX_DECLARE_CMD(Tix_MoveResizeWindowCmd);
 extern TIX_DECLARE_CMD(Tix_NoteBookFrameCmd);
-extern TIX_DECLARE_CMD(Tix_RaiseWindowCmd);
 extern TIX_DECLARE_CMD(Tix_ShellInputCmd);
-extern TIX_DECLARE_CMD(Tix_StringSubCmd);
-extern TIX_DECLARE_CMD(Tix_StrEqCmd);
 extern TIX_DECLARE_CMD(Tix_TListCmd);
 extern TIX_DECLARE_CMD(Tix_TmpLineCmd);
-extern TIX_DECLARE_CMD(Tix_TrueCmd);
 extern TIX_DECLARE_CMD(Tix_UnmapWindowCmd);
 extern TIX_DECLARE_CMD(Tix_MwmCmd);
 extern TIX_DECLARE_CMD(Tix_CreateWidgetCmd);
@@ -436,32 +446,20 @@ extern TIX_DECLARE_CMD(Tix_CreateWidgetCmd);
 
 /*----------------------------------------------------------------------
  * Compatibility section
- *----------------------------------------------------------------------	*/
+ *----------------------------------------------------------------------
+ */
 
-EXTERN char * 		tixStrDup _ANSI_ARGS_((
-			    CONST char * s));
-
-#ifdef _WINDOWS
-#ifndef NO_STRCASECMP
-#define NO_STRCASECMP 1
-#endif
+#if defined(__WIN32__) && !defined(strcasecmp)
+#define strcasecmp _stricmp
 #endif
 
-#if defined(NO_STRCASECMP)
-#  ifndef strcasecmp
-#    define strcasecmp tixStrCaseCmp
-#  endif
-extern int		tixStrCaseCmp _ANSI_ARGS_((CONST char *s1,
-			    CONST char *s2));
-#endif
-
-
+/*
+ * end block for C++
+ */
+    
 #ifdef __cplusplus
 }
 #endif
 
-#undef TCL_STORAGE_CLASS
-#define TCL_STORAGE_CLASS DLLIMPORT
-
-#endif /* RC_INVOKED */
 #endif /* _TIX_H_ */
+

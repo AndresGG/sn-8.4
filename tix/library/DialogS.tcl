@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: DialogS.tcl,v 1.5 2004/03/28 02:44:57 hobbs Exp $
+#
 # DialogS.tcl --
 #
 #
@@ -58,6 +62,7 @@ proc tixDialogShell:ConstructWidget {w} {
     # Set the minsize and maxsize of the thing
     #
     wm minsize $w $data(-minwidth) $data(-minheight)
+    wm transient $w ""
 }
 
 # The next procedures manage the dialog boxes
@@ -71,11 +76,12 @@ proc tixDialogShell:popup {w {parent ""}} {
 
     # Then we set the position and update
     #
-    tixDialogShell:center $w $parent
+    # tixDialogShell:center $w $parent
 
     # and now make it visible. Viola!  Centered over parent.
     #
     wm deiconify $w
+    after idle raise $w
 }
 
 # This procedure centers a dialog box over a window making sure that the 
@@ -94,7 +100,7 @@ proc tixDialogShell:center {w {parent ""}} {
     if {$parent == ""} {
 	set parent $data(-parent)
     }
-    if [catch {set parent [winfo toplevel $parent]}] {
+    if {$parent == "" || [catch {set parent [winfo toplevel $parent]}]} {
 	set parent "."
     }
 
@@ -107,7 +113,7 @@ proc tixDialogShell:center {w {parent ""}} {
 	set parx [lindex $pargeo 2]
 	set pary [lindex $pargeo 3]
 
-	if {[tixGetBoolean -nocomplain $data(-transient)]} {
+	if {[string is true -strict $data(-transient)]} {
 	    wm transient $w $parent
 	}
     } else {
@@ -126,18 +132,18 @@ proc tixDialogShell:center {w {parent ""}} {
     set dialogW [winfo reqwidth $w]
     set dialogH [winfo reqheight $w]
 
-    if {$dialogW < [expr $parentW-30] || $dialogW < [expr $parentH-30]} {
-	set dialogx [expr $parx+($parentW-$dialogW)/2+$vrootx]
-	set dialogy [expr $pary+($parentH-$dialogH)/2+$vrooty]
+    if {$dialogW < $parentW-30 || $dialogW < $parentH-30} {
+	set dialogx [expr {$parx+($parentW-$dialogW)/2+$vrootx}]
+	set dialogy [expr {$pary+($parentH-$dialogH)/2+$vrooty}]
     } else {
 	# This dialog is too big. Place it at (parentx, parenty) + (20,20)
 	#
-	set dialogx [expr $parx+20+$vrootx]
-	set dialogy [expr $pary+20+$vrooty]
+	set dialogx [expr {$parx+20+$vrootx}]
+	set dialogy [expr {$pary+20+$vrooty}]
     }
 
-    set maxx [expr "[winfo screenwidth  $parent] - $dialogW"]
-    set maxy [expr "[winfo screenheight $parent] - $dialogH"]
+    set maxx [expr {[winfo screenwidth  $parent] - $dialogW}]
+    set maxy [expr {[winfo screenheight $parent] - $dialogH}]
 
     # Make sure it doesn't go off screen
     #
@@ -159,7 +165,7 @@ proc tixDialogShell:center {w {parent ""}} {
     # set my new position (and dimensions)
     #
     if {[wm geometry $w] == "1x1+0+0"} {
-	wm geometry $w $dialogW\x$dialogH\+$dialogx\+$dialogy
+	wm geometry $w ${dialogW}x${dialogH}+${dialogx}+${dialogy}
     }
 }
 

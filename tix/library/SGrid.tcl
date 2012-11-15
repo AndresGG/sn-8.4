@@ -1,11 +1,30 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: SGrid.tcl,v 1.6 2002/01/24 09:13:58 idiscovery Exp $
+#
 # SGrid.tcl --
 #
 #	This file implements Scrolled Grid widgets
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+
+global tkPriv
+if {![llength [info globals tkPriv]]} {
+    tk::unsupported::ExposePrivateVariable tkPriv
+}
+#--------------------------------------------------------------------------
+# tkPriv elements used in this file:
+#
+# x -	
+# y -	
+# X -	
+# Y -	
+#--------------------------------------------------------------------------
 #
 
 tixWidgetClass tixScrolledGrid {
@@ -24,11 +43,7 @@ tixWidgetClass tixScrolledGrid {
 	{*grid.highlightBackground	#d9d9d9}
 	{*grid.relief			sunken}
 	{*grid.takeFocus		1}
-	{*Scrollbar.background		#d9d9d9}
-	{*Scrollbar.troughColor		#c3c3c3}
 	{*Scrollbar.takeFocus		0}
-	{*Scrollbar.relief		sunken}
-	{*Scrollbar.width		15}
     }
 }
 
@@ -57,7 +72,7 @@ proc tixScrolledGrid:SetBindings {w} {
     $data(w:grid) config \
 	-xscrollcommand "$data(w:hsb) set"\
 	-yscrollcommand "$data(w:vsb) set"\
-	-sizecmd "tixScrolledWidget:Configure $w" \
+	-sizecmd [list tixScrolledWidget:Configure $w] \
 	-formatcmd "tixCallMethod $w FormatCmd"
 
     $data(w:hsb) config -command "$data(w:grid) xview"
@@ -166,7 +181,7 @@ proc tixScrolledGrid:Button-1 {w x y} {
     if {[$w cget -state] == "disabled"} {
 	return
     }
-    if [$w cget -takefocus] {
+    if {[$w cget -takefocus]} {
 	focus $w
     }
     case [tixScrolled:GetState $w] {

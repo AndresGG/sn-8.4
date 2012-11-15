@@ -1,8 +1,14 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: EFileBox.tcl,v 1.5 2004/03/28 02:44:57 hobbs Exp $
+#
 # EFileBox.tcl --
 #
 #	Implements the Extended File Selection Box widget.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -74,14 +80,8 @@ proc tixExFileSelectBox:InitWidgetRec {w} {
 
     tixChainMethod $w InitWidgetRec
 
-    if {$data(-directory) == ""} {
-	global env
-
-	if {[info exists env(PWD)]} {
-	    set data(-directory) $env(PWD)
-	} else {
-	    set data(-directory) [pwd]
-	}
+    if {$data(-directory) eq ""} {
+	set data(-directory) [pwd]
     }
     set data(oldDir)    ""
     set data(flag)      0
@@ -102,8 +102,8 @@ proc tixExFileSelectBox:ConstructWidget {w} {
     # The pane that contains the two listboxes
     #
     set pane  [tixPanedWindow $lf.pane -orientation horizontal]
-    set fpane [$pane add 1 -size 160]
-    set dpane [$pane add 2 -size 160]
+    set dpane [$pane add 1 -size 160]
+    set fpane [$pane add 2 -size 160]
 
     $dpane config -relief flat
     $fpane config -relief flat
@@ -111,38 +111,40 @@ proc tixExFileSelectBox:ConstructWidget {w} {
     # The File List Pane
     #
     set data(w:file)  [tixComboBox $fpane.file\
-	-command "tixExFileSelectBox:Cmd-FileCombo $w"\
-	-prunehistory true \
-	-options { \
-	    label.anchor w \
-	}]
-    set data(w:filelist) [tixScrolledListBox $fpane.filelist \
-	-command "tixExFileSelectBox:Cmd-FileList $w 1"\
-	-browsecmd "tixExFileSelectBox:Cmd-FileList $w 0"]
+			   -command [list tixExFileSelectBox:Cmd-FileCombo $w]\
+			   -prunehistory true \
+			   -options {
+			       label.anchor w
+			   }]
+    set data(w:filelist) \
+	[tixScrolledListBox $fpane.filelist \
+	     -command   [list tixExFileSelectBox:Cmd-FileList $w 1] \
+	     -browsecmd [list tixExFileSelectBox:Cmd-FileList $w 0]]
     pack $data(w:file)  -padx 8 -pady 4 -side top -fill x
     pack $data(w:filelist) -padx 8 -pady 4 -side top -fill both -expand yes
 
     # The Directory Pane
     #
     set data(w:dir)   [tixComboBox $dpane.dir \
-	-command "tixExFileSelectBox:Cmd-DirCombo $w"\
-	-prunehistory true \
-	-options { \
-	    label.anchor w \
-	}]
-    set data(w:dirlist) [tixDirList  $dpane.dirlist \
-	-command "tixExFileSelectBox:Cmd-DirList $w"\
-	-browsecmd "tixExFileSelectBox:Browse-DirList $w"]
+			   -command [list tixExFileSelectBox:Cmd-DirCombo $w]\
+			   -prunehistory true \
+			   -options {
+			       label.anchor w
+			   }]
+    set data(w:dirlist) \
+	[tixDirList  $dpane.dirlist \
+	     -command   [list tixExFileSelectBox:Cmd-DirList $w]\
+	     -browsecmd [list tixExFileSelectBox:Browse-DirList $w]]
     pack $data(w:dir)   -padx 8 -pady 4 -side top -fill x
     pack $data(w:dirlist) -padx 8 -pady 4 -side top -fill both -expand yes
 
     # The file types listbox
     #
     set data(w:types) [tixComboBox $lf.types\
-	-command "tixExFileSelectBox:Cmd-TypeCombo $w" \
-	-options { \
-	    label.anchor w \
-	}]
+			   -command [list tixExFileSelectBox:Cmd-TypeCombo $w]\
+			   -options {
+			       label.anchor w
+			   }]
 
     pack $data(w:types)  -padx 12 -pady 4 -side bottom -fill x -anchor w
     pack $pane -side top -padx 4 -pady 4 -expand yes -fill both
@@ -150,22 +152,22 @@ proc tixExFileSelectBox:ConstructWidget {w} {
     # Buttons to the right
     #
     set bf [frame $w.bf]
-    set data(w:ok)     [button $bf.ok -text OK\
-	-underline 0 -command "tixExFileSelectBox:Ok $w"]
-    set data(w:cancel) [button $bf.cancel -text Cancel\
-	-underline 0 -command "tixExFileSelectBox:Cancel $w"]
+    set data(w:ok)     [button $bf.ok -text Ok -width 6 \
+	-underline 0 -command [list tixExFileSelectBox:Ok $w]]
+    set data(w:cancel) [button $bf.cancel -text Cancel -width 6 \
+	-underline 0 -command [list tixExFileSelectBox:Cancel $w]]
     set data(w:hidden) [checkbutton $bf.hidden -text "Show Hidden Files"\
 	-underline 0\
        	-variable [format %s(-showhidden) $w] -onvalue 1 -offvalue 0\
-	-command "tixExFileSelectBox:SetShowHidden $w"]
+	-command [list tixExFileSelectBox:SetShowHidden $w]]
 
     pack $data(w:ok) $data(w:cancel) $data(w:hidden)\
 	-side top -fill x -padx 6 -pady 3
 
-    pack $bf -side right -fill both -pady 6
+    pack $bf -side right -fill y -pady 6
     pack $lf -side left -expand yes -fill both
 
-    tixDoWhenMapped $w "tixExFileSelectBox:Map $w"
+    tixDoWhenMapped $w [list tixExFileSelectBox:Map $w]
 
     if {$data(-filetypes) == ""} {
 	$data(w:types) config -state disabled
@@ -185,20 +187,15 @@ proc tixExFileSelectBox:config-showhidden {w value} {
 
 # Update both DirList and {file list and dir combo}
 #
-#
 proc tixExFileSelectBox:config-directory {w value} {
     upvar #0 $w data
 
-    if {![tixIsAbsPath $value]} {
-	return $data(-directory)
-    }
-
-    set data(-directory) [tixFSAbsPath $value]
-    tixSetSilent $data(w:dirlist) $data(-directory) 
-    tixSetSilent $data(w:dir) $data(-directory) 
+    set data(-directory) [tixFSNormalize $value]
+    tixSetSilent $data(w:dirlist) $data(-directory)
+    tixSetSilent $data(w:dir) $data(-directory)
     tixWidgetDoWhenIdle tixExFileSelectBox:LoadFiles $w reload
 
-    return $data(-directory) 
+    return $data(-directory)
 }
 
 proc tixExFileSelectBox:config-filetypes {w value} {
@@ -207,7 +204,7 @@ proc tixExFileSelectBox:config-filetypes {w value} {
     $data(w:types) subwidget listbox delete 0 end
 
     foreach name [array names data] {
-	if [string match type,* $name] {
+	if {[string match type,* $name]} {
 	    catch {unset data($name)}
 	}
     }
@@ -216,7 +213,7 @@ proc tixExFileSelectBox:config-filetypes {w value} {
 	$data(w:types) config -state disabled
     } else {
 	$data(w:types) config -state normal
-    
+
 	foreach type $value {
 	    $data(w:types) insert end [lindex $type 1]
 	    set data(type,[lindex $type 1]) [lindex $type 0]
@@ -243,14 +240,11 @@ proc tixExFileSelectBox:Cmd-DirCombo {w args} {
     upvar #0 $w data
 
     set dir [tixEvent flag V]
-    if {![tixIsAbsPath $dir]} {
-	return
-    }
-    set dir [tixFSAbsPath $dir]
-
+    set dir [tixFSExternal $dir]
     if {![file isdirectory $dir]} {
 	return
     }
+    set dir [tixFSNormalize $dir]
 
     $data(w:dirlist) config -value $dir
     set data(-directory) $dir
@@ -263,10 +257,8 @@ proc tixExFileSelectBox:Cmd-DirList {w args} {
     upvar #0 $w data
 
     set dir $data(-directory)
-    catch {
-	set dir [tixEvent flag V]
-    }
-    set dir [tixFSAbsPath $dir]
+    catch {set dir [tixEvent flag V]}
+    set dir [tixFSNormalize [tixFSExternal $dir]]
 
     tixSetSilent $data(w:dir) $dir
     set data(-directory) $dir
@@ -281,22 +273,18 @@ proc tixExFileSelectBox:Browse-DirList {w args} {
     upvar #0 $w data
 
     set dir [tixEvent flag V]
+    set dir [tixFSNormalize [tixFSExternal $dir]]
     tixExFileSelectBox:Cmd-DirList $w $dir
 }
 
 proc tixExFileSelectBox:IsPattern {w string} {
-    foreach char [split $string ""] {
-	if {$char == "*" || $char == "?" || $char == "\{"  || $char == "\[" } {
-	    return 1
-	}
-    }
-    return 0
+    return [regexp "\[\[\\\{\\*\\?\]" $string]
 }
 
 proc tixExFileSelectBox:Cmd-FileCombo {w value} {
     upvar #0 $w data
 
-    if {[tixEvent type] == "<Return>"} {
+    if {[tixEvent type] eq "<Return>"} {
 	tixExFileSelectBox:Ok $w
     }
 }
@@ -310,17 +298,13 @@ proc tixExFileSelectBox:Ok {w} {
     }
     tixSetSilent $data(w:file) $value
 
-    if [tixExFileSelectBox:IsPattern $w $value] {
+    if {[tixExFileSelectBox:IsPattern $w $value]} {
 	set data(-pattern) $value
 	tixWidgetDoWhenIdle tixExFileSelectBox:LoadFiles $w reload
     } else {
-	if [tixIsAbsPath $value] {
-	    set intName [tixFileIntName $value]
-	} else {
-	    set intName [tixSubFolder [tixFileIntName $data(-directory)] \
-	    	[tixFileIntName $value]]
-	}
-	set data(-value) [tixNativeName $intName]
+	# ensure absolute path
+	set value [file join $data(-directory) $value]; # native
+	set data(-value) [tixFSNativeNorm $value]
 	tixExFileSelectBox:Invoke $w
     }
 }
@@ -362,15 +346,13 @@ proc tixExFileSelectBox:Cmd-FileList {w invoke args} {
     set file [$data(w:filelist) subwidget listbox get $index]
     tixSetSilent $data(w:file) $file
 
-    set data(-value) [tixNativeName [tixSubFolder \
-	[tixFileIntName $data(-directory)] [tixFileIntName $file]]]
+    set value [file join $data(-directory) $file]
+    set data(-value) [tixFSNativeNorm $value]
 
     if {$invoke == 1} {
 	tixExFileSelectBox:Invoke $w
-    } else {
-	if {$data(-browsecmd) != ""} {
-	    tixEvalCmdBinding $w $data(-browsecmd) "" $data(-value)
-	}
+    } elseif {$data(-browsecmd) != ""} {
+	tixEvalCmdBinding $w $data(-browsecmd) "" $data(-value)
     }
 }
 
@@ -379,7 +361,7 @@ proc tixExFileSelectBox:Cmd-TypeCombo {w args} {
 
     set value [tixEvent flag V]
 
-    if [info exists data(type,$value)] {
+    if {[info exists data(type,$value)]} {
 	set data(-pattern) $data(type,$value)
 	tixSetSilent $data(w:file) $data(-pattern)
 	tixWidgetDoWhenIdle tixExFileSelectBox:LoadFiles $w reload
@@ -389,13 +371,13 @@ proc tixExFileSelectBox:Cmd-TypeCombo {w args} {
 proc tixExFileSelectBox:LoadFiles {w flag} {
     upvar #0 $w data
 
-    if {$flag != "reload" && $data(-directory) == $data(oldDir)} {
+    if {$flag ne "reload" && $data(-directory) eq $data(oldDir)} {
 	return
     }
 
     if {![winfo ismapped [winfo toplevel $w]]} {
 	tixDoWhenMapped [winfo toplevel $w] \
-	    "tixExFileSelectBox:LoadFiles $w $flag"
+	    [list tixExFileSelectBox:LoadFiles $w $flag]
 	return
     }
 
@@ -406,17 +388,20 @@ proc tixExFileSelectBox:LoadFiles {w flag} {
 
     tixBusy $w on [$data(w:dirlist) subwidget hlist]
 
-    set intDir [tixFileIntName $data(-directory)]
-    foreach name [tixListDir $intDir 0 1 0 \
-        $data(-showhidden) $data(-pattern)] {
+    # wrap in a catch so you can't get stuck in a Busy state
+    if {[catch {
+	foreach name [tixFSListDir $data(-directory) 0 1 0 \
+			  $data(-showhidden) $data(-pattern)] {
+	    $listbox insert end $name
+	}
 
-	$listbox insert end [tixFileDisplayName [tixSubFolder $intDir $name]]
-    }
-
-    if {$data(oldDir) != $data(-directory)} {
-	# Otherwise if the user has already selected a file and then presses
-	# "show hidden", the selection won't be wiped out.
-	tixSetSilent $data(w:file) $data(-pattern)
+	if {$data(oldDir) ne $data(-directory)} {
+	    # Otherwise if the user has already selected a file and then
+	    # presses "show hidden", the selection won't be wiped out.
+	    tixSetSilent $data(w:file) $data(-pattern)
+	}
+    } err]} {
+	tixDebug "tixExFileSelectBox:LoadFiles error for $w\n$err"
     }
     set data(oldDir) $data(-directory)
 
@@ -429,13 +414,12 @@ proc tixExFileSelectBox:Map {w} {
     if {![winfo exists $w]} {
 	return
     }
-
     upvar #0 $w data
 
     set bind(specs) "%V"
     set bind(%V) $data(-value)
     tixEvalCmdBinding $w bind \
-	"tixExFileSelectBox:Cmd-DirList $w" $data(-directory)
+	[list tixExFileSelectBox:Cmd-DirList $w] $data(-directory)
 }
 
 #----------------------------------------------------------------------

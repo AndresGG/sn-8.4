@@ -13,11 +13,13 @@
  *	display, calculate geometry, etc.
  *
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000-2001 Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tixDItem.c,v 1.3 2004/03/28 02:44:56 hobbs Exp $
  */
 
 #include <tixPort.h>
@@ -25,7 +27,7 @@
 
 
 static int   DItemParseProc _ANSI_ARGS_((ClientData clientData,
-		Tcl_Interp *interp, Tk_Window tkwin, char *value,
+		Tcl_Interp *interp, Tk_Window tkwin, CONST84 char *value,
 		char *widRec, int offset));
 
 static char *DItemPrintProc _ANSI_ARGS_((
@@ -48,6 +50,7 @@ static char *DItemPrintProc _ANSI_ARGS_((
  *	Maintain a list of item types, each identifies by a unique string
  *	name;
  */
+
 static Tix_DItemInfo * diTypes = NULL;
 
 void Tix_AddDItemType(diTypePtr)
@@ -59,12 +62,12 @@ void Tix_AddDItemType(diTypePtr)
 
 Tix_DItemInfo * Tix_GetDItemType(interp, type)
     Tcl_Interp * interp;
-    char * type;
+    CONST84 char * type;
 {
     Tix_DItemInfo * diTypePtr;
 
     for (diTypePtr = diTypes; diTypePtr; diTypePtr = diTypePtr->next) {
-	if (strcmp(type,diTypePtr->name)==0) {
+	if (strcmp(type, diTypePtr->name)==0) {
 	    return diTypePtr;
 	}
     }
@@ -85,7 +88,7 @@ Tix_DItemInfo * Tix_GetDItemType(interp, type)
  */
 Tix_DItem * Tix_DItemCreate(ddPtr, type)
    Tix_DispData * ddPtr;
-   char * type;
+   CONST84 char * type;
 {
     Tix_DItemInfo * diTypePtr;
 
@@ -106,25 +109,48 @@ Tix_DItem * Tix_DItemCreate(ddPtr, type)
 int Tix_DItemConfigure(iPtr, argc, argv, flags)
     Tix_DItem * iPtr;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
     int flags;
 {
     return iPtr->base.diTypePtr->configureProc(iPtr, argc, argv, flags);
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tix_DItemDisplay --
+ *
+ *	Display a DItem. {x, y, width, height} specifies a region
+ *      for to display this item in. {xOffset, yOffset} gives the
+ *      offset of the top-left corner of the item relative to
+ *      the top-left corder of the region.
+ *
+ *      Background and foreground of the item are displayed according
+ *      to the flags parameter.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ * 
+ *----------------------------------------------------------------------
+ */
 
-
-void Tix_DItemDisplay(pixmap, gc, iPtr, x, y, width, height, flags)
-    Pixmap pixmap;
-    GC gc;
+void
+Tix_DItemDisplay(drawable, iPtr, x, y, width, height, xOffset, yOffset,flags)
+    Drawable drawable;
     Tix_DItem * iPtr;
     int x;
     int y;
     int width;
     int height;
+    int xOffset;
+    int yOffset;
     int flags;
 {
-    iPtr->base.diTypePtr->displayProc(pixmap, gc, iPtr, x, y,
-	width, height, flags);
+    iPtr->base.diTypePtr->displayProc(drawable, iPtr, x, y,
+            width, height, xOffset, yOffset, flags);
 }
 
 void Tix_DItemFree(iPtr)
@@ -187,7 +213,7 @@ Tix_SplitConfig(interp, tkwin, specsList, numLists, argc, argv, argListPtr)
 					 * arrays */
     int numLists;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
     Tix_ArgumentList * argListPtr;
 {
     Tix_Argument *arg;
@@ -211,7 +237,7 @@ Tix_SplitConfig(interp, tkwin, specsList, numLists, argc, argv, argListPtr)
     argListPtr->numLists = numLists;
     for (i=0; i<numLists; i++) {
 	arg[i].argc = 0;
-	arg[i].argv = (char**)ckalloc(argc * sizeof(char*));
+	arg[i].argv = (CONST84 char**)ckalloc(argc * sizeof(char*));
     }
 
     /* Split the arguments for the appropriate objects */
@@ -258,9 +284,9 @@ Tix_MultiConfigureInfo(interp, tkwin, specsList, numLists, widgRecList,
     Tk_Window tkwin;		/* Window corresponding to widgRec. */
     Tk_ConfigSpec **specsList;	/* Describes legal options. */
     int numLists;
-    char **widgRecList;		/* Record whose fields contain current
+    CONST84 char **widgRecList;	/* Record whose fields contain current
 				 * values for options. */
-    char *argvName;		/* If non-NULL, indicates a single option
+    CONST84 char *argvName;	/* If non-NULL, indicates a single option
 				 * whose info is to be returned.  Otherwise
 				 * info is returned for all options. */
     int flags;			/* Used to specify additional flags
@@ -272,6 +298,7 @@ Tix_MultiConfigureInfo(interp, tkwin, specsList, numLists, widgRecList,
     Tk_ConfigSpec *specPtr;
     Tcl_DString dString;
     size_t len;
+    CONST84 char *result;
 
     if (argvName != NULL) {
 	len = strlen(argvName);
@@ -299,14 +326,14 @@ Tix_MultiConfigureInfo(interp, tkwin, specsList, numLists, widgRecList,
 	if (request == TIX_CONFIG_INFO) {
 	    if (widgRecList[i] != NULL) {
 		return Tk_ConfigureInfo(interp, tkwin, specsList[i],
-			widgRecList[i], argvName, flags);
+			(char *) widgRecList[i], argvName, flags);
 	    } else {
 		return TCL_OK;
 	    }
 	} else {
 	    if (widgRecList[i] != NULL) {
 		return Tk_ConfigureValue(interp, tkwin, specsList[i],
-			widgRecList[i], argvName, flags);
+			(char *) widgRecList[i], argvName, flags);
 	    } else {
 		return TCL_OK;
 	    }
@@ -319,13 +346,14 @@ Tix_MultiConfigureInfo(interp, tkwin, specsList, numLists, widgRecList,
 	    Tcl_DStringAppend(&dString, " ", 1);
 	}
 	if (widgRecList[i] != NULL) {
-	    Tk_ConfigureInfo(interp, tkwin, specsList[i], widgRecList[i],
-	    	NULL, flags);
+	    Tk_ConfigureInfo(interp, tkwin, specsList[i],
+		    (char *) widgRecList[i], NULL, flags);
 	}
-	Tcl_DStringAppend(&dString, interp->result, strlen(interp->result));
+	result = Tcl_GetStringResult(interp);
+	Tcl_DStringAppend(&dString, result, (int) strlen(result));
     }
     Tcl_ResetResult(interp);
-    Tcl_AppendResult(interp, dString.string, NULL);
+    Tcl_DStringResult(interp, &dString);
     Tcl_DStringFree(&dString);
 
     return TCL_OK;
@@ -344,10 +372,10 @@ Tix_ConfigureValue2(interp, tkwin, entRec, entConfigSpecs, iPtr,
 	argvName, flags)
     Tcl_Interp *interp;		/* Interpreter for error reporting. */
     Tk_Window tkwin;		/* Window corresponding to widgRec. */
-    char * entRec;
+    CONST84 char * entRec;
     Tk_ConfigSpec *entConfigSpecs; /* Describes legal options of the entry */
     Tix_DItem * iPtr;		/* points to the entry's data record */
-    char *argvName;		/* If non-NULL, indicates a single option
+    CONST84 char *argvName;	/* If non-NULL, indicates a single option
 				 * whose info is to be returned.  Otherwise
 				 * info is returned for all options. */
     int flags;			/* Used to specify additional flags
@@ -355,12 +383,12 @@ Tix_ConfigureValue2(interp, tkwin, entRec, entConfigSpecs, iPtr,
 				 * for them to be considered. */
 {
     Tk_ConfigSpec *specsList[2];
-    char *widgRecList[2];
+    CONST84 char *widgRecList[2];
 
     specsList[0]   = entConfigSpecs;
     specsList[1]   = Tix_DItemConfigSpecs(iPtr);
-    widgRecList[1] = (char*)iPtr;
-    widgRecList[0] = (char*)entRec;
+    widgRecList[1] = (CONST84 char*)iPtr;
+    widgRecList[0] = entRec;
 
     return Tix_MultiConfigureInfo(interp, tkwin, specsList, 2, widgRecList,
 	argvName, flags, TIX_CONFIG_VALUE);
@@ -379,10 +407,10 @@ Tix_ConfigureInfo2(interp, tkwin, entRec, entConfigSpecs, iPtr,
 	argvName, flags)
     Tcl_Interp *interp;		/* Interpreter for error reporting. */
     Tk_Window tkwin;		/* Window corresponding to widgRec. */
-    char * entRec;
+    CONST84 char * entRec;
     Tk_ConfigSpec *entConfigSpecs; /* Describes legal options of the entry */
     Tix_DItem * iPtr;		/* points to the entry's data record */
-    char *argvName;		/* If non-NULL, indicates a single option
+    CONST84 char *argvName;	/* If non-NULL, indicates a single option
 				 * whose info is to be returned.  Otherwise
 				 * info is returned for all options. */
     int flags;			/* Used to specify additional flags
@@ -390,12 +418,12 @@ Tix_ConfigureInfo2(interp, tkwin, entRec, entConfigSpecs, iPtr,
 				 * for them to be considered. */
 {
     Tk_ConfigSpec *specsList[2];
-    char *widgRecList[2];
+    CONST84 char *widgRecList[2];
 
     specsList[0]   = entConfigSpecs;
     specsList[1]   = Tix_DItemConfigSpecs(iPtr);
-    widgRecList[1] = (char*)iPtr;
-    widgRecList[0] = (char*)entRec;
+    widgRecList[1] = (CONST84 char*)iPtr;
+    widgRecList[0] = (CONST84 char*)entRec;
 
     return Tix_MultiConfigureInfo(interp, tkwin, specsList, 2, widgRecList,
 	argvName, flags, TIX_CONFIG_INFO);
@@ -406,18 +434,18 @@ Tix_WidgetConfigure2(interp, tkwin, entRec, entConfigSpecs, iPtr,
 		     argc, argv, flags, forced, sizeChanged_ret)
     Tcl_Interp *interp;		/* Interpreter for error reporting. */
     Tk_Window tkwin;		/* Window corresponding to widgRec. */
-    char * entRec;
+    CONST84 char * entRec;
     Tk_ConfigSpec *entConfigSpecs; /* Describes legal options of the entry */
     Tix_DItem * iPtr;		/* points to the entry's data record */
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
     int flags;
     int forced;			/* forced configure of DItem? */
     int * sizeChanged_ret;
 {
     Tix_ArgumentList argList;
     Tk_ConfigSpec *specsList[2];
-    char *widgRecList[2];
+    CONST84 char *widgRecList[2];
     int code = TCL_OK;
     int dummy;
 
@@ -427,8 +455,8 @@ Tix_WidgetConfigure2(interp, tkwin, entRec, entConfigSpecs, iPtr,
 
     specsList[0] = entConfigSpecs;
     specsList[1] = Tix_DItemConfigSpecs(iPtr);
-    widgRecList[0] = (char*)entRec;
-    widgRecList[1] = (char*)iPtr;
+    widgRecList[0] = (CONST84 char*)entRec;
+    widgRecList[1] = (CONST84 char*)iPtr;
 
     if (Tix_SplitConfig(interp, tkwin, specsList,
  	2, argc, argv, &argList) != TCL_OK) {
@@ -500,7 +528,7 @@ static int DItemParseProc(clientData, interp, tkwin, value, widRec,offset)
     ClientData clientData;
     Tcl_Interp *interp;
     Tk_Window tkwin;
-    char *value;
+    CONST84 char *value;
     char *widRec;
     int offset;
 {
@@ -548,13 +576,27 @@ static char *DItemPrintProc(clientData, tkwin, widRec,offset, freeProcPtr)
 
 /* The priority is selected > disabled > active > normal */
 
-void TixGetColorDItemGC(iPtr, backGC_ret, foreGC_ret, flags)
+void
+TixGetColorDItemGC(iPtr, backGC_ret, foreGC_ret, anchorGC_ret, flags)
     Tix_DItem * iPtr;
     GC * backGC_ret;
     GC * foreGC_ret;
+    GC * anchorGC_ret;
     int flags;
 {
     TixColorStyle * stylePtr = (TixColorStyle *) iPtr->base.stylePtr;
+    GC dummy;
+    int bg = 0;
+
+    if (backGC_ret == NULL) {
+        backGC_ret = &dummy;
+    }
+    if (foreGC_ret == NULL) {
+        foreGC_ret = &dummy;
+    }
+    if (anchorGC_ret == NULL) {
+        anchorGC_ret = &dummy;
+    }
 
     if (flags & TIX_DITEM_SELECTED_FG) {
 	*foreGC_ret = stylePtr->colors[TIX_DITEM_SELECTED].foreGC;
@@ -573,19 +615,28 @@ void TixGetColorDItemGC(iPtr, backGC_ret, foreGC_ret, flags)
     }
 
     if (flags & TIX_DITEM_SELECTED_BG) {
-	*backGC_ret = stylePtr->colors[TIX_DITEM_SELECTED].backGC;
+        bg = TIX_DITEM_SELECTED;
+    } else if (flags & TIX_DITEM_DISABLED_BG) {
+        bg = TIX_DITEM_DISABLED;
+    } else if (flags & TIX_DITEM_ACTIVE_BG) {
+        bg = TIX_DITEM_ACTIVE;
+    } else if (flags & TIX_DITEM_NORMAL_BG) {
+        bg = TIX_DITEM_NORMAL;
+    } else {
+        bg = -1;
     }
-    else if (flags & TIX_DITEM_DISABLED_BG) {
-	*backGC_ret = stylePtr->colors[TIX_DITEM_DISABLED].backGC;
+
+    if (bg != -1) {
+	*backGC_ret = stylePtr->colors[bg].backGC;
+    } else {
+        *backGC_ret = None;
     }
-    else if (flags & TIX_DITEM_ACTIVE_BG) {
-	*backGC_ret = stylePtr->colors[TIX_DITEM_ACTIVE].backGC;
-    }
-    else if (flags & TIX_DITEM_NORMAL_BG) {
-	*backGC_ret = stylePtr->colors[TIX_DITEM_NORMAL].backGC;
-    }
-    else {
-	*backGC_ret = None;
+        
+
+    if ((flags & TIX_DITEM_ANCHOR) && (bg != -1)) {
+	*anchorGC_ret = stylePtr->colors[bg].anchorGC;
+    } else {
+        *anchorGC_ret = None;
     }
 }
 
@@ -647,31 +698,142 @@ TixDItemGetAnchor(anchor, x, y, cav_w, cav_h, width, height, x_ret, y_ret)
     }
 }
 
-void Tix_DItemDrawBackground(pixmap, gc, iPtr, x, y, width, height, flags)
-    Pixmap pixmap;
-    GC gc;
-    Tix_DItem * iPtr;
-    int x;
-    int y;
-    int width;
-    int height;
-    int flags;
+int
+Tix_DItemFillNormalBG(drawable, subRegPtr, iPtr, x, y, width, height,
+       xOffset, yOffset, flags)
+    Drawable drawable;          /* Where to display this item */
+    TixpSubRegion *subRegPtr;
+    Tix_DItem * iPtr;           /* Item to display */
+    int x;                      /* x pos of top-left corner of region
+                                 * to display item in */
+    int y;                      /* y pos of top-left corner of region */
+    int width;                  /* width of region */
+    int height;                 /* height of region */
+    int xOffset;                /* X offset of item within region */
+    int yOffset;                /* Y offset of item within region */
+    int flags;                  /* Controls how fg/bg/anchor lines are
+                                 * drawn */
 {
-    GC foreGC, backGC;
+    GC gc;
 
-    switch Tix_DItemType(iPtr) {
-      case TIX_DITEM_WINDOW:
-      case TIX_DITEM_NONE:
-	/* not a colored item */
-	return;
+    if ((flags & TIX_DITEM_NORMAL_BG) == 0) {
+        return 0;
     }
 
-    TixGetColorDItemGC(iPtr, &backGC, &foreGC, flags);
+    if (width == iPtr->base.size[0] && height == iPtr->base.size[1] && 
+            xOffset == 0 && yOffset == 0 &&
+            (flags & TIX_DITEM_OTHER_BG) != 0) {
+        /*
+         * The background area will be filled by another bg color, so
+         * there's no need to fill it with NORMAL_BG here.
+         */
+       
+        return 0;
+    }
 
-    if (backGC != None) {
-	/* Draw the background */
-	XFillRectangle(iPtr->base.ddPtr->display, pixmap,
-	    backGC,
-	    x, y, width, height);
+    gc = iPtr->base.stylePtr->colors[TIX_DITEM_NORMAL].backGC;
+    if (gc != None) {
+        TixpSubRegFillRectangle(iPtr->base.ddPtr->display, drawable,
+	        gc, subRegPtr, x, y, width, height);
+        return 1;
+    }
+
+    return 0;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tix_DItemDrawBackground --
+ *
+ *      Display the background color of the item. The background and
+ *      foreground of the item are displayed according to the flags
+ *      parameter:
+ *
+ *      If TIX_DITEM_NORMAL_BG is specified in flags, the entire {x, y,
+ *      width, height} region is filled with the NORMAL_BG.
+ *
+ *      If one of the following is specified, a filled highlight rect
+ *      is drawn around the selectable area of the item.
+ *
+ *              TIX_DITEM_ACTIVE_BG
+ *              TIX_DITEM_SELECTED_BG
+ *              TIX_DITEM_DISABLED_BG
+ *
+ *      In addition, if TIX_DITEM_ANCHOR is specified in flags, an
+ *      anchor rectangle is drawn around the selectable area of the
+ *      item.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ * 
+ *----------------------------------------------------------------------
+ */
+
+void
+Tix_DItemDrawBackground(drawable, subRegPtr, iPtr, x, y, width, height,
+       xOffset, yOffset, flags)
+    Drawable drawable;          /* Where to display this item */
+    TixpSubRegion *subRegPtr;
+    Tix_DItem * iPtr;           /* Item to display */
+    int x;                      /* x pos of top-left corner of region
+                                 * to display item in */
+    int y;                      /* y pos of top-left corner of region */
+    int width;                  /* width of region */
+    int height;                 /* height of region */
+    int xOffset;                /* X offset of item within region */
+    int yOffset;                /* Y offset of item within region */
+    int flags;                  /* Controls how fg/bg/anchor lines are
+                                 * drawn */
+{
+    Display * display = iPtr->base.ddPtr->display;
+    GC backGC, anchorGC;
+    int bodyX, bodyY, bodyW, bodyH;
+
+    TixGetColorDItemGC(iPtr, &backGC, NULL, &anchorGC, flags);
+
+    /*
+     * Fill the entire region with the normal background color first 
+     * (if necessary).
+     */
+
+    Tix_DItemFillNormalBG(drawable, subRegPtr, iPtr, x, y, width, height,
+            xOffset, yOffset, flags);
+
+    /*
+     * Calculate the location of the item body.
+     */
+
+    TixDItemGetAnchor(iPtr->base.stylePtr->anchor, x, y, width, height,
+	    iPtr->base.size[0], iPtr->base.size[1], &x, &y);
+
+    x += xOffset;
+    y += yOffset;
+
+    bodyX = x + iPtr->base.selX;
+    bodyY = y + iPtr->base.selY;
+    bodyW = iPtr->base.selW;
+    bodyH = iPtr->base.selH;
+
+    /*
+     * Fill the selected background and draw anchor lines only around
+     * the item body itself
+     */
+
+    if ((flags & TIX_DITEM_OTHER_BG) && (backGC != None)) {
+        TixpSubRegSetClip(display, subRegPtr, backGC);
+	TixpSubRegFillRectangle(display, drawable, backGC,
+		subRegPtr, bodyX, bodyY, bodyW, bodyH);
+        TixpSubRegUnsetClip(display, subRegPtr, backGC);
+    }
+
+    if (anchorGC != None) {
+        TixpSubRegSetClip(display, subRegPtr, anchorGC);
+	TixpSubRegDrawAnchorLines(display, drawable,
+	        anchorGC, subRegPtr, bodyX, bodyY, bodyW, bodyH);
+        TixpSubRegUnsetClip(display, subRegPtr, anchorGC);
     }
 }

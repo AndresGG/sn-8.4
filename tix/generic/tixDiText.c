@@ -4,16 +4,26 @@
  *	This file implements one of the "Display Items" in the Tix library :
  *	Text display items.
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000-2001 Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tixDiText.c,v 1.7 2004/03/28 02:44:56 hobbs Exp $
  */
 
 #include <tixPort.h>
 #include <tixInt.h>
 #include <tixDef.h>
+
+/*
+ * If the item has a really small text, or no text at all, use
+ * this size. This makes the drawing of selection lines more sane.
+ */
+
+#define MIN_TEXT_WIDTH  2
+#define MIN_TEXT_HEIGHT 2
 
 /*----------------------------------------------------------------------
  *
@@ -21,11 +31,6 @@
  *
  *----------------------------------------------------------------------
  */
-
-#define DEF_TEXTITEM_STYLE	 ""
-#define DEF_TEXTITEM_TEXT	 ""
-#define DEF_TEXTITEM_UNDERLINE	 "-1"
-#define DEF_TEXTITEM_TYPE	 "text"
 
 static Tk_ConfigSpec textItemConfigSpecs[] = {
     {TK_CONFIG_CUSTOM, "-itemtype", "itemType", "ItemType", 
@@ -43,48 +48,13 @@ static Tk_ConfigSpec textItemConfigSpecs[] = {
        (char *) NULL, 0, 0}
 };
 
+
 /*----------------------------------------------------------------------
  *
  *		Configuration options for Text Styles
  *
  *----------------------------------------------------------------------
  */
-
-#define SELECTED_BG SELECT_BG 
-#define DISABLED_BG DISABLED  
-
-#define DEF_TEXTSTYLE_NORMAL_FG_COLOR		BLACK
-#define DEF_TEXTSTYLE_NORMAL_FG_MONO		BLACK
-#define DEF_TEXTSTYLE_NORMAL_BG_COLOR		NORMAL_BG
-#define DEF_TEXTSTYLE_NORMAL_BG_MONO		WHITE
-
-#define DEF_TEXTSTYLE_ACTIVE_FG_COLOR		BLACK
-#define DEF_TEXTSTYLE_ACTIVE_FG_MONO		WHITE
-#define DEF_TEXTSTYLE_ACTIVE_BG_COLOR		ACTIVE_BG
-#define DEF_TEXTSTYLE_ACTIVE_BG_MONO		BLACK
-
-#define DEF_TEXTSTYLE_SELECTED_FG_COLOR		BLACK
-#define DEF_TEXTSTYLE_SELECTED_FG_MONO		WHITE
-#define DEF_TEXTSTYLE_SELECTED_BG_COLOR		SELECTED_BG
-#define DEF_TEXTSTYLE_SELECTED_BG_MONO		BLACK
-
-#define DEF_TEXTSTYLE_DISABLED_FG_COLOR		BLACK
-#define DEF_TEXTSTYLE_DISABLED_FG_MONO		BLACK
-#define DEF_TEXTSTYLE_DISABLED_BG_COLOR		DISABLED_BG
-#define DEF_TEXTSTYLE_DISABLED_BG_MONO		WHITE
-
-#define DEF_TEXTSTYLE_PADX			"2"
-#define DEF_TEXTSTYLE_PADY			"2"
-#define DEF_TEXTSTYLE_FONT	     CTL_FONT
-#define DEF_TEXTSTYLE_JUSTIFY			"left"
-#define DEF_TEXTSTYLE_WLENGTH			"0"
-#define DEF_TEXTSTYLE_ANCHOR			"w"
-
-#if 0
-    /* %bordercolor not used */
-#define DEF_TEXTSTYLE_BORDER_COLOR_COLOR	BORDER_COLOR
-#define DEF_TEXTSTYLE_BORDER_COLOR_MONO		BLACK
-#endif
 
 static Tk_ConfigSpec textStyleConfigSpecs[] = {
     {TK_CONFIG_ANCHOR, "-anchor", "anchor", "Anchor",
@@ -203,13 +173,14 @@ static void		Tix_TextItemCalculateSize  _ANSI_ARGS_((
 static char *		Tix_TextItemComponent  _ANSI_ARGS_((
 			    Tix_DItem * iPtr, int x, int y));
 static int		Tix_TextItemConfigure _ANSI_ARGS_((
-			    Tix_DItem * iPtr, int argc, char ** argv,
+			    Tix_DItem * iPtr, int argc, CONST84 char ** argv,
 			    int flags));
 static Tix_DItem *	Tix_TextItemCreate _ANSI_ARGS_((
 			    Tix_DispData * ddPtr, Tix_DItemInfo * diTypePtr));
 static void		Tix_TextItemDisplay  _ANSI_ARGS_((
-			    Pixmap pixmap, GC gc, Tix_DItem * iPtr,
-			    int x, int y, int width, int height, int flags));
+			    Drawable drawable, Tix_DItem * iPtr,
+			    int x, int y, int width, int height,
+                            int xOffset, int yOffset, int flags));
 static void		Tix_TextItemFree  _ANSI_ARGS_((
 			    Tix_DItem * iPtr));
 static void		Tix_TextItemLostStyle  _ANSI_ARGS_((
@@ -217,7 +188,7 @@ static void		Tix_TextItemLostStyle  _ANSI_ARGS_((
 static void		Tix_TextItemStyleChanged  _ANSI_ARGS_((
 			    Tix_DItem * iPtr));
 static int		Tix_TextStyleConfigure _ANSI_ARGS_((
-			    Tix_DItemStyle* style, int argc, char ** argv,
+			    Tix_DItemStyle* style, int argc, CONST84 char ** argv,
 			    int flags));
 static Tix_DItemStyle *	Tix_TextStyleCreate _ANSI_ARGS_((
 			    Tcl_Interp *interp, Tk_Window tkwin,
@@ -266,16 +237,17 @@ static Tix_DItem * Tix_TextItemCreate(ddPtr, diTypePtr)
 
     itPtr->diTypePtr	= &tix_TextItemType;
     itPtr->ddPtr	= ddPtr;
-#if 1
     itPtr->stylePtr	= (TixTextStyle*)TixGetDefaultDItemStyle(
-	    itPtr->ddPtr, &tix_TextItemType, (Tix_DItem*)itPtr, NULL);
-#else
-    itPtr->stylePtr	= NULL;
-#endif
+	                  itPtr->ddPtr, &tix_TextItemType,
+                          (Tix_DItem*)itPtr, NULL);
     itPtr->clientData	= 0;
     itPtr->size[0]	= 0;
     itPtr->size[1]	= 0;
-
+    itPtr->selX         = 0;
+    itPtr->selY         = 0;
+    itPtr->selW         = 0;
+    itPtr->selH         = 0;
+    
     itPtr->numChars	= 0;
     itPtr->text		= NULL;
     itPtr->textW	= 0;
@@ -299,10 +271,11 @@ static void Tix_TextItemFree(iPtr)
     ckfree((char*)itPtr);
 }
 
-static int Tix_TextItemConfigure(iPtr, argc, argv, flags)
+static int
+Tix_TextItemConfigure(iPtr, argc, argv, flags)
     Tix_DItem * iPtr;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
     int flags;
 {
     TixTextItem * itPtr = (TixTextItem *) iPtr;
@@ -328,99 +301,146 @@ static int Tix_TextItemConfigure(iPtr, argc, argv, flags)
 
     return TCL_OK;
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tix_TextItemDisplay --
+ *
+ *	Display a text item. {x, y, width, height} specifies a region
+ *      for to display this item in. {xOffset, yOffset} gives the
+ *      offset of the top-left corner of the text item relative to
+ *      the top-left corder of the region.
+ *
+ *      Background and foreground of the item are displayed according
+ *      to the flags parameter.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ * 
+ *----------------------------------------------------------------------
+ */
 
-static void Tix_TextItemDisplay(pixmap, gc, iPtr, x, y, width, height, flags)
-    Pixmap pixmap;
-    GC gc;
+static void
+Tix_TextItemDisplay(drawable, iPtr, x, y, width, height, xOffset, yOffset,
+        flags)
+    Drawable drawable;
     Tix_DItem * iPtr;
     int x;
     int y;
     int width;
     int height;
+    int xOffset;
+    int yOffset;
     int flags;
 {
     TixTextItem *itPtr = (TixTextItem *)iPtr;
-    GC foreGC, backGC;
+    Display * display = iPtr->base.ddPtr->display;
     TixpSubRegion subReg;
+    GC foreGC;
 
     if ((width <= 0) || (height <= 0)) {
 	return;
     }
 
-    TixGetColorDItemGC(iPtr, &backGC, &foreGC, flags);
+    TixGetColorDItemGC(iPtr, NULL, &foreGC, NULL, flags);
 
-    TixpStartSubRegionDraw(itPtr->ddPtr->display, pixmap, foreGC,
+    TixpStartSubRegionDraw(display, drawable, foreGC,
 	    &subReg, 0, 0, x, y, width, height,
-	    itPtr->size[0], itPtr->size[1]);
+	    itPtr->size[0] + xOffset, itPtr->size[1] + yOffset);
 
-    if (backGC != None) {
-	TixpSubRegFillRectangle(itPtr->ddPtr->display, pixmap, backGC,
-		&subReg, x, y, width, height);
-    }
+    Tix_DItemDrawBackground(drawable, &subReg, iPtr, x, y, width, height,
+           xOffset, yOffset, flags);
 
-    TixDItemGetAnchor(itPtr->stylePtr->anchor, x, y, width, height,
-	    itPtr->size[0], itPtr->size[1], &x, &y);
+    /*
+     * Calculate the location of the text according to anchor settings.
+     */
+
+    TixDItemGetAnchor(iPtr->base.stylePtr->anchor, x, y, width, height,
+	    iPtr->base.size[0], iPtr->base.size[1], &x, &y);
 
     if (foreGC != None && itPtr->text != NULL) {
-	x += itPtr->stylePtr->pad[0];
-	y += itPtr->stylePtr->pad[1];
+        /*
+         * Draw the text
+         */
 
-	TixpSubRegDisplayText(itPtr->ddPtr->display, pixmap, foreGC,
+	x += itPtr->stylePtr->pad[0] + xOffset;
+	y += itPtr->stylePtr->pad[1] + yOffset;
+
+	TixpSubRegDisplayText(display, drawable, foreGC,
 		&subReg, itPtr->stylePtr->font, itPtr->text,
 		itPtr->numChars, x, y, itPtr->textW, itPtr->stylePtr->justify,
 		itPtr->underline);
     }
 
-    TixpEndSubRegionDraw(itPtr->ddPtr->display, pixmap, foreGC,
+    TixpEndSubRegionDraw(display, drawable, foreGC,
 	    &subReg);
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tix_TextItemComponent --
+ *
+ *	Identifies the sub-component of this text item at the given
+ *      {x, y} location. Text items are not divided into sub-components
+ *      so the string "body" is always returned.
+ *
+ *      The returned string is statically allocated.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ * 
+ *----------------------------------------------------------------------
+ */
 
-static char * Tix_TextItemComponent(iPtr, x, y)
+static char *
+Tix_TextItemComponent(iPtr, x, y)
     Tix_DItem * iPtr;
     int x;
     int y;
 {
-#if 0
-    TixTextItem *itPtr = (TixTextItem *)iPtr;
-#endif
     static char * body = "body";
 
     return body;
 }
 
 
-static void Tix_TextItemCalculateSize(iPtr)
+static void
+Tix_TextItemCalculateSize(iPtr)
     Tix_DItem * iPtr;
 {
     TixTextItem *itPtr = (TixTextItem *)iPtr;
+    char * text = itPtr->text;
+    if (text == NULL || *text == '\0') {
+        /*
+         * Use one space character so that the height of the item
+         * would be the same as a regular small item, and the width
+         * of the item won't be too tiny.
+         */
 
-
-    if (itPtr->text) {
-	itPtr->numChars = strlen(itPtr->text);
-	TixComputeTextGeometry(itPtr->stylePtr->font, itPtr->text,
-		itPtr->numChars,
-		itPtr->stylePtr->wrapLength, &itPtr->textW, &itPtr->textH);
-
-	itPtr->size[0] = itPtr->textW;
-	itPtr->size[1] = itPtr->textH;
-    } else {
-	itPtr->size[0] = 0;
-	itPtr->size[1] = 0;
+        text = " ";
     }
+
+    itPtr->numChars = -1;
+    TixComputeTextGeometry(itPtr->stylePtr->font, text, -1,
+            itPtr->stylePtr->wrapLength, &itPtr->textW, &itPtr->textH);
+    itPtr->size[0] = itPtr->textW;
+    itPtr->size[1] = itPtr->textH;
 
     itPtr->size[0] += 2*itPtr->stylePtr->pad[0];
     itPtr->size[1] += 2*itPtr->stylePtr->pad[1];
 
-#if 0
-    /* %bordercolor not used */
-    if (itPtr->stylePtr->relief == TIX_RELIEF_SOLID) {
-	itPtr->size[0] +=   itPtr->stylePtr->borderWidth;
-	itPtr->size[1] +=   itPtr->stylePtr->borderWidth;
-    } else {
-	itPtr->size[0] += 2*itPtr->stylePtr->borderWidth;
-	itPtr->size[1] += 2*itPtr->stylePtr->borderWidth;
-    }
-#endif
+    itPtr->selX = 0;
+    itPtr->selY = 0;
+    itPtr->selW = itPtr->size[0];
+    itPtr->selH = itPtr->size[1];
 }
 
 static void
@@ -466,30 +486,10 @@ Tix_TextStyleCreate(interp, tkwin, diTypePtr, name)
     Tix_DItemInfo * diTypePtr;
 {
     TixTextStyle * stylePtr = (TixTextStyle *)ckalloc(sizeof(TixTextStyle));
-    int i;
 
     stylePtr->font	 = NULL;
     stylePtr->justify	 = TK_JUSTIFY_LEFT;
     stylePtr->wrapLength = 0;
-    stylePtr->pad[0]	 = 0;
-    stylePtr->pad[1]	 = 0;
-    stylePtr->anchor	 = TK_ANCHOR_CENTER;
-
-    for (i=0; i<4; i++) {
-	stylePtr->colors[i].bg = NULL;
-	stylePtr->colors[i].fg = NULL;
-	stylePtr->colors[i].backGC = None;
-	stylePtr->colors[i].foreGC = NULL;
-    }
-#if 0
-    /* %bordercolor not used */
-    stylePtr->borderColor = NULL;
-    stylePtr->borderGC = None;
-    stylePtr->borderWidth = 0;
-    stylePtr->relief = TIX_RELIEF_NONE;
-#endif
-    stylePtr->pad[0] = 0;
-    stylePtr->pad[1] = 0;
 
     return (Tix_DItemStyle *)stylePtr;
 }
@@ -498,7 +498,7 @@ static int
 Tix_TextStyleConfigure(style, argc, argv, flags)
     Tix_DItemStyle *style;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
     int flags;
 {
     TixTextStyle * stylePtr = (TixTextStyle *)style;
@@ -512,6 +512,10 @@ Tix_TextStyleConfigure(style, argc, argv, flags)
 	isNew = 0;
     }
 
+    /*
+     * TODO: gap, wrapLength, etc changes: need to call TixDItemStyleChanged
+     */
+
     if (!(flags &TIX_DONT_CALL_CONFIG)) {
 	if (Tk_ConfigureWidget(stylePtr->interp, stylePtr->tkwin,
 	    textStyleConfigSpecs,
@@ -524,7 +528,10 @@ Tix_TextStyleConfigure(style, argc, argv, flags)
     gcValues.graphics_exposures = False;
 
     for (i=0; i<4; i++) {
-	/* Foreground */
+	/*
+         * Foreground GC
+         */
+
 	gcValues.background = stylePtr->colors[i].bg->pixel;
 	gcValues.foreground = stylePtr->colors[i].fg->pixel;
 	newGC = Tk_GetGC(stylePtr->tkwin,
@@ -536,7 +543,10 @@ Tix_TextStyleConfigure(style, argc, argv, flags)
 	}
 	stylePtr->colors[i].foreGC = newGC;
 
-	/* Background */
+	/*
+         * Background GC
+         */
+
 	gcValues.foreground = stylePtr->colors[i].bg->pixel;
 	newGC = Tk_GetGC(stylePtr->tkwin,
 	    GCFont|GCForeground|GCGraphicsExposures, &gcValues);
@@ -546,19 +556,20 @@ Tix_TextStyleConfigure(style, argc, argv, flags)
 		stylePtr->colors[i].backGC);
 	}
 	stylePtr->colors[i].backGC = newGC;
-    }
 
-#if 0
-    /* %bordercolor not used */
-    /* Border Color */
-    gcValues.foreground = stylePtr->borderColor->pixel;
-    newGC = Tk_GetGC(stylePtr->tkwin, GCForeground, &gcValues);
+        /*
+         * Anchor GC
+         */
 
-    if (stylePtr->borderGC != None) {
-	Tk_FreeGC(Tk_Display(stylePtr->tkwin), stylePtr->borderGC);
+        newGC = Tix_GetAnchorGC(stylePtr->tkwin,
+                stylePtr->colors[i].bg);
+
+	if (stylePtr->colors[i].anchorGC != None) {
+	    Tk_FreeGC(Tk_Display(stylePtr->tkwin),
+		stylePtr->colors[i].anchorGC);
+	}
+	stylePtr->colors[i].anchorGC = newGC;
     }
-    stylePtr->borderGC = newGC;
-#endif
 
     if (!isNew) {
 	TixDItemStyleChanged(stylePtr->diTypePtr, (Tix_DItemStyle *)stylePtr);
@@ -572,16 +583,6 @@ Tix_TextStyleFree(style)
     Tix_DItemStyle *style;
 {
     TixTextStyle * stylePtr = (TixTextStyle *)style;
-    int i;
-
-    for (i=0; i<4; i++) {
-	if (stylePtr->colors[i].backGC != None) {
-	    Tk_FreeGC(Tk_Display(stylePtr->tkwin), stylePtr->colors[i].backGC);
-	}
-	if (stylePtr->colors[i].foreGC != None) {
-	    Tk_FreeGC(Tk_Display(stylePtr->tkwin), stylePtr->colors[i].foreGC);
-	}
-    }
 
     Tk_FreeOptions(textStyleConfigSpecs, (char *)stylePtr,
 	Tk_Display(stylePtr->tkwin), 0);
@@ -645,23 +646,6 @@ Tix_TextStyleSetTemplate(style, tmplPtr)
 		Tk_NameOfColor(tmplPtr->colors[i].fg));
 	}
     }
-#if 0
-    /* %bordercolor not used */
-    if (tmplPtr->flags & TIX_DITEM_BORDER_COLOR) {
-	if (stylePtr->borderColor != NULL) {
-	    Tk_FreeColor(stylePtr->borderColor);
-	}
-	stylePtr->borderColor = Tk_GetColor(
-	   stylePtr->interp, stylePtr->tkwin,
-	   Tk_NameOfColor(tmplPtr->borderColor));
-    }
-    if (tmplPtr->flags & TIX_DITEM_BORDER_WIDTH) {
-	stylePtr->borderWidth = tmplPtr->borderWidth;
-    }
-    if (tmplPtr->flags & TIX_DITEM_RELIEF) {
-	stylePtr->relief = tmplPtr->relief;
-    }
-#endif
 
     Tix_TextStyleConfigure(style, 0, 0, TIX_DONT_CALL_CONFIG);
 }

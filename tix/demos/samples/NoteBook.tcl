@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: NoteBook.tcl,v 1.4 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -24,8 +28,8 @@ proc RunSample {w} {
     # Note that the -backpagecolor option belongs to the "nbframe"
     # subwidget.
     tixNoteBook $w.nb -ipadx 6 -ipady 6
-    $w config -bg gray
-    $w.nb subwidget nbframe config -backpagecolor gray
+    # $w config -bg gray
+    # $w.nb subwidget nbframe config -backpagecolor gray
 
     # Create the two tabs on the notebook. The -underline option
     # puts a underline on the first character of the labels of the tabs.
@@ -92,7 +96,7 @@ proc CreateCommonButtons {w f} {
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
-	bind $w <Destroy> {if {"%W" == ".demo"} exit}
+    bind $w <Destroy> {if {"%W" == ".demo"} exit}
 }

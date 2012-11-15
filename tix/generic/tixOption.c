@@ -1,3 +1,6 @@
+
+/*	$Id: tixOption.c,v 1.4 2008/02/28 04:29:03 hobbs Exp $	*/
+
 /*
  * tixOption.c --
  *
@@ -23,9 +26,8 @@
 #include <tixPort.h>
 #include <tixInt.h>
 
-static char *			FormatConfigInfo _ANSI_ARGS_((
-				    Tcl_Interp *interp, TixClassRecord *cPtr,
-				    char * widRec, TixConfigSpec * spec));
+static char *	FormatConfigInfo(Tcl_Interp *interp,
+	TixClassRecord *cPtr, CONST84 char * widRec, TixConfigSpec * spec);
 /*
  * This is a lightweight interface for querying the value of a
  * variable in the object. This is simpler compared to
@@ -34,11 +36,11 @@ static char *			FormatConfigInfo _ANSI_ARGS_((
 int Tix_GetVar (interp, cPtr, widRec, flag)
     Tcl_Interp *interp;
     TixClassRecord *cPtr;
-    char * widRec;
-    char * flag;
+    CONST84 char * widRec;
+    CONST84 char * flag;
 {
     TixConfigSpec * spec;
-    char * value;
+    CONST84 char * value;
 
     spec = Tix_FindConfigSpecByName(interp, cPtr, flag);
     if (spec != NULL) {
@@ -62,8 +64,8 @@ int
 Tix_QueryOneOption(interp, cPtr, widRec, flag)
     Tcl_Interp *interp;
     TixClassRecord *cPtr;
-    char *widRec;
-    char *flag;
+    CONST84 char *widRec;
+    CONST84 char *flag;
 {
     TixConfigSpec * spec;
     char * list;
@@ -73,7 +75,7 @@ Tix_QueryOneOption(interp, cPtr, widRec, flag)
 	list = FormatConfigInfo(interp, cPtr, widRec, spec);
 	Tcl_SetResult(interp, list, TCL_VOLATILE);
 
-	ckfree(list);
+	ckfree((char *) list);
 	return TCL_OK;
     }
     else {
@@ -93,11 +95,11 @@ int
 Tix_QueryAllOptions (interp, cPtr, widRec)
     Tcl_Interp *interp;
     TixClassRecord * cPtr;
-    char *widRec;
+    CONST84 char *widRec;
 {
     int		i, code = TCL_OK;
-    char      * list;
-    char      * lead = "{";
+    char *list;
+    CONST84 char *lead = "{";
 
     /* Iterate over all the options of class */
     for (i=0; i<cPtr->nSpecs; i++) {
@@ -105,7 +107,7 @@ Tix_QueryAllOptions (interp, cPtr, widRec)
 	    list = FormatConfigInfo(interp, cPtr, widRec, cPtr->specs[i]);
 	    Tcl_AppendResult(interp, lead, list, "}", (char *) NULL);
 
-	    ckfree(list);
+	    ckfree((char *) list);
 	    lead = " {";
 	}
     }
@@ -115,12 +117,12 @@ Tix_QueryAllOptions (interp, cPtr, widRec)
 
 TixConfigSpec *
 Tix_FindConfigSpecByName(interp, cPtr, flag)
-    Tcl_Interp * interp;
-    TixClassRecord * cPtr;
-    char * flag;
+    Tcl_Interp *interp;
+    TixClassRecord *cPtr;
+    CONST84 char *flag;
 {
-    char * classRec;
-    char * key;
+    CONST84 char *classRec;
+    CONST84 char *key;
     int nMatch, i;
     size_t len;
     Tcl_HashEntry *hashPtr;
@@ -134,9 +136,9 @@ Tix_FindConfigSpecByName(interp, cPtr, flag)
      */
 
     key = Tix_GetConfigSpecFullName(classRec, flag);
-    hashPtr = Tcl_FindHashEntry(_TixGetHashTable(interp, "tixSpecTab", NULL),
-	    key);
-    ckfree(key);
+    hashPtr = Tcl_FindHashEntry(TixGetHashTable(interp, "tixSpecTab", NULL,
+            TCL_STRING_KEYS), key);
+    ckfree((char *) key);
 
     if (hashPtr) {
 	return (TixConfigSpec *) Tcl_GetHashValue(hashPtr);
@@ -170,9 +172,10 @@ Tix_FindConfigSpecByName(interp, cPtr, flag)
     }
 }
 
-char * Tix_GetConfigSpecFullName(classRec, flag)
-    char * classRec;
-    char * flag;
+CONST84 char *
+Tix_GetConfigSpecFullName(classRec, flag)
+    CONST84 char * classRec;
+    CONST84 char * flag;
 {
     char * buff;
     int    max;
@@ -191,9 +194,9 @@ char * Tix_GetConfigSpecFullName(classRec, flag)
 int Tix_ChangeOptions(interp, cPtr, widRec, argc, argv)
     Tcl_Interp *interp;
     TixClassRecord *cPtr;
-    char * widRec;
+    CONST84 char * widRec;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
 {
     int i, code = TCL_OK;
     TixConfigSpec * spec;
@@ -236,39 +239,56 @@ int Tix_ChangeOptions(interp, cPtr, widRec, argc, argv)
 int Tix_CallConfigMethod(interp, cPtr, widRec, spec, value)
     Tcl_Interp *interp;
     TixClassRecord *cPtr;
-    char * widRec;
+    CONST84 char * widRec;
     TixConfigSpec *spec;
-    char * value;
+    CONST84 char * value;
 {
-    char * argv[2];
-    char method[200];
-    char * context = Tix_GetContext(interp, widRec);
-    char * c;
+#define STATIC_SPACE_SIZE 60
+    CONST84 char * argv[2];
+    char buff[STATIC_SPACE_SIZE];
+    char * method = buff;
+    CONST84 char * context = Tix_GetContext(interp, widRec);
+    CONST84 char * c;
+    unsigned int bufsize = strlen(spec->argvName) + 7;
+    int code;
+
+    if (bufsize > STATIC_SPACE_SIZE) {
+        method = ckalloc(bufsize);
+    }
 
     sprintf(method, "config%s", spec->argvName);
 
     c = Tix_FindMethod(interp, context, method);
     if (c != NULL) {
 	argv[0] = value;
-	return Tix_CallMethod(interp, c, widRec, method, 1, argv);
+	code = Tix_CallMethod(interp, c, widRec, method, 1, argv, NULL);
+        goto done;
     }
 
     c = Tix_FindMethod(interp, context, "config");
     if (c != NULL) {
 	argv[0] = spec->argvName;
 	argv[1] = value;
-	return Tix_CallMethod(interp, c, widRec, "config", 2, argv);
+	code = Tix_CallMethod(interp, c, widRec, "config", 2, argv, NULL);
+        goto done;
     }
 
-    return TCL_OK;
+    code = TCL_OK;
+
+done:
+    if (method != buff) {
+        ckfree((char *) method);
+    }
+    return code;
+#undef STATIC_SPACE_SIZE
 }
 
 int Tix_ChangeOneOption(interp, cPtr, widRec, spec, value, isDefault, isInit)
     Tcl_Interp *interp;
     TixClassRecord *cPtr;
-    char * widRec;
+    CONST84 char * widRec;
     TixConfigSpec *spec;
-    char * value;
+    CONST84 char * value;
     int isDefault;		/* Set to be true when Tix tries to set
 				 * the options according to their default
 				 * values */
@@ -277,7 +297,7 @@ int Tix_ChangeOneOption(interp, cPtr, widRec, spec, value, isDefault, isInit)
 				 */
 {
     int code = TCL_OK;
-    char * newValue = NULL;
+    const char *newValue = NULL;
 
     if (spec->isAlias) {
 	spec = spec->realPtr;
@@ -307,7 +327,7 @@ int Tix_ChangeOneOption(interp, cPtr, widRec, spec, value, isDefault, isInit)
      *
      */
     if (spec->verifyCmd != NULL) {
-	char * cmdArgv[2];
+	CONST84 char * cmdArgv[2];
 	cmdArgv[0] = spec->verifyCmd;
 	cmdArgv[1] = value;
 
@@ -315,7 +335,7 @@ int Tix_ChangeOneOption(interp, cPtr, widRec, spec, value, isDefault, isInit)
 	    code = TCL_ERROR;
 	    goto done;
 	} else {
-	    newValue = value = tixStrDup(interp->result);
+	    newValue = value = tixStrDup(Tcl_GetStringResult(interp));
 	}
     }
 
@@ -327,8 +347,9 @@ int Tix_ChangeOneOption(interp, cPtr, widRec, spec, value, isDefault, isInit)
     if (isInit || isDefault) {
 	/* No need to call the configuration method */
 	Tcl_SetVar2(interp, widRec, spec->argvName, value,TCL_GLOBAL_ONLY);
-    }
-    else {
+    } else {
+	const char *str;
+
 	if (Tix_CallConfigMethod(interp, cPtr, widRec, spec, value)!=TCL_OK) {
 	    code = TCL_ERROR;
 	    goto done;
@@ -341,7 +362,9 @@ int Tix_ChangeOneOption(interp, cPtr, widRec, spec, value, isDefault, isInit)
 	 * return a non-empty string. In this case, it is the configuration
 	 * method's responsibility to set the value in the widget record.
 	 */
-	if (interp->result && (*interp->result)) {
+
+	str = Tcl_GetStringResult(interp);
+	if (str && *str) {
 	    /* value was overrided. Don't do anything */
 	    Tcl_ResetResult(interp);
 	} else {
@@ -351,18 +374,19 @@ int Tix_ChangeOneOption(interp, cPtr, widRec, spec, value, isDefault, isInit)
 
   done:
     if (newValue) {
-	ckfree(newValue);
+	ckfree((char *) newValue);
     }
     return code;
 }
 
-static char * FormatConfigInfo(interp, cPtr, widRec, sPtr)
+static char *
+FormatConfigInfo(interp, cPtr, widRec, sPtr)
     Tcl_Interp *interp;
     TixClassRecord *cPtr;
-    char * widRec;
+    CONST84 char * widRec;
     TixConfigSpec * sPtr;
 {
-    char *argv[6];
+    CONST84 char *argv[6];
 
     if (sPtr->isAlias) {
 	if (cPtr->isWidget) {

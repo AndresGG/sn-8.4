@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: Utils.tcl,v 1.4 2004/03/28 02:44:57 hobbs Exp $
+#
 # Util.tcl --
 #
 #	The Tix utility commands. Some of these commands are
@@ -8,7 +12,9 @@
 #	documentations (programmer's guide, man pages) for information
 #	about these utility commands.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -26,8 +32,8 @@ proc tixHandleArgv {p_argv p_options validFlags} {
     set old_argv $argv
     set argv ""
 
-    tixForEach {flag value} $old_argv {
-	if {[lsearch $validFlags $flag] != "-1"} {
+    foreac {flag value} $old_argv {
+	if {[lsearch $validFlags $flag] != -1} {
 	    # The caller will handle this option exclusively
 	    # It won't be added back to the original arglist
 	    #
@@ -81,31 +87,6 @@ proc tixDescendants {parent} {
     return $des
 }
 
-
-#----------------------------------------------------------------------
-# tixForEach -
-#
-#	 Extension of foreach, can handle more than one names
-#
-#
-proc tixForEach {names list body} {
-    set len [llength $list]
-    set i 0
-
-    while {$i < $len} {
-	foreach name $names {
-	    uplevel 1 [list set $name [lindex $list $i]]
-	    incr i
-	}
-
-	if {$i > $len} {
-	    error "incorrect number of items in the list \{$list\}"
-	}
-
-	uplevel 1 $body
-    }
-}
-
 #----------------------------------------------------------------------
 # tixTopLevel -
 #
@@ -125,7 +106,7 @@ proc tixTopLevel {w args} {
     set opt (-width)    ""
     set opt (-height)   ""
 
-    eval toplevel $w $args
+    eval [linsert $args 0 toplevel $w]
     wm withdraw $w
 }
 
@@ -140,9 +121,7 @@ proc tixInt_Expand {args} {
 # Print out all the config options of a widget
 #
 proc tixPConfig {w} {
-    foreach opt [lsort [$w config]] {
-	puts $opt
-    }
+    puts [join [lsort [$w config]] \n]
 }
 
 proc tixAppendBindTag {w tag} {
@@ -154,21 +133,15 @@ proc tixAddBindTag {w tag} {
 }
 
 proc tixSubwidgetRef {sub} {
-    global tixSRef
-
-    return $tixSRef($sub)
+    return $::tixSRef($sub)
 }
 
 proc tixSubwidgetRetCreate {sub ref} {
-    global tixSRef
-
-    set tixSRef($sub) $ref
+    set ::tixSRef($sub) $ref
 }
 
 proc tixSubwidgetRetDelete {sub} {
-    global tixSRef
-
-    catch {unset tixSRef($sub)}
+    catch {unset ::tixSRef($sub)}
 }
 
 proc tixListboxGetCurrent {listbox} {
@@ -183,23 +156,15 @@ proc tixListboxGetCurrent {listbox} {
 #	the name of the mega widget inside the binding.
 #
 proc tixSetMegaWidget {w mega {type any}} {
-    global tixMega
-
-    set tixMega($type,$w) $mega
+    set ::tixMega($type,$w) $mega
 }
 
 proc tixGetMegaWidget {w {type any}} {
-    global tixMega
-
-    return $tixMega($type,$w)
+    return $::tixMega($type,$w)
 }
 
 proc tixUnsetMegaWidget {w} {
-    global tixMega
-
-    if [info exists tixMega($w)] {
-	unset tixMega($w)
-    }
+    if {[info exists ::tixMega($w)]} { unset ::tixMega($w) }
 }
 
 # tixBusy : display busy cursors on a window
@@ -226,7 +191,7 @@ proc tixBusy {w flag {focuswin ""}} {
 # 	    black white"
     }
 
-    if {$toplevel == "."} {
+    if {$toplevel eq "."} {
 	set inputonly0 .__tix__busy0
 	set inputonly1 .__tix__busy1
 	set inputonly2 .__tix__busy2
@@ -244,77 +209,64 @@ proc tixBusy {w flag {focuswin ""}} {
 	}
     }
 
-    case $flag {
-	on {
-	    if {$focuswin != "" && [winfo id $focuswin] != 0} {
-		if [info exists tixBusy($focuswin,oldcursor)] {
-		    return
-		}
-		set tixBusy($focuswin,oldcursor) [$focuswin cget -cursor]
-		$focuswin config -cursor $tixBusy(cursor)
-
-		set x1 [expr [winfo rootx $focuswin]-[winfo rootx $toplevel]]
-		set y1 [expr [winfo rooty $focuswin]-[winfo rooty $toplevel]]
-
-		set W  [winfo width $focuswin]
-		set H  [winfo height $focuswin]
-		set x2 [expr $x1 + $W]
-		set y2 [expr $y1 + $H]
-
-
-		if {$y1 > 0} {
-		    tixMoveResizeWindow $inputonly0 0   0   10000 $y1
-		}
-		if {$x1 > 0} {
-		    tixMoveResizeWindow $inputonly1 0   0   $x1   10000
-		}
-		tixMoveResizeWindow $inputonly2 0   $y2 10000 10000
-		tixMoveResizeWindow $inputonly3 $x2 0   10000 10000
-
-		for {set i 0} {$i < 4} {incr i} {
-		    tixMapWindow [set inputonly$i] 
-		    tixRaiseWindow [set inputonly$i]
-		}
-		tixFlushX $w
-	    } else {
-		tixMoveResizeWindow $inputonly0 0 0 10000 10000
-		tixMapWindow $inputonly0
-		tixRaiseWindow $inputonly0
+    if {$flag eq "on"} {
+	if {$focuswin != "" && [winfo id $focuswin] != 0} {
+	    if {[info exists tixBusy($focuswin,oldcursor)]} {
+		return
 	    }
-	}
-	off {
-	    tixUnmapWindow $inputonly0
-	    tixUnmapWindow $inputonly1
-	    tixUnmapWindow $inputonly2
-	    tixUnmapWindow $inputonly3
+	    set tixBusy($focuswin,oldcursor) [$focuswin cget -cursor]
+	    $focuswin config -cursor $tixBusy(cursor)
 
-	    if {$focuswin != "" && [winfo id $focuswin] != 0} {
-		if [info exists tixBusy($focuswin,oldcursor)] {
-		    $focuswin config -cursor $tixBusy($focuswin,oldcursor)
-		    if [info exists tixBusy($focuswin,oldcursor)] {
-			unset tixBusy($focuswin,oldcursor)
-		    }
+	    set x1 [expr {[winfo rootx $focuswin]-[winfo rootx $toplevel]}]
+	    set y1 [expr {[winfo rooty $focuswin]-[winfo rooty $toplevel]}]
+
+	    set W  [winfo width $focuswin]
+	    set H  [winfo height $focuswin]
+	    set x2 [expr {$x1 + $W}]
+	    set y2 [expr {$y1 + $H}]
+
+
+	    if {$y1 > 0} {
+		tixMoveResizeWindow $inputonly0 0   0   10000 $y1
+	    }
+	    if {$x1 > 0} {
+		tixMoveResizeWindow $inputonly1 0   0   $x1   10000
+	    }
+	    tixMoveResizeWindow $inputonly2 0   $y2 10000 10000
+	    tixMoveResizeWindow $inputonly3 $x2 0   10000 10000
+
+	    for {set i 0} {$i < 4} {incr i} {
+		tixMapWindow [set inputonly$i] 
+		tixRaiseWindow [set inputonly$i]
+	    }
+	    tixFlushX $w
+	} else {
+	    tixMoveResizeWindow $inputonly0 0 0 10000 10000
+	    tixMapWindow $inputonly0
+	    tixRaiseWindow $inputonly0
+	}
+    } else {
+	tixUnmapWindow $inputonly0
+	tixUnmapWindow $inputonly1
+	tixUnmapWindow $inputonly2
+	tixUnmapWindow $inputonly3
+
+	if {$focuswin != "" && [winfo id $focuswin] != 0} {
+	    if {[info exists tixBusy($focuswin,oldcursor)]} {
+		$focuswin config -cursor $tixBusy($focuswin,oldcursor)
+		if {[info exists tixBusy($focuswin,oldcursor)]} {
+		    unset tixBusy($focuswin,oldcursor)
 		}
 	    }
 	}
     }
-   
 }
 
 proc tixOptionName {w} {
-    return [string range $w 1 [expr [string length $w]-1]]
+    return [string range $w 1 end]
 }
 
 proc tixSetSilent {chooser value} {
-    $chooser config -disablecallback true
-    $chooser config -value $value
-    $chooser config -disablecallback false
-}
-
-proc tixSetChooser {chooser value} {
-
-    puts "obsolete command tixSetChooser, call tixSetSilent instead"
-
     $chooser config -disablecallback true
     $chooser config -value $value
     $chooser config -disablecallback false
@@ -333,9 +285,9 @@ proc tixBreak {args} {}
 #----------------------------------------------------------------------
 proc tixDestroy {w} {
     upvar #0 $w data
-	
+
     set destructor ""
-    if [info exists data(className)] {
+    if {[info exists data(className)]} {
 	catch {
 	    set destructor [tixGetMethod $w $data(className) Destructor]
 	}
@@ -343,12 +295,8 @@ proc tixDestroy {w} {
     if {$destructor != ""} {
 	$destructor $w
     }
-    catch {
-	rename $w ""
-    }
-    catch {
-	unset data
-    }
+    catch {rename $w ""}
+    catch {unset data}
     return ""
 }
 
@@ -361,18 +309,15 @@ proc tixPushGrab {args} {
 	set tix_priv(grab-nopush) ""
     }
 
-    case [llength $args] {
-	1 {
-	    set opt ""
-	    set w [lindex $args 0]
-	}
-	2 {
-	    set opt [lindex $args 0]
-	    set w [lindex $args 1]
-	}
-	default {
-	    error "wrong #of arguments: tixPushGrab ?-global? window"
-	}
+    set len [llength $args]
+    if {$len == 1} {
+	set opt ""
+	set w [lindex $args 0]
+    } elseif {$len == 2} {
+	set opt [lindex $args 0]
+	set w [lindex $args 1]
+    } else {
+	error "wrong # of arguments: tixPushGrab ?-global? window"
     }
 
     # Not everyone will call tixPushGrab. If someone else has a grab already
@@ -381,21 +326,21 @@ proc tixPushGrab {args} {
     set last [lindex $tix_priv(grab-list) end]
     set current [grab current $w]
 
-    if {$current != "" && $current != $last} {
+    if {$current ne "" && $current ne $last} {
 	# Someone called "grab" directly
 	#
-	lappend tix_priv(grab-list)    $current
-	lappend tix_priv(grab-mode)    [grab status $current]
+	lappend tix_priv(grab-list)   $current
+	lappend tix_priv(grab-mode)   [grab status $current]
 	lappend tix_priv(grab-nopush) 1
     }
 
     # Now push myself into the stack
     #
-    lappend tix_priv(grab-list)    $w
-    lappend tix_priv(grab-mode)    $opt
+    lappend tix_priv(grab-list)   $w
+    lappend tix_priv(grab-mode)   $opt
     lappend tix_priv(grab-nopush) 0
 
-    if {$opt == "-global"} {
+    if {$opt eq "-global"} {
 	grab -global $w
     } else {
 	grab $w
@@ -420,12 +365,9 @@ proc tixPopGrab {} {
     grab release $w
 
     if {$len > 1} {
-	set tix_priv(grab-list)   \
-	    [lrange $tix_priv(grab-list) 0 [expr $len-2]]
-	set tix_priv(grab-mode)   \
-	    [lrange $tix_priv(grab-mode) 0 [expr $len-2]]
-	set tix_priv(grab-nopush) \
-	    [lrange $tix_priv(grab-nopush) 0 [expr $len-2]]
+	set tix_priv(grab-list)   [lrange $tix_priv(grab-list) 0 end-1]
+	set tix_priv(grab-mode)   [lrange $tix_priv(grab-mode) 0 end-1]
+	set tix_priv(grab-nopush) [lrange $tix_priv(grab-nopush) 0 end-1]
 
 	set w  [lindex $tix_priv(grab-list) end]
 	set m  [lindex $tix_priv(grab-list) end]
@@ -437,12 +379,10 @@ proc tixPopGrab {} {
 	    set len [llength $tix_priv(grab-list)]
 
 	    if {$len > 1} {
-		set tix_priv(grab-list)   \
-		    [lrange $tix_priv(grab-list) 0 [expr $len-2]]
-		set tix_priv(grab-mode)   \
-		    [lrange $tix_priv(grab-mode) 0 [expr $len-2]]
+		set tix_priv(grab-list)   [lrange $tix_priv(grab-list) 0 end-1]
+		set tix_priv(grab-mode)   [lrange $tix_priv(grab-mode) 0 end-1]
 		set tix_priv(grab-nopush) \
-		    [lrange $tix_priv(grab-nopush) 0 [expr $len-2]]
+		    [lrange $tix_priv(grab-nopush) 0 end-1]
 	    } else {
 		set tix_priv(grab-list)   ""
 		set tix_priv(grab-mode)   ""
@@ -463,12 +403,16 @@ proc tixPopGrab {} {
 }
 
 proc tixWithinWindow {wid rootX rootY} {
+    set wc  [winfo containing $rootX $rootY]
+    if {$wid eq $wc} { return 1 }
+
+    # no see if it is an enclosing parent
     set rx1 [winfo rootx $wid]
     set ry1 [winfo rooty $wid]
     set rw  [winfo width  $wid]
     set rh  [winfo height $wid]
-    set rx2 [expr $rx1+$rw]
-    set ry2 [expr $ry1+$rh]
+    set rx2 [expr {$rx1+$rw}]
+    set ry2 [expr {$ry1+$rh}]
 
     if {$rootX >= $rx1 && $rootX < $rx2 && $rootY >= $ry1 && $rootY < $ry2} {
 	return 1
@@ -479,16 +423,16 @@ proc tixWithinWindow {wid rootX rootY} {
 
 proc tixWinWidth {w} {
     set W [winfo width $w]
-    set bd [expr [$w cget -bd] + [$w cget -highlightthickness]]
+    set bd [expr {[$w cget -bd] + [$w cget -highlightthickness]}]
 
-    return [expr $W - 2*$bd]
+    return [expr {$W - 2*$bd}]
 }
 
 proc tixWinHeight {w} {
     set H [winfo height $w]
-    set bd [expr [$w cget -bd] + [$w cget -highlightthickness]]
+    set bd [expr {[$w cget -bd] + [$w cget -highlightthickness]}]
 
-    return [expr $H - 2*$bd]
+    return [expr {$H - 2*$bd}]
 }
 
 # junk?

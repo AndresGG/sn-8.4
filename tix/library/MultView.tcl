@@ -1,8 +1,13 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: MultView.tcl,v 1.3 2001/12/09 05:04:02 idiscovery Exp $
+#
 # MultView.tcl --
 #
 #	Implements the multi-view widget
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -55,7 +60,7 @@ proc tixMultiView:ConstructWidget {w} {
     set data(w:tlist) [$data(w:stlist) subwidget tlist]
     set data(w:grid)  [$data(w:sgrid) subwidget grid]
 
-    $data(w:grid) config -formatcmd "tixMultiView:GridFormat $w" \
+    $data(w:grid) config -formatcmd [list tixMultiView:GridFormat $w] \
 	-leftmargin 0 -topmargin 1
 }
 

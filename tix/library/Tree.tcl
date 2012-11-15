@@ -1,8 +1,13 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: Tree.tcl,v 1.7 2004/04/09 21:39:12 hobbs Exp $
+#
 # Tree.tcl --
 #
 #	This file implements the TixTree widget.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -14,6 +19,10 @@ tixWidgetClass tixTree {
     -superclass tixVTree
     -method {
 	autosetmode close getmode open setmode
+
+	addchild anchor column delete entrycget
+	entryconfigure header hide indicator info
+	item nearest see selection show
     }
     -flag {
 	-browsecmd -command -opencmd -closecmd
@@ -26,11 +35,7 @@ tixWidgetClass tixTree {
     }
     -default {
 	{.scrollbar			auto}
-	{*Scrollbar.background          #d9d9d9}
-	{*Scrollbar.relief              sunken}
 	{*Scrollbar.takeFocus           0}
-	{*Scrollbar.troughColor         #c3c3c3}
-	{*Scrollbar.width               15}
 	{*borderWidth                   1}
 	{*hlist.background              #c3c3c3}
 	{*hlist.drawBranch              1}
@@ -39,8 +44,8 @@ tixWidgetClass tixTree {
 	{*hlist.indicator               1}
 	{*hlist.indent                  20}
 	{*hlist.itemType                imagetext}
-	{*hlist.padX                    3}
-	{*hlist.padY                    0}
+	{*hlist.padX                    2}
+	{*hlist.padY                    2}
 	{*hlist.relief                  sunken}
 	{*hlist.takeFocus               1}
 	{*hlist.wideSelection           0}
@@ -100,6 +105,22 @@ proc tixTree:getmode {w ent} {
 proc tixTree:setmode {w ent mode} {
     tixVTree:SetMode $w $ent $mode
 }
+
+foreach cmd {
+    addchild anchor column delete entrycget
+    entryconfigure header hide indicator info
+    item nearest see selection show
+} {
+    proc tixTree:$cmd {w args} {
+	# These are hlist passthrough methods to work around
+	# Tix' ignorant inheritance model.
+	upvar #0 $w data
+	set cmd [lindex [split [lindex [info level 0] 0] :] end]
+	uplevel 1 [linsert $args 0 $data(w:hlist) $cmd]
+    }
+}
+unset cmd
+
 #----------------------------------------------------------------------
 #
 #			Private Methods
@@ -120,7 +141,7 @@ proc tixTree:SetModes {w ent} {
 	set mode close
 
 	foreach c $children {
-	    if [$data(w:hlist) info hidden $c] {
+	    if {[$data(w:hlist) info hidden $c]} {
 		set mode open
 	    }
 	    tixTree:SetModes $w $c

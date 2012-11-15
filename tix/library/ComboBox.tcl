@@ -1,13 +1,36 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: ComboBox.tcl,v 1.9 2008/02/28 22:39:13 hobbs Exp $
+#
 # tixCombobox --
 #
 #	A combobox widget is basically a listbox widget with an entry
 #	widget.
 #
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+
+global tkPriv
+if {![llength [info globals tkPriv]]} {
+    tk::unsupported::ExposePrivateVariable tkPriv
+}
+#--------------------------------------------------------------------------
+# tkPriv elements used in this file:
+#
+# afterId -		Token returned by "after" for autoscanning.
+#--------------------------------------------------------------------------
+#
+foreach fun {tkCancelRepeat tkListboxUpDown tkButtonUp} {
+    if {![llength [info commands $fun]]} {
+	tk::unsupported::ExposePrivateCommand $fun
+    }
+}
+unset fun
 
 tixWidgetClass tixComboBox {
     -classname TixComboBox
@@ -58,7 +81,7 @@ tixWidgetClass tixComboBox {
     }
     -default {
 	{*Entry.relief				sunken}
-        {*TixScrolledListBox.scrollbar		auto}
+	{*TixScrolledListBox.scrollbar		auto}
 	{*Listbox.exportSelection		false}
 	{*Listbox.takeFocus			false}
 	{*shell.borderWidth			2}
@@ -76,8 +99,6 @@ tixWidgetClass tixComboBox {
 	{*arrow.anchor				c}
 	{*arrow.width				15}
 	{*arrow.height				18}
-	{*Entry.background			#c3c3c3}
-	{*Label.font         -Adobe-Helvetica-Bold-R-Normal--*-120-*-*-*-*-*-*}
     }
 }
 
@@ -98,13 +119,13 @@ proc tixComboBox:InitWidgetRec {w} {
         set data(-editable) 1
     }
 
-    if ![string compare $data(-arrowbitmap) ""] {
+    if {$data(-arrowbitmap) eq ""} {
 	set data(-arrowbitmap) [tix getbitmap cbxarrow]
     }
-    if ![string compare $data(-crossbitmap) ""] {
+    if {$data(-crossbitmap) eq ""} {
 	set data(-crossbitmap) [tix getbitmap cross]
     }
-    if ![string compare $data(-tickbitmap) ""] {
+    if {$data(-tickbitmap) eq ""} {
 	set data(-tickbitmap) [tix getbitmap tick]
     }
 }
@@ -168,7 +189,7 @@ proc tixComboBox:ConstructEntryFrame {w frame} {
 
     if {$data(-dropdown)} {
 	pack $data(w:arrow) -side right -padx 1
-	foreach wid "$data(w:frame) $data(w:label)" {
+	foreach wid [list $data(w:frame) $data(w:label)] {
 	    tixAddBindTag $wid TixComboWid
 	    tixSetMegaWidget $wid $w TixComboBox
 	}
@@ -215,7 +236,7 @@ proc tixComboBox:SetBindings {w} {
 
     # (1) Fix the bindings for the combobox
     #
-    bindtags $w "$w TixComboBox [winfo toplevel $w] all"
+    bindtags $w [list $w TixComboBox [winfo toplevel $w] all]
 
     # (2) The entry subwidget
     #
@@ -227,9 +248,9 @@ proc tixComboBox:SetBindings {w} {
     # (3) The listbox and slistbox
     #
     $data(w:slistbox) config -browsecmd \
-	"tixComboBox:LbBrowse  $w"
+	[list tixComboBox:LbBrowse  $w]
     $data(w:slistbox) config -command\
-	"tixComboBox:LbCommand $w"
+	[list tixComboBox:LbCommand $w]
     $data(w:listbox) config -takefocus 0
 
     tixAddBindTag $data(w:listbox)  TixComboLb
@@ -244,23 +265,23 @@ proc tixComboBox:SetBindings {w} {
 	tixAddBindTag $data(w:arrow) TixComboArrow
 	tixSetMegaWidget $data(w:arrow) $w TixComboBox
 
-	bind $data(w:root) <1>                "tixComboBox:RootDown $w"
-	bind $data(w:root) <ButtonRelease-1>  "tixComboBox:RootUp   $w"
+	bind $data(w:root) <1>                [list tixComboBox:RootDown $w]
+	bind $data(w:root) <ButtonRelease-1>  [list tixComboBox:RootUp   $w]
     }
 
     if {$data(-fancy)} {
 	if {$data(-editable)} {
-	    $data(w:cross) config -command "tixComboBox:CrossBtn $w" \
+	    $data(w:cross) config -command [list tixComboBox:CrossBtn $w] \
 		-takefocus 0
 	}
-	$data(w:tick) config -command "tixComboBox:Invoke $w" -takefocus 0
+	$data(w:tick) config -command [list tixComboBox:Invoke $w] -takefocus 0
     }
 
     if {$data(-dropdown)} {
 	set data(state) 0
     } else {
 	set data(state) n0
-    }	
+    }
 }
 
 proc tixComboBoxBind {} {
@@ -268,7 +289,7 @@ proc tixComboBoxBind {} {
     # The class bindings for the TixComboBox
     #
     tixBind TixComboBox <Escape> {
-	if [tixComboBox:EscKey %W] {
+	if {[tixComboBox:EscKey %W]} {
 	    break
 	}
     }
@@ -280,14 +301,14 @@ proc tixComboBoxBind {} {
     # of irrelevant
     #
     tixBind TixComboBox <FocusOut>  {
-	if {![string compare %d NotifyNonlinear] ||
-	    ![string compare %d NotifyNonlinearVirtual]} {
+	if {[string equal %d NotifyNonlinear] ||
+	    [string equal %d NotifyNonlinearVirtual]} {
 
-	    if [info exists %W(cancelTab)] {
+	    if {[info exists %W(cancelTab)]} {
 		unset %W(cancelTab)
 	    } else {
-		if [string compare [set %W(-state)] disabled] {
-		    if [string compare [set %W(-selection)] [set %W(-value)]] {
+		if {[set %W(-state)] ne "disabled"} {
+		    if {[set %W(-selection)] ne [set %W(-value)]} {
 			tixComboBox:Invoke %W
 		    }
 		}
@@ -295,17 +316,16 @@ proc tixComboBoxBind {} {
 	}
     }
     tixBind TixComboBox <FocusIn>  {
-	if {[tixStrEq %d NotifyNonlinear] || 
-	    [tixStrEq %d NotifyNonlinearVirtual]} {
-
+	if {"%d" eq "NotifyNonlinear" || "%d" eq "NotifyNonlinearVirtual"} {
 	    focus [%W subwidget entry]
 
-	    # CYGNUS LOCAL: Setting the selection if there is no data
+	    # CYGNUS: Setting the selection if there is no data
 	    # causes backspace to misbehave.
-	    if {[[set %W(w:entry)] get] != ""} {
-		[set %W(w:entry)] selection from 0
-		[set %W(w:entry)] selection to end
-	    }
+	    if {[[set %W(w:entry)] get] ne ""} {
+  		[set %W(w:entry)] selection from 0
+  		[set %W(w:entry)] selection to end
+  	    }
+
 	}
     }
 
@@ -320,7 +340,7 @@ proc tixComboBoxBind {} {
 	tixComboBox:ArrowUp   [tixGetMegaWidget %W TixComboBox]
     }
     tixBind TixComboArrow <Escape>          {
-	if [tixComboBox:EscKey [tixGetMegaWidget %W TixComboBox]] {
+	if {[tixComboBox:EscKey [tixGetMegaWidget %W TixComboBox]]} {
 	    break
 	}
     }
@@ -341,26 +361,26 @@ proc tixComboBoxBind {} {
     tixBind TixComboEntry <Next>	{
 	tixComboBox:EntDirKey [tixGetMegaWidget %W TixComboBox] pagedown
     }
-    tixBind TixComboEntry <Return>	{	
+    tixBind TixComboEntry <Return>	{
 	tixComboBox:EntReturnKey [tixGetMegaWidget %W TixComboBox]
     }
     tixBind TixComboEntry <KeyPress>	{
 	tixComboBox:EntKeyPress [tixGetMegaWidget %W TixComboBox]
     }
     tixBind TixComboEntry <Escape> 	{
-	if [tixComboBox:EscKey [tixGetMegaWidget %W TixComboBox]] {
+	if {[tixComboBox:EscKey [tixGetMegaWidget %W TixComboBox]]} {
 	    break
 	}
     }
     tixBind TixComboEntry <Tab> 	{
-	if {[set [tixGetMegaWidget %W TixComboBox](-state)] != "disabled"} {
-	    if [tixComboBox:EntTab [tixGetMegaWidget %W TixComboBox]] {
+	if {[set [tixGetMegaWidget %W TixComboBox](-state)] ne "disabled"} {
+	    if {[tixComboBox:EntTab [tixGetMegaWidget %W TixComboBox]]} {
 		break
 	    }
 	}
     }
     tixBind TixComboEntry <1>	{
-	if {[set [tixGetMegaWidget %W TixComboBox](-state)] != "disabled"} {
+	if {[set [tixGetMegaWidget %W TixComboBox](-state)] ne "disabled"} {
 	    focus %W
 	}
     }
@@ -373,7 +393,7 @@ proc tixComboBoxBind {} {
     #
 
     tixBind TixComboWid <Escape> {
-	if [tixComboBox:EscKey [tixGetMegaWidget %W TixComboBox]] {
+	if {[tixComboBox:EscKey [tixGetMegaWidget %W TixComboBox]]} {
 	    break
 	}
     }
@@ -385,7 +405,7 @@ proc tixComboBoxBind {} {
 	tixComboBox:WidUp [tixGetMegaWidget %W TixComboBox]
     }
     tixBind TixComboWid <Escape> {
-	if [tixComboBox:EscKey [tixGetMegaWidget %W TixComboBox]] {
+	if {[tixComboBox:EscKey [tixGetMegaWidget %W TixComboBox]]} {
 	    break
 	}
     }
@@ -397,63 +417,47 @@ proc tixComboBoxBind {} {
 proc tixComboBox:ArrowDown {w} {
     upvar #0 $w data
 
-    if ![string compare $data(-state) disabled] {
+    if {$data(-state) eq "disabled"} {
 	return
     }
-    
-    case $data(state) {
-	{0} {
-	    tixComboBox:GoState 1 $w
-	}
-	{2} {
-	    tixComboBox:GoState 19 $w
-	}
-	default {
-	    tixComboBox:StateError $w
-	}
+
+    switch -exact -- $data(state) {
+	0	{ tixComboBox:GoState 1 $w }
+	2	{ tixComboBox:GoState 19 $w }
+	default	{ tixComboBox:StateError $w }
     }
 }
 
 proc tixComboBox:ArrowUp {w} {
     upvar #0 $w data
     
-    case $data(state) {
-	{1} {
-	    tixComboBox:GoState 2 $w
-	}
-	{19} {
+    switch -exact -- $data(state) {
+	1	{ tixComboBox:GoState 2 $w }
+	19	{
 	    # data(ignore) was already set in state 19
 	    tixComboBox:GoState 4 $w
 	}
-	{5} {
-	    tixComboBox:GoState 13 $w
-	}
-	default {
-	    tixComboBox:StateError $w
-	}
+	5	{ tixComboBox:GoState 13 $w }
+	default	{ tixComboBox:StateError $w }
     }
 }
 
 proc tixComboBox:RootDown {w} {
     upvar #0 $w data
     
-    case $data(state) {
-	{0} {
+    switch -exact -- $data(state) {
+	0	{
 	    # Ignore
 	}
-	{2} {
-	    tixComboBox:GoState 3 $w
-	}
-	default {
-	    tixComboBox:StateError $w
-	}
+	2	{ tixComboBox:GoState 3 $w }
+	default { tixComboBox:StateError $w }
     }
 }
 
 proc tixComboBox:RootUp {w} {
     upvar #0 $w data
     
-    case $data(state) {
+    switch -exact -- $data(state) {
 	{1} {
 	    tixComboBox:GoState 12 $w
 	}
@@ -473,7 +477,7 @@ proc tixComboBox:RootUp {w} {
 proc tixComboBox:WidUp {w} {
     upvar #0 $w data
     
-    case $data(state) {
+    switch -exact -- $data(state) {
 	{1} {
 	    tixComboBox:GoState 12 $w
 	}
@@ -492,11 +496,9 @@ proc tixComboBox:LbBrowse {w args} {
     set X [tixEvent flag X]
     set Y [tixEvent flag Y]
 
-    if ![string compare $data(-state) disabled] {
-	return
-    }
+    if {$data(-state) eq "disabled"} { return }
 
-    case $event {
+    switch -exact -- $event {
 	<1> {
 	    case $data(state) {
 		{2} {
@@ -549,10 +551,8 @@ proc tixComboBox:LbBrowse {w args} {
 proc tixComboBox:LbCommand {w} {
     upvar #0 $w data
 
-    case $data(state) {
-	{n0} {
-	    tixComboBox:GoState n1 $w
-	}
+    if {$data(state) eq "n0"} {
+	tixComboBox:GoState n1 $w
     }
 }
 
@@ -568,11 +568,9 @@ proc tixComboBox:LbCommand {w} {
 proc tixComboBox:EscKey {w} {
     upvar #0 $w data
 
-    if ![string compare $data(-state) disabled] {
-	return
-    }
+    if {$data(-state) eq "disabled"} { return 0 }
 
-    case $data(state) {
+    switch -exact -- $data(state) {
 	{0} {
 	    tixComboBox:GoState 17 $w
 	}
@@ -598,11 +596,9 @@ proc tixComboBox:EscKey {w} {
 proc tixComboBox:EntDirKey {w dir} {
     upvar #0 $w data
 
-    if ![string compare $data(-state) disabled] {
-	return
-    }
+    if {$data(-state) eq "disabled"} { return }
 
-    case $data(state) {
+    switch -exact -- $data(state) {
 	{0} {
 	    tixComboBox:GoState 10 $w $dir
 	}
@@ -621,11 +617,9 @@ proc tixComboBox:EntDirKey {w dir} {
 proc tixComboBox:EntReturnKey {w} {
     upvar #0 $w data
 
-    if ![string compare $data(-state) disabled] {
-	return
-    }
+    if {$data(-state) eq "disabled"} { return }
 
-    case $data(state) {
+    switch -exact -- $data(state) {
 	{0} {
 	    tixComboBox:GoState 14 $w
 	}
@@ -645,7 +639,7 @@ proc tixComboBox:EntReturnKey {w} {
 proc tixComboBox:EntTab {w} {
     upvar #0 $w data
 
-    case $data(state) {
+    switch -exact -- $data(state) {
 	{0} {
 	    tixComboBox:GoState 14 $w
 	    set data(cancelTab) ""
@@ -670,19 +664,13 @@ proc tixComboBox:EntTab {w} {
 proc tixComboBox:EntKeyPress {w} {
     upvar #0 $w data
 
-    if {!$data(-editable)} {
-	return
-    }
-    if [tixStrEq $data(-state) disabled] {
-	return
-    }
+    if {$data(-state) eq "disabled" || !$data(-editable)} { return }
 
-    case $data(state) {
-	{0 2 n0} {
+    switch -exact -- $data(state) {
+	0 - 2 - n0 {
 	    tixComboBox:ClearListboxSelection $w
 	    tixComboBox:SetSelection $w [$data(w:entry) get] 0 0
 	}
-
     }
 }
 
@@ -691,8 +679,8 @@ proc tixComboBox:EntKeyPress {w} {
 proc tixComboBox:HandleDirKey {w dir} {
     upvar #0 $w data
 
-    if [tixComboBox:CheckListboxSelection $w] {
-	case $dir {
+    if {[tixComboBox:CheckListboxSelection $w]} {
+	switch -exact -- $dir {
 	    "up" {
 		tkListboxUpDown $data(w:listbox) -1
 		set data(curIndex) [lindex [$data(w:listbox) curselection] 0]
@@ -721,7 +709,7 @@ proc tixComboBox:Invoke {w} {
     upvar #0 $w data
 
     tixComboBox:SetValue $w $data(-selection)
-    if ![winfo exists $w] {
+    if {![winfo exists $w]} {
 	return
     }
 
@@ -740,7 +728,7 @@ proc tixComboBox:Invoke {w} {
 proc tixComboBox:SetValue {w newValue {noUpdate 0} {updateEnt 1}} {
     upvar #0 $w data
 
-    if {$data(-validatecmd) != ""} {
+    if {[llength $data(-validatecmd)]} {
        set data(-value) [tixEvalCmdBinding $w $data(-validatecmd) "" $newValue]
     } else {
 	set data(-value) $newValue
@@ -757,13 +745,13 @@ proc tixComboBox:SetValue {w newValue {noUpdate 0} {updateEnt 1}} {
 	}
     }
 
-    if {!$data(-disablecallback) && $data(-command) != ""} {
+    if {!$data(-disablecallback) && [llength $data(-command)]} {
 	if {![info exists data(varInited)]} {
 	    set bind(specs) {%V}
 	    set bind(%V)    $data(-value)
 
 	    tixEvalCmdBinding $w $data(-command) bind $data(-value)
-	    if ![winfo exists $w] {
+	    if {![winfo exists $w]} {
 		# The user destroyed the window!
 		return
 	    }
@@ -774,7 +762,7 @@ proc tixComboBox:SetValue {w newValue {noUpdate 0} {updateEnt 1}} {
     if {$updateEnt} {
 	tixSetEntry $data(w:entry) $data(-value)
 
-	if {$data(-anchor) == "e"} {
+	if {$data(-anchor) eq "e"} {
 	    tixComboBox:EntryAlignEnd $w
 	}
     }
@@ -790,11 +778,11 @@ proc tixComboBox:SetSelection {w value {markSel 1} {setent 1}} {
     }
     set data(-selection) $value
 
-    if {$data(-selectmode) == "browse"} {
+    if {$data(-selectmode) eq "browse"} {
 	if {$markSel} {
 	    $data(w:entry) selection range 0 end
 	}
-	if {$data(-browsecmd) != ""} {
+	if {[llength $data(-browsecmd)]} {
 	    set bind(specs) {%V}
 	    set bind(%V)    [$data(w:entry) get]
 	    tixEvalCmdBinding $w $data(-browsecmd) bind [$data(w:entry) get]
@@ -807,12 +795,21 @@ proc tixComboBox:SetSelection {w value {markSel 1} {setent 1}} {
 proc tixComboBox:ClearListboxSelection {w} {
     upvar #0 $w data
 
+    if {![winfo exists $data(w:listbox)]} {
+	tixDebug "tixComboBox:ClearListboxSelection error non-existent $data(w:listbox)"
+	return
+    }
+
     $data(w:listbox) selection clear 0 end
 }
 
 proc tixComboBox:UpdateListboxSelection {w index} {
     upvar #0 $w data
 
+    if {![winfo exists $data(w:listbox)]} {
+	tixDebug "tixComboBox:UpdateListboxSelection error non-existent $data(w:listbox)"
+	return
+    }
     if {$index != ""} {
 	$data(w:listbox) selection set $index
 	$data(w:listbox) selection anchor $index
@@ -826,7 +823,7 @@ proc tixComboBox:Cancel {w} {
     tixSetEntry $data(w:entry) $data(-value)
     tixComboBox:SetSelection $w $data(-value)
 
-    if {"x[tixComboBox:LbGetSelection $w]" != "x$data(-selection)"} {
+    if {[tixComboBox:LbGetSelection $w] ne $data(-selection)} {
 	tixComboBox:ClearListboxSelection $w
     }
 }
@@ -860,7 +857,7 @@ proc tixComboBox:RestoreBlink {w old_bg old_fg} {
 	$data(w:entry) config -bg $old_bg
     }
 
-    if [info exists data(entryBlacken)] {
+    if {[info exists data(entryBlacken)]} {
 	unset data(entryBlacken)
     }
 }
@@ -872,11 +869,19 @@ proc tixComboBox:RestoreBlink {w old_bg old_fg} {
 proc tixComboBox:LbIndex {w {flag ""}} {
     upvar #0 $w data
 
+    if {![winfo exists $data(w:listbox)]} {
+	tixDebug "tixComboBox:LbIndex error non-existent $data(w:listbox)"
+	if {$flag eq "emptyOK"} {
+	    return ""
+	} else {
+	    return 0
+	}
+    }
     set sel [lindex [$data(w:listbox) curselection] 0]
     if {$sel != ""} {
 	return $sel
     } else {
-	if {$flag == "emptyOK"} {
+	if {$flag eq "emptyOK"} {
 	    return ""
 	} else {
 	    return 0
@@ -891,6 +896,10 @@ proc tixComboBox:LbIndex {w {flag ""}} {
 #----------------------------------------------------------------------
 proc tixComboBox:GoState-0 {w} {
     upvar #0 $w data
+
+    if {[info exists data(w:root)] && [grab current] eq "$data(w:root)"} {
+	grab release $w
+    }
 }
 
 proc tixComboBox:GoState-1 {w} {
@@ -934,7 +943,7 @@ proc tixComboBox:GoState-6 {w x y X Y} {
 
     tixComboBox:Popdown $w
 
-    if [tixWithinWindow $data(w:shell) $X $Y] {
+    if {[tixWithinWindow $data(w:shell) $X $Y]} {
 	set data(ignore) 0
     } else {
 	set data(ignore) 1
@@ -1045,11 +1054,7 @@ proc tixComboBox:GoState-17 {w} {
 proc tixComboBox:GoState-19 {w} {
     upvar #0 $w data
 
-    if {"x$data(-selection)" != "x$data(-value)"} {
-	set data(ignore) 0
-    } else {
-	set data(ignore) 1
-    }
+    set data(ignore) [string equal $data(-selection) $data(-value)]
     tixComboBox:Popdown $w
 }
 
@@ -1121,6 +1126,10 @@ proc tixComboBox:StateError {w} {
 proc tixComboBox:CheckListboxSelection {w} {
     upvar #0 $w data
 
+    if {![winfo exists $data(w:listbox)]} {
+	tixDebug "tixComboBox:CheckListboxSelection error non-existent $data(w:listbox)"
+	return 0
+    }
     if {[$data(w:listbox) curselection] == ""} {
 	if {$data(curIndex) == ""} {
 	    set data(curIndex) 0
@@ -1164,8 +1173,8 @@ proc tixComboBox:LbSelect {w x y X Y} {
     }
 
     if {$index >= 0} {
-	if {"x[focus -lastfor $data(w:entry)]" != "x$data(w:entry)" &&
-	    "x[focus -lastfor $data(w:entry)]" != "x$data(w:listbox)"} {
+	if {[focus -lastfor $data(w:entry)] ne $data(w:entry) &&
+	    [focus -lastfor $data(w:entry)] ne $data(w:listbox)} {
 	    focus $data(w:entry)
 	}
 
@@ -1218,34 +1227,34 @@ proc tixComboBox:Popup {w} {
 
     set bd [$data(w:shell) cget -bd]
 #   incr bd [$data(w:shell) cget -highlightthickness]
-    set height [expr [winfo reqheight $data(w:slistbox)] + 2*$bd]
+    set height [expr {[winfo reqheight $data(w:slistbox)] + 2*$bd}]
 
     set x1 [winfo rootx $data(w:entry)]
     if {$data(-listwidth) == ""} {
-	if [winfo ismapped $data(w:arrow)] {
+	if {[winfo ismapped $data(w:arrow)]} {
 	    set x2  [winfo rootx $data(w:arrow)]
 	    if {$x2 >= $x1} {
 		incr x2 [winfo width $data(w:arrow)]
-		set width  [expr "$x2 - $x1"]
+		set width  [expr {$x2 - $x1}]
 	    } else {
 		set width  [winfo width $data(w:entry)]
-		set x2 [expr $x1 + $width]
+		set x2 [expr {$x1 + $width}]
 	    }
 	} else {
 	    set width  [winfo width $data(w:entry)]
-	    set x2 [expr $x1 + $width]
+	    set x2 [expr {$x1 + $width}]
 	}
     } else {
 	set width $data(-listwidth)
-	set x2 [expr $x1 + $width]
+	set x2 [expr {$x1 + $width}]
     }
 
     set reqwidth [winfo reqwidth $data(w:shell)]
     if {$reqwidth < $width} {
 	set reqwidth $width
     } else {
-	if {$reqwidth > [expr $width *3]} {
-	    set reqwidth [expr $width *3]
+	if {$reqwidth > [expr {$width *3}]} {
+	    set reqwidth [expr {$width *3}]
 	}
 	if {$reqwidth > [winfo vrootwidth .]} {
 	    set reqwidth [winfo vrootwidth .]
@@ -1258,7 +1267,7 @@ proc tixComboBox:Popup {w} {
     #
     set scrwidth [winfo vrootwidth .]
     if {$x2 > $scrwidth} {
-	set x1 [expr $scrwidth - $width]
+	set x1 [expr {$scrwidth - $width}]
     }
 
     # If the listbox is too far left, pull it back to the right
@@ -1270,27 +1279,30 @@ proc tixComboBox:Popup {w} {
     # If the listbox is below bottom of screen, put it upwards
     #
     set scrheight [winfo vrootheight .]
-    set bottom [expr $y+$height]
+    set bottom [expr {$y+$height}]
     if {$bottom > $scrheight} {
-	set y [expr $y-$height-[winfo height $data(w:entry)]-5]
+	set y [expr {$y-$height-[winfo height $data(w:entry)]-5}]
     }
 
     # OK , popup the shell
     #
+    global tcl_platform
 
     wm geometry $data(w:shell) $reqwidth\x$height+$x1+$y
-    if {$tcl_platform(platform) == "windows"} {
-      update
+    if {$tcl_platform(platform) eq "windows"} {
+	update
     }
     wm deiconify $data(w:shell)
-    if {$tcl_platform(platform) == "windows"} {
-      update
+    if {$tcl_platform(platform) eq "windows"} {
+	update
     }
-
     raise $data(w:shell)
     focus $data(w:entry)
     set data(popped) 1
 
+    # add for safety
+    update
+    
     tixComboBox:Grab $w
 }
 
@@ -1312,30 +1324,30 @@ proc tixComboBox:Grab {w} {
     upvar #0 $w data
 
     tixComboBox:SetCursor $w arrow
-    catch {
+    if {[catch {
 	# We catch here because grab may fail under a lot of circumstances
 	# Just don't want to break the code ...
-	case $data(-grab) {
-	    global {
-		tixPushGrab -global $data(w:root)
-	    }
-	    local {
-		tixPushGrab $data(w:root)
-	    }
+	switch -exact -- $data(-grab) {
+	    global { tixPushGrab -global $data(w:root) }
+	    local  { tixPushGrab $data(w:root) }
 	}
+    } err]} {
+	tixDebug "tixComboBox:Grab+: Error grabbing $data(w:root)\n$err"
     }
 }
 
 proc tixComboBox:Ungrab {w} {
     upvar #0 $w data
 
-    case $data(-grab) {
-	global {
-	    tixPopGrab
+    if {[catch {
+	catch {
+	    switch -exact -- $data(-grab) {
+		global { tixPopGrab }
+		local  { tixPopGrab }
+	    }
 	}
-	local {
-	    tixPopGrab
-	}
+    } err]} {
+	tixDebug "tixComboBox:Grab+: Error grabbing $data(w:root)\n$err"
     }
 }
 
@@ -1369,10 +1381,8 @@ proc tixComboBox:Destructor {w} {
 
 proc tixComboBox:config-state {w value} {
     upvar #0 $w data
-    catch {if {"x[$data(w:arrow) cget -state]" == "x$value"} {
-	set a 1
-    }}
-    if [info exists a] {
+    catch {if {[$data(w:arrow) cget -state] eq $value} {set a 1}}
+    if {[info exists a]} {
 	return
     }
 
@@ -1381,7 +1391,7 @@ proc tixComboBox:config-state {w value} {
     catch {$data(w:cross) config -state $value}
     catch {$data(w:slistbox) config -state $value}
 
-    if ![string compare $value normal] {
+    if {[string equal $value normal]} {
 	set fg [$data(w:arrow) cget -fg]
 	set entryFg $data(entryfg)
 	set lbSelFg [lindex [$data(w:listbox) config -selectforeground] 3]
@@ -1390,13 +1400,13 @@ proc tixComboBox:config-state {w value} {
 	set entrySelBg [lindex [$data(w:entry) config -selectbackground] 3]
     } else {
 	set fg [$data(w:arrow) cget -disabledforeground]
-	set entryFg $data(-disabledforeground)
+	set entryFg $data(-disabledforeground) 
 	set lbSelFg $entryFg
 	set lbSelBg [$data(w:listbox) cget -bg]
 	set entrySelFg $entryFg
 	set entrySelBg [$data(w:entry) cget -bg]
     }
-    if [string compare $fg ""] {
+    if {$fg ne ""} {
 	$data(w:label) config -fg $fg
 	$data(w:listbox) config -fg $fg -selectforeground $lbSelFg \
 	  -selectbackground $lbSelBg
@@ -1404,7 +1414,7 @@ proc tixComboBox:config-state {w value} {
     $data(w:entry) config -fg $entryFg -selectforeground $entrySelFg \
       -selectbackground $entrySelBg
 
-    if ![string compare $value normal] {
+    if {$value eq "normal"} {
 	if {$data(-editable)} {
 	    $data(w:entry) config -state normal
 	}
@@ -1424,7 +1434,7 @@ proc tixComboBox:config-value {w value} {
 
     set data(-selection) $value
 
-    if {"x[tixComboBox:LbGetSelection $w]" != "x$value"} {
+    if {[tixComboBox:LbGetSelection $w] ne $value} {
 	tixComboBox:ClearListboxSelection $w
     }
 }
@@ -1434,7 +1444,7 @@ proc tixComboBox:config-selection {w value} {
 
     tixComboBox:SetSelection $w $value
 
-    if {"x[tixComboBox:LbGetSelection $w]" != "x$value"} {
+    if {[tixComboBox:LbGetSelection $w] ne $value} {
 	tixComboBox:ClearListboxSelection $w
     }
 }
@@ -1442,7 +1452,7 @@ proc tixComboBox:config-selection {w value} {
 proc tixComboBox:config-variable {w arg} {
     upvar #0 $w data
 
-    if [tixVariable:ConfigVariable $w $arg] {
+    if {[tixVariable:ConfigVariable $w $arg]} {
        # The value of data(-value) is changed if tixVariable:ConfigVariable 
        # returns true
        set data(-selection) $data(-value)
@@ -1461,7 +1471,7 @@ proc tixComboBox:config-variable {w arg} {
 proc tixComboBox:align {w args} {
     upvar #0 $w data
 
-    if {$data(-anchor) == "e"} {
+    if {$data(-anchor) eq "e"} {
 	tixComboBox:EntryAlignEnd $w
     }
 }
@@ -1479,8 +1489,8 @@ proc tixComboBox:addhistory {w value} {
 	if {$max <= 1} {
 	    return
 	}
-	for {set i [expr $max -1]} {$i >= 1} {incr i -1} {
-	    if {"x[$data(w:listbox) get $i]" == "x$value"} {
+	for {set i [expr {$max -1}]} {$i >= 1} {incr i -1} {
+	    if {[$data(w:listbox) get $i] eq $value} {
 		$data(w:listbox) delete $i
 		break
 	    }
@@ -1501,8 +1511,8 @@ proc tixComboBox:appendhistory {w value} {
 	if {$max <= 1} {
 	    return
 	}
-	for {set i [expr $max -2]} {$i >= 0} {incr i -1} {
-	    if {"x[$data(w:listbox) get $i]" == "x$value"} {
+	for {set i [expr {$max -2}]} {$i >= 0} {incr i -1} {
+	    if {[$data(w:listbox) get $i] eq $value} {
 		$data(w:listbox) delete $i
 		break
 	    }
@@ -1515,10 +1525,9 @@ proc tixComboBox:insert {w index newitem} {
 
     $data(w:listbox) insert $index $newitem
 
-    if {$data(-history) && $data(-historylimit) != ""} {
-	if {"x[$data(w:listbox) size]"  == "x$data(-historylimit)"} {
-	    $data(w:listbox) delete 0
-	}
+    if {$data(-history) && $data(-historylimit) != ""
+	&& [$data(w:listbox) size] eq $data(-historylimit)} {
+	$data(w:listbox) delete 0
     }
 }
 

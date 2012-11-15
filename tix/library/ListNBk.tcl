@@ -1,9 +1,15 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: ListNBk.tcl,v 1.5 2004/03/28 02:44:57 hobbs Exp $
+#
 # ListNBk.tcl --
 #
 #	"List NoteBook" widget. Acts similarly to the notebook but uses a
 #	HList widget to represent the pages.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -40,15 +46,15 @@ proc tixListNoteBook:ConstructWidget {w} {
     set data(w:shlist) [tixScrolledHList $p1.shlist]
     set data(w:hlist) [$data(w:shlist) subwidget hlist]
 
-    if [tixStrEq [$data(w_pane) cget -orientation] vertical] {
+    if {[$data(w_pane) cget -orientation] eq "vertical"} {
 	pack $data(w:shlist) -expand yes -fill both -padx 2 -pady 3
     } else {
 	pack $data(w:shlist) -expand yes -fill both -padx 3 -pady 2
     }
 
     $data(w:hlist) config \
-	-command   "tixListNoteBook:Choose $w"\
-	-browsecmd "tixListNoteBook:Choose $w"\
+	-command   [list tixListNoteBook:Choose $w] \
+	-browsecmd [list tixListNoteBook:Choose $w] \
 	-selectmode single
 
     pack $data(w_pane) -expand yes -fill both
@@ -57,7 +63,7 @@ proc tixListNoteBook:ConstructWidget {w} {
 proc tixListNoteBook:add {w child args} {
     upvar #0 $w data
 
-    if [string match *.* $child] {
+    if {[string match *.* $child]} {
 	error "the name of the page cannot contain the \".\" character"
     }
     return [eval tixChainMethod $w add $child $args]
@@ -67,36 +73,33 @@ proc tixListNoteBook:add {w child args} {
 # Virtual Methods
 #----------------------------------------------------------------------
 proc tixListNoteBook:InitGeometryManager {w} {
-    tixWidgetDoWhenIdle tixListNoteBook:InitialRaise $w 
+    tixWidgetDoWhenIdle tixListNoteBook:InitialRaise $w
 }
 
 proc tixListNoteBook:InitialRaise {w} {
     upvar #0 $w data
 
-    if ![string comp $data(topchild) ""] {
+    if {$data(topchild) eq ""} {
 	set top [lindex $data(windows) 0]
     } else {
 	set top $data(topchild)
     }
 
-    if ![tixStrEq $top ""] {
+    if {$top ne ""} {
 	tixCallMethod $w raise $top
     }
 }
 
 proc tixListNoteBook:CreateChildFrame {w child} {
     upvar #0 $w data
-
-    set f [frame $data(w_p2).$child]
-
-    return $f
+    return [frame $data(w_p2).$child]
 }
 
 proc tixListNoteBook:RaiseChildFrame {w child} {
     upvar #0 $w data
 
-    if [string comp $data(topchild) $child] {
-	if [string comp $data(topchild) ""] {
+    if {$data(topchild) ne $child} {
+	if {$data(topchild) ne ""} {
 	    pack forget $data(w:$data(topchild))
 	}
 	pack $data(w:$child) -expand yes -fill both
@@ -141,7 +144,7 @@ proc tixListNoteBook:raise {w child} {
 
 proc tixListNoteBook:Choose {w args} {
     upvar #0 $w data
- 
+
     set entry [tixEvent flag V]
 
     if {[lsearch $data(windows) $entry] != -1} {

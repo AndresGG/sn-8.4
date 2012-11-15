@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: compound.tcl,v 1.2 2002/11/13 21:12:18 idiscovery Exp $
+#
 proc About {} {
     return "the compound image type"
 }
@@ -13,8 +17,8 @@ proc Test {} {
     test {set image1 [image create compound -window .b]} {path name}
 
     for {set i 0} {$i < $num} {incr i} {
-	button .b$i
-	pack .b$i
+        button .b$i
+        pack .b$i
     }
 
     # (0) Empty image
@@ -41,7 +45,6 @@ proc Test {} {
     # Display them
     #
     for {set i 0} {$i < $num} {incr i} {
-	.b$i config -image [set image$i]
+        .b$i config -image [set image$i]
     }
-
 }

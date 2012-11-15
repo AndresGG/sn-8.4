@@ -1,10 +1,22 @@
+#
+# $Id: 14Point.fs,v 1.2 2001/12/09 05:03:09 idiscovery Exp $
+#
 proc tixSetFontset {} {
+    global tixOption tcl_platform
 
-    global tixOption
+    switch -- $tcl_platform(platform) "windows" {
+	# This should be Tahoma for Win2000/XP
+	set font "MS Sans Serif"
+	set fixedfont "Courier New"
+    } unix {
+	set font "helvetica"
+	set fixedfont "courier"
+    }
 
-    set tixOption(font)         -*-helvetica-medium-r-normal-*-14-*-*-*-*-*-*-*
-    set tixOption(bold_font)    -*-helvetica-bold-r-normal-*-14-*-*-*-*-*-*-*
-    set tixOption(menu_font)    -*-helvetica-bold-r-normal-*-14-*-*-*-*-*-*-*
-    set tixOption(italic_font)  -*-helvetica-bold-o-normal-*-14-*-*-*-*-*-*-*
-    set tixOption(fixed_font) -*-courier-medium-r-*-*-14-*-*-*-*-*-*-*
+    set tixOption(font)         [list $font -14]
+    set tixOption(bold_font)    [list $font -14 bold]
+    set tixOption(menu_font)    [list $font -14]
+    set tixOption(italic_font)  [list $font -14 bold italic]
+    set tixOption(fixed_font)   [list $fixedfont -14]
+    set tixOption(border1)      1
 }

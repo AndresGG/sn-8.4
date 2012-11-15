@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: DirTree.tcl,v 1.4 2004/03/28 02:44:57 hobbs Exp $
+#
 # DirTree.tcl --
 #
 #	Implements directory tree for Unix file systems
@@ -10,11 +14,18 @@
 #
 #      none: The dir has no subdirectori(es).
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
+
+##
+## The tixDirTree require special FS handling due to it's limited
+## separator idea (instead of real tree).
+##
 
 tixWidgetClass tixDirTree {
     -classname TixDirTree
@@ -37,17 +48,13 @@ tixWidgetClass tixDirTree {
     }
     -default {
 	{.scrollbar			auto}
-	{*Scrollbar.background          #d9d9d9}
-	{*Scrollbar.relief              sunken}
 	{*Scrollbar.takeFocus           0}
-	{*Scrollbar.troughColor         #c3c3c3}
-	{*Scrollbar.width               15}
 	{*borderWidth                   1}
 	{*hlist.indicator               1}
 	{*hlist.background              #c3c3c3}
 	{*hlist.drawBranch              1}
 	{*hlist.height                  10}
-	{*hlist.highlightBackground      #d9d9d9}
+	{*hlist.highlightBackground     #d9d9d9}
 	{*hlist.indent                  20}
 	{*hlist.itemType                imagetext}
 	{*hlist.padX                    3}
@@ -65,25 +72,19 @@ proc tixDirTree:InitWidgetRec {w} {
     tixChainMethod $w InitWidgetRec
 
     if {$data(-value) == ""} {
-	global env
-	if {[info exists env(PWD)]} {
-	    set data(-value) $env(PWD)
-	} else {
-	    set data(-value) [pwd]
-	}
+	set data(-value) [pwd]
     }
 
-    tixDirTree:SetDir $w [tixFileIntName $data(-value)]
+    tixDirTree:SetDir $w [file normalize $data(-value)]
 }
 
 proc tixDirTree:ConstructWidget {w} {
     upvar #0 $w data
 
     tixChainMethod $w ConstructWidget
-    tixDoWhenMapped $w "tixDirTree:StartUp $w"
+    tixDoWhenMapped $w [list tixDirTree:StartUp $w]
 
-    $data(w:hlist) config \
-	-separator [tixDirSep] \
+    $data(w:hlist) config -separator [tixFSSep] \
 	-selectmode "single" -drawbranch 1
 
     # We must creat an extra copy of these images to avoid flashes on
@@ -99,133 +100,84 @@ proc tixDirTree:SetBindings {w} {
     upvar #0 $w data
 
     tixChainMethod $w SetBindings
-
-# %% do I still need this?
-#   bind $data(w:hlist) <3> "tixDirTree:DeleteSib $w %x %y"
 }
 
-# This procedure is supposed to "trim" the directory tree view to
-# just the current directory and its ancestors.
+# Add one dir into the node (parent directory), sorted alphabetically
 #
-#proc tixDirTree:DeleteSib {w x y} {
-#    upvar #0 $w data
-#
-#    set ent [$data(w:hlist) nearest $y]
-#
-#    if {$ent != ""} {
-#	$data(w:hlist) anchor set $ent
-#
-#	for {set e $ent} {$e != "/"} {set e [$data(w:hlist) info parent $e]} {
-#	    $data(w:hlist) delete siblings $e
-#	}
-#	tixDirTree:Browse $w $ent
-#    }
-#}
-
-# %% This functions needs to be optimized
-#
-#
-proc tixDirTree:HasSubDir {w dir} {
+proc tixDirTree:AddToList {w fsdir image} {
     upvar #0 $w data
 
-    if {[tixListDir $dir 1 0 0 $data(-showhidden)] != ""} {
-	return 1
+    set dir    [tixFSInternal $fsdir]
+
+    if {[$data(w:hlist) info exists $dir]} { return }
+
+    set parent [file dirname $fsdir]
+    if {$fsdir eq $parent} {
+	# root node
+	set node ""
     } else {
-	return 0
+	# regular node
+	set node [tixFSInternal $parent]
     }
-}
-
-
-# Add one dir into the parent directory, sorted alphabetically
-#
-proc tixDirTree:AddToList {w dir parent name image} {
-    upvar #0 $w data
-
     set added 0
-    foreach sib [$data(w:hlist) info children $parent] {
+    set text  [tixFSDisplayFileName $fsdir]
+    foreach sib [$data(w:hlist) info children $node] {
 	if {[string compare $dir $sib] < 0} {
-	    $data(w:hlist) add $dir -before $sib -text $name -image $image
+	    $data(w:hlist) add $dir -before $sib -text $text -image $image
 	    set added 1
 	    break
 	}
     }
-    if !$added {
-	$data(w:hlist) add $dir -text $name -image $image
+    if {!$added} {
+	$data(w:hlist) add $dir -text $text -image $image
     }
 
-    if [tixDirTree:HasSubDir $w $dir] {
+    # Check to see if we have children (%% optimize!)
+    if {[llength [tixFSListDir $fsdir 1 0 0 $data(-showhidden)]]} {
 	tixVTree:SetMode $w $dir open
     }
 }
 
-# Add $dir and all ancestors of $dir into the HList widget
-#
-#
-proc tixDirTree:AddAncestors {w dir} {
+proc tixDirTree:LoadDir {w fsdir {mode toggle}} {
+    if {![winfo exists $w]} { return }
     upvar #0 $w data
-    uplevel #0 set TRANSPARENT_GIF_COLOR [$data(w:hlist) cget -bg]
-
-    set path ""
-    set parent ""
-    foreach name [tixFileSplit $dir] {
-	set path [tixSubFolder $path $name]
-	if {![$data(w:hlist) info exists $path]} {
-	    tixDirTree:AddToList $w $path $parent [tixFileDisplayName $path] \
-		[tix getimage openfold]
-	}
-	set parent $path
-    }
-}
-
-# Add all the sub directories of $dir into the HList widget
-#
-#
-proc tixDirTree:ListDirs {w dir} {
-    upvar #0 $w data
-    uplevel #0 set TRANSPARENT_GIF_COLOR [$data(w:hlist) cget -bg]
-
-    tixBusy $w on $data(w:hlist)
-
-    foreach name [tixListDir $dir 1 0 0 $data(-showhidden)] {
-	set subdir [tixSubFolder $dir $name]
-	if {![$data(w:hlist) info exists $subdir]} {
-	    tixDirTree:AddToList $w $subdir $dir [tixFileDisplayName $subdir] \
-		[tix getimage folder]
-	}
-    }
-
-    tixWidgetDoWhenIdle tixBusy $w off $data(w:hlist)
-}
-
-proc tixDirTree:LoadDir {w dir {mode toggle}} {
-    if {![winfo exists $w]} {
-	return
-    }
-
-    upvar #0 $w data
-    uplevel #0 set TRANSPARENT_GIF_COLOR [$data(w:hlist) cget -bg]
 
     # Add the directory and set it to the active directory
     #
-    if ![$data(w:hlist) info exists $dir] {
-	tixDirTree:AddAncestors $w $dir
+    set fsdir [tixFSNormalize $fsdir]
+    set dir   [tixFSInternal $fsdir]
+    if {![$data(w:hlist) info exists $dir]} {
+	# Add $dir and all ancestors of $dir into the HList widget
+	set fspath ""
+	set imgopenfold [tix getimage openfold]
+	foreach part [tixFSAncestors $fsdir] {
+	    set fspath [file join $fspath $part]
+	    tixDirTree:AddToList $w $fspath $imgopenfold
+	}
     }
     $data(w:hlist) entryconfig $dir -image [tix getimage act_fold]
 
-    if {$mode == "toggle"} {
-	if {[$data(w:hlist) info children $dir] == ""} {
-	    set mode expand
-	} else {
+    if {$mode eq "toggle"} {
+	if {[llength [$data(w:hlist) info children $dir]]} {
 	    set mode flatten
+	} else {
+	    set mode expand
 	}
     }
 
-    if {$mode == "expand"} {
-	tixDirTree:ListDirs $w $dir
-	if {[$data(w:hlist) info children $dir] == ""} {
-	    tixVTree:SetMode $w $dir none
-	} else {
+    if {$mode eq "expand"} {
+	# Add all the sub directories of fsdir into the HList widget
+	tixBusy $w on $data(w:hlist)
+	set imgfolder [tix getimage folder]
+	foreach part [tixFSListDir $fsdir 1 0 0 $data(-showhidden)] {
+	    tixDirTree:AddToList $w [file join $fsdir $part] $imgfolder
+	}
+	tixWidgetDoWhenIdle tixBusy $w off $data(w:hlist)
+	# correct indicator to represent children status (added above)
+	if {[llength [$data(w:hlist) info children $dir]]} {
 	    tixVTree:SetMode $w $dir close
+	} else {
+	    tixVTree:SetMode $w $dir none
 	}
     } else {
 	$data(w:hlist) delete offsprings $dir
@@ -243,7 +195,7 @@ proc tixDirTree:ToggleDir {w value mode} {
 proc tixDirTree:CallCommand {w} {
     upvar #0 $w data
 
-    if {$data(-command) != "" && !$data(-disablecallback)} {
+    if {[llength $data(-command)] && !$data(-disablecallback)} {
 	set bind(specs) {%V}
 	set bind(%V)    $data(-value)
 
@@ -254,7 +206,7 @@ proc tixDirTree:CallCommand {w} {
 proc tixDirTree:CallBrowseCmd {w ent} {
     upvar #0 $w data
 
-    if {$data(-browsecmd) != "" && !$data(-disablecallback)} {
+    if {[llength $data(-browsecmd)] && !$data(-disablecallback)} {
 	set bind(specs) {%V}
 	set bind(%V)    $data(-value)
 
@@ -263,56 +215,58 @@ proc tixDirTree:CallBrowseCmd {w ent} {
 }
 
 proc tixDirTree:StartUp {w} {
-    if {![winfo exists $w]} {
-	return
-    }
+    if {![winfo exists $w]} { return }
 
     upvar #0 $w data
 
-    tixDirTree:LoadDir $w $data(i-directory)
+    # make sure that all the basic volumes are listed
+    set imgopenfold [tix getimage openfold]
+    foreach fspath [tixFSVolumes] {
+	tixDirTree:AddToList $w $fspath $imgopenfold
+    }
+
+    tixDirTree:LoadDir $w [tixFSExternal $data(i-directory)]
 }
 
-proc tixDirTree:ChangeDir {w value {forced 0}} {
+proc tixDirTree:ChangeDir {w fsdir {forced 0}} {
     upvar #0 $w data
 
-    if {!$forced && $data(i-directory) == $value} {
+    set dir [tixFSInternal $fsdir]
+    if {!$forced && $data(i-directory) eq $dir} {
 	return
     }
-    uplevel #0 set TRANSPARENT_GIF_COLOR [$data(w:hlist) cget -bg]
 
-    if {!$forced && [$data(w:hlist) info exists $value]} {
+    if {!$forced && [$data(w:hlist) info exists $dir]} {
 	# Set the old directory to "non active"
 	#
-	if [$data(w:hlist) info exists $data(i-directory)] {
+	if {[$data(w:hlist) info exists $data(i-directory)]} {
 	    $data(w:hlist) entryconfig $data(i-directory) \
 		-image [tix getimage folder]
 	}
 
-	$data(w:hlist) entryconfig $value  \
-		-image [tix getimage act_fold]
-
+	$data(w:hlist) entryconfig $dir -image [tix getimage act_fold]
     } else {
 	if {$forced} {
-	    if {[$data(w:hlist) info children $value] == ""} {
-		set mode flatten
-	    } else {
+	    if {[llength [$data(w:hlist) info children $dir]]} {
 		set mode expand
+	    } else {
+		set mode flatten
 	    }
 	} else {
 	    set mode toggle
 	}
-	tixDirTree:LoadDir $w $value $mode
+	tixDirTree:LoadDir $w $fsdir $mode
 	tixDirTree:CallCommand $w
     }
-    tixDirTree:SetDir $w $value
+    tixDirTree:SetDir $w $fsdir
 }
 
 
-proc tixDirTree:SetDir {w intName} {
+proc tixDirTree:SetDir {w path} {
     upvar #0 $w data
 
-    set data(i-directory) $intName
-    set data(-value)  [tixNativeName $intName]
+    set data(i-directory) [tixFSInternal $path]
+    set data(-value) [tixFSNativeNorm $path]
 }
 
 #----------------------------------------------------------------------
@@ -321,15 +275,17 @@ proc tixDirTree:SetDir {w intName} {
 #
 #----------------------------------------------------------------------
 proc tixDirTree:OpenCmd {w ent} {
-    tixDirTree:ToggleDir $w $ent expand
-    tixDirTree:ChangeDir $w $ent
-    tixDirTree:CallBrowseCmd $w $ent
+    set fsdir [tixFSExternal $ent]
+    tixDirTree:ToggleDir $w $fsdir expand
+    tixDirTree:ChangeDir $w $fsdir
+    tixDirTree:CallBrowseCmd $w $fsdir
 }
 
 proc tixDirTree:CloseCmd {w ent} {
-    tixDirTree:ToggleDir $w $ent flatten
-    tixDirTree:ChangeDir $w $ent
-    tixDirTree:CallBrowseCmd $w $ent
+    set fsdir [tixFSExternal $ent]
+    tixDirTree:ToggleDir $w $fsdir flatten
+    tixDirTree:ChangeDir $w $fsdir
+    tixDirTree:CallBrowseCmd $w $fsdir
 }
 
 proc tixDirTree:Command {w B} {
@@ -339,8 +295,9 @@ proc tixDirTree:Command {w B} {
     set ent [tixEvent flag V]
     tixChainMethod $w Command $B
 
-    if {$data(-command) != ""} {
-	tixEvalCmdBinding $w $data(-command) bind $ent
+    if {[llength $data(-command)]} {
+	set fsdir [tixFSExternal $ent]
+	tixEvalCmdBinding $w $data(-command) bind $fsdir
     }
 }
 
@@ -348,23 +305,16 @@ proc tixDirTree:Command {w B} {
 #
 proc tixDirTree:BrowseCmd {w B} {
     upvar #0 $w data
-    upvar $B bind
-    
+    upvar 1 $B bind
+
     set ent [tixEvent flag V]
+    set fsdir [tixFSExternal $ent]
 
-#    if {[$data(w:hlist) indicator exist $ent] && 
-#	[$data(w:hlist) info children $ent] == ""} {
-#	
-#	tixVTree:Activate $w $ent open
-#   }
+    # This is a hack because %V may have been modified by callbrowsecmd
+    set fsdir [file normalize $fsdir]
 
-    if {[string index $ent 0] != "/"} {
-        # This is a hack because %V may have been modified by
-	# callbrowsecmd ....
-        set ent [tixFileIntName $ent]
-    } 
-    tixDirTree:ChangeDir $w $ent
-    tixDirTree:CallBrowseCmd $w $ent
+    tixDirTree:ChangeDir $w $fsdir
+    tixDirTree:CallBrowseCmd $w $fsdir
 }
 
 #----------------------------------------------------------------------
@@ -373,28 +323,28 @@ proc tixDirTree:BrowseCmd {w B} {
 #
 #----------------------------------------------------------------------
 proc tixDirTree:chdir {w value} {
-    tixDirTree:ChangeDir $w [tixFileIntName $value]
+    tixDirTree:ChangeDir $w [file normalize $value]
 }
 
 proc tixDirTree:refresh {w {dir ""}} {
     upvar #0 $w data
 
-    if {$dir == ""} {
+    if {$dir eq ""} {
 	set dir $data(-value)
     }
+    set dir [file normalize $dir]
 
-    tixDirTree:ChangeDir $w [tixFileIntName $dir] 1
-
+    tixDirTree:ChangeDir $w $dir 1
 
     # Delete any stale directories that no longer exist
     #
-    foreach sub [$data(w:hlist) info children [tixFileIntName $dir]] {
-	if {![file exists [tixNativeName $sub]]} {
-	    $data(w:hlist) delete entry $sub
+    foreach child [$data(w:hlist) info children [tixFSInternal $dir]] {
+	if {![file exists [tixFSExternal $child]]} {
+	    $data(w:hlist) delete entry $child
 	}
     }
 }
 
 proc tixDirTree:config-directory {w value} {
-    tixDirTree:ChangeDir $w [tixFileIntName $value]
+    tixDirTree:ChangeDir $w [file normalize $value]
 }

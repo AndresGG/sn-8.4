@@ -1,3 +1,6 @@
+
+/*	$Id: tixGrUtl.c,v 1.2 2004/03/28 02:44:56 hobbs Exp $	*/
+
 /* 
  * tixGrUtl.c --
  *
@@ -15,6 +18,10 @@
 #include <tixDef.h>
 #include <tixGrid.h>
 
+#ifndef _CTYPE_H_
+#include <ctype.h>
+#endif
+
 #ifndef UCHAR
 #define UCHAR(c) ((unsigned char) (c))
 #endif
@@ -23,7 +30,7 @@
 int
 Tix_GetChars(interp, string, doublePtr)
     Tcl_Interp *interp;		/* Use this for error reporting. */
-    char *string;		/* String describing a justification style. */
+    CONST84 char *string;	/* String describing a justification style. */
     double *doublePtr;		/* Place to store converted result. */
 {
     char *end;
@@ -64,9 +71,9 @@ int Tix_GrConfigSize(interp, wPtr, argc, argv, sizePtr, argcErrorMsg,
     Tcl_Interp *interp;
     WidgetPtr wPtr;
     int argc;
-    char **argv;
+    CONST84 char **argv;
     TixGridSize *sizePtr;
-    char * argcErrorMsg;
+    CONST84 char * argcErrorMsg;
     int *changed_ret;
 {
     int pixels;

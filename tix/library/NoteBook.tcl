@@ -1,8 +1,14 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: NoteBook.tcl,v 1.7 2004/03/28 02:44:57 hobbs Exp $
+#
 # NoteBook.tcl --
 #
 #	tixNoteBook: NoteBook type of window.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -16,16 +22,13 @@ tixWidgetClass tixNoteBook {
     -flag {
     }
     -configspec {
-	{-takefocus takeFocus TakeFocus 0 tixVerifyBoolean} 
+	{-takefocus takeFocus TakeFocus 0 tixVerifyBoolean}
     }
     -default {
-	{.Background		#d9d9d9}
 	{.nbframe.tabPadX	8}
-	{.nbframe.tabPadY	0}
+	{.nbframe.tabPadY	5}
 	{.nbframe.borderWidth	2}
-	{.nbframe.Background	#d9d9d9}
 	{*nbframe.relief	raised}
-	{*nbframe.font		-Adobe-Helvetica-Bold-R-Normal--*-120-*}
     }
 }
 
@@ -44,20 +47,20 @@ proc tixNoteBook:ConstructWidget {w} {
     upvar #0 $w data
 
     tixChainMethod $w ConstructWidget
-    
+
     set data(w:top) [tixNoteBookFrame $w.nbframe -slave 1 -takefocus 1]
     set data(w:nbframe) $data(w:top)
 
-    bind $data(w:top) <ButtonPress-1> "tixNoteBook:MouseDown $w %x %y"
-    bind $data(w:top) <ButtonRelease-1> "tixNoteBook:MouseUp $w %x %y"
+    bind $data(w:top) <ButtonPress-1> [list tixNoteBook:MouseDown $w %x %y]
+    bind $data(w:top) <ButtonRelease-1> [list tixNoteBook:MouseUp $w %x %y]
 
-    bind $data(w:top) <B1-Motion> "tixNoteBook:MouseDown $w %x %y"
+    bind $data(w:top) <B1-Motion> [list tixNoteBook:MouseDown $w %x %y]
 
-    bind $data(w:top) <Left>  "tixNoteBook:FocusNext $w prev"
-    bind $data(w:top) <Right> "tixNoteBook:FocusNext $w next"
+    bind $data(w:top) <Left>  [list tixNoteBook:FocusNext $w prev]
+    bind $data(w:top) <Right> [list tixNoteBook:FocusNext $w next]
 
-    bind $data(w:top) <Return> "tixNoteBook:SetFocusByKey $w"
-    bind $data(w:top) <space>  "tixNoteBook:SetFocusByKey $w"
+    bind $data(w:top) <Return> [list tixNoteBook:SetFocusByKey $w]
+    bind $data(w:top) <space>  [list tixNoteBook:SetFocusByKey $w]
 }
 
 #----------------------------------------------------------------------
@@ -69,14 +72,14 @@ proc tixNoteBook:add {w child args} {
     set ret [eval tixChainMethod $w add $child $args]
 
     set new_args ""
-    tixForEach {flag value} $args {
-	if {$flag != "-createcmd" && $flag != "-raisecmd"} {
+    foreach {flag value} $args {
+	if {$flag ne "-createcmd" && $flag ne "-raisecmd"} {
 	    lappend new_args $flag
 	    lappend new_args $value
 	}
     }
 
-    eval $data(w:top) add $child $new_args
+    eval [linsert $new_args 0 $data(w:top) add $child]
 
     return $ret
 }
@@ -86,7 +89,7 @@ proc tixNoteBook:raise {w child} {
 
     tixChainMethod $w raise $child
 
-    if {[$data(w:top) pagecget $child -state] == "normal"} {
+    if {[$data(w:top) pagecget $child -state] eq "normal"} {
 	$data(w:top) activate $child
     }
 }
@@ -110,12 +113,12 @@ proc tixNoteBook:Resize {w} {
     set tW [lindex $rootReq 0]
     set tH [lindex $rootReq 1]
 
-    set data(pad-x1) 2 
+    set data(pad-x1) 2
     set data(pad-x2) 2
-    set data(pad-y1) [expr $tH + $data(-ipadx) + 1]
+    set data(pad-y1) [expr {$tH + $data(-ipadx) + 1}]
     set data(pad-y2) 2
-    set data(minW)   [expr $tW]
-    set data(minH)   [expr $tH]
+    set data(minW)   [expr {$tW}]
+    set data(minH)   [expr {$tH}]
 
     # Now that we know data(pad-y1), we can chain the call
     #
@@ -137,13 +140,14 @@ proc tixNoteBook:MouseUp {w x y} {
 
     #it could happen (using the tk/menu) that a MouseUp
     #proceeds without a MouseDown event!!
-    if {! [info exists data(w:down)] || ! [info exists data(w:top)]} {
+    if {![info exists data(w:down)] || ![info exists data(w:top)]} {
 	return
     }
-	
+
     set name [$data(w:top) identify $x $y]
 
-    if {$name != "" && $name == $data(w:down) && [$data(w:top) pagecget $name -state] == "normal" } {
+    if {$name ne "" && $name eq $data(w:down)
+	&& [$data(w:top) pagecget $name -state] eq "normal"} {
         $data(w:top) activate $name
         tixCallMethod $w raise $name
     } else {
@@ -165,7 +169,7 @@ proc tixNoteBook:FocusNext {w dir} {
 	set name [$data(w:top) info active]
 	$data(w:top) focus $name
 
-	if {$name != ""} {
+	if {$name ne ""} {
 	    return
 	}
     } else {
@@ -179,7 +183,7 @@ proc tixNoteBook:SetFocusByKey {w} {
 
     set name [$data(w:top) info focus]
 
-    if {$name != "" && [$data(w:top) pagecget $name -state] == "normal"} {
+    if {$name ne "" && [$data(w:top) pagecget $name -state] eq "normal"} {
 	tixCallMethod $w raise $name
 	$data(w:top) activate $name
     }
@@ -189,27 +193,22 @@ proc tixNoteBook:SetFocusByKey {w} {
 # Automatic bindings for alt keys
 #----------------------------------------------------------------------
 proc tixNoteBookFind {w char} {
-    global tkPriv
     set char [string tolower $char]
 
     foreach child [winfo child $w] {
 	if {![winfo ismapped $w]} {
 	    continue
 	}
-	switch [winfo class $child] {
-	    {Toplevel} {
-		continue
-	    }
+	switch -exact -- [winfo class $child] {
+	    Toplevel    { continue }
 	    TixNoteBook {
 		set nbframe [$child subwidget nbframe]
 		foreach page [$nbframe info pages] {
 		    set char2 [string index [$nbframe pagecget $page -label] \
-			[$nbframe pagecget $page -underline]]
-		    if {([string compare $char [string tolower $char2]] == 0)||
-			($char == "")} {
-			if {[$nbframe pagecget $page -state] != "disabled"} {
-			    return "$child $page"
-			}
+				   [$nbframe pagecget $page -underline]]
+		    if {($char eq [string tolower $char2] || $char eq "")
+			&& [$nbframe pagecget $page -state] ne "disabled"} {
+			return [list $child $page]
 		    }
 		}
 	    }
@@ -217,7 +216,7 @@ proc tixNoteBookFind {w char} {
 	# Well, this notebook doesn't match with the key, but maybe
 	# it contains a "subnotebook" that will match ..
 	set match [tixNoteBookFind $child $char]
-	if {$match != ""} {
+	if {$match ne ""} {
 	    return $match
 	}
     }
@@ -225,14 +224,14 @@ proc tixNoteBookFind {w char} {
 }
 
 proc tixTraverseToNoteBook {w char} {
-    if {$char == ""} {
+    if {$char eq ""} {
 	return 0
     }
     if {![winfo exists $w]} {
 	return 0
     }
     set list [tixNoteBookFind [winfo toplevel $w] $char]
-    if {$list != ""} {
+    if {$list ne ""} {
 	[lindex $list 0] raise [lindex $list 1]
 	return 1
     }

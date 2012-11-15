@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: CmpImg2.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -126,7 +130,7 @@ proc CreateCommonButtons {w f} {
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
-    bind .demo <Destroy> exit
+    bind $w <Destroy> exit
 }

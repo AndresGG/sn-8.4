@@ -1,8 +1,14 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: PanedWin.tcl,v 1.7 2004/03/28 02:44:57 hobbs Exp $
+#
 # PanedWin.tcl --
 #
 #	This file implements the TixPanedWindow widget
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -108,7 +114,7 @@ proc tixPanedWindow:add {w name args} {
 
     # The default values
     #
-    if [info exists data($name,forgotten)] {
+    if {[info exists data($name,forgotten)]} {
 	set option(-size)        $data($name,size)
 	set option(-min)         $data($name,min)
 	set option(-max)         $data($name,max)
@@ -181,7 +187,7 @@ proc tixPanedWindow:add {w name args} {
 
     # Step 3: Add the new frame. Adjust the window later (do when idle)
     #
-    tixManageGeometry $w.$name "tixPanedWindow:ClientGeomProc $w"
+    tixManageGeometry $w.$name [list tixPanedWindow:ClientGeomProc $w]
     bind $w.$name <Configure> \
 	[list tixPanedWindow:ClientGeomProc $w "" $w.$name]
 
@@ -333,7 +339,7 @@ proc tixPanedWindow:paneconfigure {w name args} {
     #
     # the widget options
     set new_args ""
-    tixForEach {flag value} $args {
+    foreach {flag value} $args {
 	case $flag {
 	    {-expand -min -max -allowresize -size} {
 
@@ -409,30 +415,30 @@ proc tixPanedWindow:setsize {w item size {direction next}} {
 	error "pane \"$item\" does not exist"
     }
 
-    set diff [expr $size - $data($item,size)]
+    set diff [expr {$size - $data($item,size)}]
     if {$diff == 0} {
 	return
     }
 
-    if {$posn == 0 && $direction == "prev"} {
+    if {$posn == 0 && $direction eq "prev"} {
 	set direction next
     }
-    if {$posn == [expr $data(nItems)-1] && $direction == "next"} {
+    if {$posn == $data(nItems)-1 && $direction eq "next"} {
 	set direction prev
     }
 
-    if {$data(-orientation) == "vertical"} {
+    if {$data(-orientation) eq "vertical"} {
         set rx [winfo rooty $data(w:$item)]
     } else {
         set rx [winfo rootx $data(w:$item)]
     }
-    if {$direction == "prev"} {
-	set rx [expr $rx - $diff]
-    } elseif {$data(-orientation) == "vertical"} {
-	set rx [expr $rx + [winfo height $data(w:$item)] + $diff]
+    if {$direction eq "prev"} {
+	set rx [expr {$rx - $diff}]
+    } elseif {$data(-orientation) eq "vertical"} {
+	set rx [expr {$rx + [winfo height $data(w:$item)] + $diff}]
 	incr posn
     } else {
-	set rx [expr $rx + [winfo width $data(w:$item)] + $diff]
+	set rx [expr {$rx + [winfo width $data(w:$item)] + $diff}]
 	incr posn
     }
 
@@ -454,17 +460,17 @@ proc tixPanedWindow:AddSeparator {w} {
 
     upvar #0 $w data
 
-    set n [expr $data(nItems)-1]
+    set n [expr {$data(nItems)-1}]
 
-    # CYGNUS LOCAL: On Windows, use relief ridge and a thicker line.
-    if {$tcl_platform(platform) == "windows"} then {
+    # CYGNUS: On Windows, use relief ridge and a thicker line.
+    if {$tcl_platform(platform) eq "windows"} then {
       set relief "ridge"
       set thickness 4
     } else {
       set relief "sunken"
       set thickness 2
     }
-    if {$data(-orientation) == "vertical"} {
+    if {$data(-orientation) eq "vertical"} {
 	set data(sep,$n) [frame $w.sep$n -relief $relief \
 	    -bd 1 -height $thickness -width 10000 -bg $data(-separatorbg)]
     } else {
@@ -476,7 +482,7 @@ proc tixPanedWindow:AddSeparator {w} {
 	-bd 1 -width 9 -height 9 \
 	-bg $data(-handlebg)]
 
-    if {$data(-orientation) == "vertical"} {
+    if {$data(-orientation) eq "vertical"} {
 	set cursor sb_v_double_arrow
     } else {
 	set cursor sb_h_double_arrow
@@ -484,26 +490,24 @@ proc tixPanedWindow:AddSeparator {w} {
     $data(sep,$n) config -cursor $cursor
     $data(btn,$n) config -cursor $cursor
 
-    foreach wid "$data(btn,$n) $data(sep,$n)" {
+    foreach wid [list $data(btn,$n) $data(sep,$n)] {
 	bind $wid \
-	    <ButtonPress-1>   "tixPanedWindow:BtnDown $w $n"
+	    <ButtonPress-1>   [list tixPanedWindow:BtnDown $w $n]
 	bind $wid \
-	    <ButtonRelease-1> "tixPanedWindow:BtnUp   $w $n"
+	    <ButtonRelease-1> [list tixPanedWindow:BtnUp   $w $n]
 	bind $wid \
-	    <Any-Enter>       "tixPanedWindow:HighlightBtn $w $n"
+	    <Any-Enter>       [list tixPanedWindow:HighlightBtn $w $n]
 	bind $wid \
-	    <Any-Leave>       "tixPanedWindow:DeHighlightBtn $w $n"
+	    <Any-Leave>       [list tixPanedWindow:DeHighlightBtn $w $n]
     }
 
-    if {$data(-orientation) == "vertical"} {
-	bind  $data(btn,$n) <B1-Motion> \
-	    "tixPanedWindow:BtnMove $w $n %Y"
+    if {$data(-orientation) eq "vertical"} {
+	bind  $data(btn,$n) <B1-Motion> [list tixPanedWindow:BtnMove $w $n %Y]
     } else {
-	bind  $data(btn,$n) <B1-Motion> \
-	    "tixPanedWindow:BtnMove $w $n %X"
+	bind  $data(btn,$n) <B1-Motion> [list tixPanedWindow:BtnMove $w $n %X]
     }
 
-    if {$data(-orientation) == "vertical"} {
+    if {$data(-orientation) eq "vertical"} {
 #	place $data(btn,$n) -relx 0.90 -y [expr "$data(totalsize)-5"]
 #	place $data(sep,$n) -x 0 -y [expr "$data(totalsize)-1"] -relwidth 1
     } else {
@@ -515,7 +519,7 @@ proc tixPanedWindow:AddSeparator {w} {
 proc tixPanedWindow:BtnDown {w item {fake 0}} {
     upvar #0 $w data
 
-    if {$data(-orientation) == "vertical"} {
+    if {$data(-orientation) eq "vertical"} {
 	set spec -height
     } else {
 	set spec -width
@@ -571,13 +575,15 @@ proc tixPanedWindow:GetMotionLimit {w item fake} {
     }
 
     set beforeToGo [tixPanedWindow:Min2 \
-        [expr "$curBefore-$minBefore"] [expr "$maxAfter-$curAfter"]]
+			[expr {$curBefore-$minBefore}] \
+			[expr {$maxAfter-$curAfter}]]
 
     set afterToGo [tixPanedWindow:Min2 \
-        [expr "$curAfter-$minAfter"] [expr "$maxBefore-$curBefore"]]
+		       [expr {$curAfter-$minAfter}] \
+		       [expr {$maxBefore-$curBefore}]]
 
-    set data(beforeLimit) [expr "$curBefore-$beforeToGo"]
-    set data(afterLimit)  [expr "$curBefore+$afterToGo"]
+    set data(beforeLimit) [expr {$curBefore-$beforeToGo}]
+    set data(afterLimit)  [expr {$curBefore+$afterToGo}]
     set data(curSize)     $curBefore
 
     if {!$fake} {
@@ -610,10 +616,10 @@ proc tixPanedWindow:BtnMoveCompressed {w item {fake 0}} {
 
     upvar #0 $w data
 
-    if {$data(-orientation) == "vertical"} {
-	set p [expr $data(rootp)-[winfo rooty $w]]
+    if {$data(-orientation) eq "vertical"} {
+	set p [expr {$data(rootp)-[winfo rooty $w]}]
     } else {
-	set p [expr $data(rootp)-[winfo rootx $w]]
+	set p [expr {$data(rootp)-[winfo rootx $w]}]
     }
 
     if {$p == $data(curSize)} {
@@ -656,18 +662,18 @@ proc tixPanedWindow:CalculateChange {w item p {fake 0}} {
 proc tixPanedWindow:MoveBefore {w item p} {
     upvar #0 $w data
 
-    set n [expr "$data(curSize)-$p"]
+    set n [expr {$data(curSize)-$p}]
 
     # Shrink the frames before
     #
-    set from [expr $item-1]
+    set from [expr {$item-1}]
     set to   0
     tixPanedWindow:Iterate $w $from $to tixPanedWindow:Shrink $n
 
     # Adjust the frames after
     #
     set from $item
-    set to   [expr "$data(nItems)-1"]
+    set to   [expr {$data(nItems)-1}]
     tixPanedWindow:Iterate $w $from $to tixPanedWindow:Grow $n
 
     set data(curSize) $p
@@ -676,17 +682,17 @@ proc tixPanedWindow:MoveBefore {w item p} {
 proc tixPanedWindow:MoveAfter {w item p} {
     upvar #0 $w data
 
-    set n    [expr "$p-$data(curSize)"]
+    set n    [expr {$p-$data(curSize)}]
 
     # Shrink the frames after
     #
     set from $item
-    set to   [expr "$data(nItems)-1"]
+    set to   [expr {$data(nItems)-1}]
     tixPanedWindow:Iterate $w $from $to tixPanedWindow:Shrink $n
 
     # Graw the frame before
     #
-    set from [expr $item-1]
+    set from [expr {$item-1}]
     set to   0
     tixPanedWindow:Iterate $w $from $to tixPanedWindow:Grow $n
 
@@ -696,7 +702,7 @@ proc tixPanedWindow:MoveAfter {w item p} {
 proc tixPanedWindow:CancleLines {w} {
     upvar #0 $w data
 
-    if [info exists data(lines)] {
+    if {[info exists data(lines)]} {
 	foreach line $data(lines) {
 	    set x1 [lindex $line 0]
 	    set y1 [lindex $line 1]
@@ -718,14 +724,14 @@ proc tixPanedWindow:PlotHandles {w transient} {
     set totalsize 0
     set i 0
 
-    if {$data(-orientation) == "vertical"} {
-	set btnp [expr [winfo width $w]-13]
+    if {$data(-orientation) eq "vertical"} {
+	set btnp [expr {[winfo width $w]-13}]
     } else {
 	set h [winfo height $w]
 	if {$h > 18} {
 	    set btnp 9
 	} else {
-	    set btnp [expr $h-9]
+	    set btnp [expr {$h-9}]
 	}
     }
 
@@ -739,31 +745,25 @@ proc tixPanedWindow:PlotHandles {w transient} {
 
     for {set i 1} {$i < $data(nItems)} {incr i} {
 	if {! $transient} {
-	    if {$data(-orientation) == "vertical"} {
-		# CYGNUS LOCAL: Don't use buttons on Windows
-		if {$tcl_platform(platform) != "windows"} then {
-		    place $data(btn,$i) -x $btnp -y [expr "$totalsize-4"]
-		}
-		place $data(sep,$i) -x 0 -y [expr "$totalsize-1"] -relwidth 1
+	    if {$data(-orientation) eq "vertical"} {
+		place $data(btn,$i) -x $btnp -y [expr {$totalsize-4}]
+		place $data(sep,$i) -x 0 -y [expr {$totalsize-1}] -relwidth 1
 	    } else {
-		# CYGNUS LOCAL: Don't use buttons on Windows
-		if {$tcl_platform(platform) != "windows"} then {
-		    place $data(btn,$i) -y $btnp -x [expr "$totalsize-5"]
-		}
-		place $data(sep,$i) -y 0 -x [expr "$totalsize-1"] -relheight 1
+		place $data(btn,$i) -y $btnp -x [expr {$totalsize-5}]
+		place $data(sep,$i) -y 0 -x [expr {$totalsize-1}] -relheight 1
 	    }
 	} else {
-	    if {$data(-orientation) == "vertical"} {
+	    if {$data(-orientation) eq "vertical"} {
 		set x1 [winfo rootx $w]
-		set x2 [expr $x1 + [winfo width $w]]
-		set y  [expr $totalsize-1+[winfo rooty $w]]
+		set x2 [expr {$x1 + [winfo width $w]}]
+		set y  [expr {$totalsize-1+[winfo rooty $w]}]
 
 		tixTmpLine $x1 $y $x2 $y $w
 		lappend data(lines) [list $x1 $y $x2 $y]
 	    } else {
 		set y1 [winfo rooty $w]
-		set y2 [expr $y1 + [winfo height $w]]
-		set x  [expr $totalsize-1+[winfo rootx $w]]
+		set y2 [expr {$y1 + [winfo height $w]}]
+		set x  [expr {$totalsize-1+[winfo rootx $w]}]
 
 		tixTmpLine $x $y1 $x $y2 $w
 		lappend data(lines) [list $x $y1 $x $y2]
@@ -827,7 +827,7 @@ proc tixPanedWindow:UpdateSizes {w} {
 	set name [lindex $data(items) $i]
 
 	if {$data($name,size) > 0} {
-	    if {$data(-orientation) == "vertical"} {
+	    if {$data(-orientation) eq "vertical"} {
 		tixMoveResizeWindow $w.$name 0 $data(totalsize) \
 		    $mw $data($name,size)
 		tixMapWindow $w.$name
@@ -846,14 +846,14 @@ proc tixPanedWindow:UpdateSizes {w} {
 
     # Reset the color and width of the separator
     #
-    if {$data(-orientation) == "vertical"} {
+    if {$data(-orientation) eq "vertical"} {
 	set spec -height
     } else {
 	set spec -width
     }
 
-    # CYGNUS LOCAL: On Windows, use a thicker line.
-    if {$tcl_platform(platform) == "windows"} then {
+    # CYGNUS: On Windows, use a thicker line.
+    if {$tcl_platform(platform) eq "windows"} then {
 	set thickness 4
     } else {
 	set thickness 2
@@ -884,7 +884,7 @@ proc tixPanedWindow:GetNaturalSizes {w} {
     set data(totalsize) 0
     set totalreq 0
 
-    if {$data(-orientation) == "vertical"} {
+    if {$data(-orientation) eq "vertical"} {
 	set majorspec height
 	set minorspec width
     } else {
@@ -894,7 +894,7 @@ proc tixPanedWindow:GetNaturalSizes {w} {
 
     set minorsize 0
     foreach name $data(items) {
-	if {[winfo manager $w.$name] != "tixGeometry"} {
+	if {[winfo manager $w.$name] ne "tixGeometry"} {
 	    error "Geometry management error: pane \"$w.$name\" cannot be managed by \"[winfo manager $w.$name]\"\nhint: delete the line \"[winfo manager $w.$name] $w.$name ...\" from your program"
 	}
 
@@ -956,10 +956,10 @@ proc tixPanedWindow:GetNaturalSizes {w} {
 	incr totalreq $rsize
     }
 
-    if {$data(-orientation) == "vertical"} {
-	return "$minorsize $totalreq"
+    if {$data(-orientation) eq "vertical"} {
+	return [list $minorsize $totalreq]
     } else {
-	return "$totalreq $minorsize"
+	return [list $totalreq $minorsize]
     }
 }
 
@@ -1047,7 +1047,7 @@ proc tixPanedWindow:Repack {w} {
 proc tixPanedWindow:DoRepack {w} {
     upvar #0 $w data
 
-    if {$data(-orientation) == "vertical"} {
+    if {$data(-orientation) eq "vertical"} {
 	set newSize [winfo height $w]
     } else {
 	set newSize [winfo width $w]
@@ -1063,19 +1063,19 @@ proc tixPanedWindow:DoRepack {w} {
 
     set totalExp 0
     foreach name $data(items) {
-	set totalExp [expr $totalExp + $data($name,expand)]
+	set totalExp [expr {$totalExp + $data($name,expand)}]
     }
 
     if {$newSize > $data(totalsize)} {
 	# Grow
 	#
-	set toGrow [expr "$newSize-$data(totalsize)"]
+	set toGrow [expr {$newSize-$data(totalsize)}]
 
 	set p [llength $data(items)]
 	foreach name $data(items) {
 	    set toGrow [tixPanedWindow:xGrow $w $name $toGrow $totalExp $p]
 	    if {$toGrow > 0} {
-		set totalExp [expr $totalExp-$data($name,expand)]
+		set totalExp [expr {$totalExp-$data($name,expand)}]
 		incr p -1
 	    } else {
 		break
@@ -1084,14 +1084,14 @@ proc tixPanedWindow:DoRepack {w} {
     } else {
 	# Shrink
 	#
-	set toShrink [expr "$data(totalsize)-$newSize"]
+	set toShrink [expr {$data(totalsize)-$newSize}]
 
 	set usedSize 0
 	foreach name $data(items) {
 	    set toShrink [tixPanedWindow:xShrink $w $name $toShrink \
 		$totalExp $newSize $usedSize]
 	    if {$toShrink > 0} {
-		set totalExp [expr $totalExp-$data($name,expand)]
+		set totalExp [expr {$totalExp-$data($name,expand)}]
 		incr usedSize $data($name,size)
 	    } else {
 		break
@@ -1123,12 +1123,12 @@ proc tixPanedWindow:xGrow {w name toGrow totalExp p} {
 	if {$totalExp == 0} {
 	    set canGrow 0
 	} else {
-	    set canGrow [expr int($toGrow * $data($name,expand) / $totalExp)]
+	    set canGrow [expr {int($toGrow * $data($name,expand) / $totalExp)}]
 	}
     }
 
-    if {[expr $canGrow + $data($name,size)] > $data($name,max)} {
-	set canGrow [expr $data($name,max) - $data($name,size)]
+    if {($canGrow + $data($name,size)) > $data($name,max)} {
+	set canGrow [expr {$data($name,max) - $data($name,size)}]
     }
 
     incr data($name,size) $canGrow
@@ -1143,14 +1143,14 @@ proc tixPanedWindow:xShrink {w name toShrink totalExp newSize usedSize} {
     if {$totalExp == 0} {
 	set canShrink 0
     } else {
-	set canShrink [expr int($toShrink * $data($name,expand) / $totalExp)]
+	set canShrink [expr {int($toShrink * $data($name,expand) / $totalExp)}]
     }
 
-    if {[expr $data($name,size) - $canShrink] < $data($name,min)} {
-	set canShrink [expr $data($name,size) -$data($name,min)]
+    if {$data($name,size) - $canShrink < $data($name,min)} {
+	set canShrink [expr {$data($name,size) - $data($name,min)}]
     }
-    if {[expr $usedSize + $data($name,size) - $canShrink] > $newSize} {
-	set data($name,size) [expr $newSize - $usedSize]
+    if {$usedSize + $data($name,size) - $canShrink > $newSize} {
+	set data($name,size) [expr {$newSize - $usedSize}]
 	return 0
     } else {
 	incr data($name,size) -$canShrink
@@ -1166,7 +1166,7 @@ proc tixPanedWindow:xShrink {w name toShrink totalExp newSize usedSize} {
 proc tixPanedWindow:Shrink {w name n} {
     upvar #0 $w data
 
-    set canShrink [expr "$data($name,size) - $data($name,min)"]
+    set canShrink [expr {$data($name,size) - $data($name,min)}]
 
     if {$canShrink > $n} {
 	incr data($name,size) -$n
@@ -1181,7 +1181,7 @@ proc tixPanedWindow:Shrink {w name n} {
 proc tixPanedWindow:Grow {w name n} {
     upvar #0 $w data
 
-    set canGrow [expr "$data($name,max) - $data($name,size)"]
+    set canGrow [expr {$data($name,max) - $data($name,size)}]
 
     if {$canGrow > $n} {
 	incr data($name,size) $n

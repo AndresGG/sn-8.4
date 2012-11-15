@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: ComboBox.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -92,24 +96,24 @@ proc RunSample {w} {
 }
 
 proc cbx:select_year {args} {
-    puts "you have selected \"$args\""
+    tixDemo:Status "you have selected \"$args\""
 }
 
 proc cbx:select_month {s} {
-    puts "you have selected \"$s\""
+    tixDemo:Status "you have selected \"$s\""
 }
 
 proc cbx:okcmd {w} {
     global demo_month demo_year
 
-    puts "The month selected is $demo_month of $demo_year"
+    tixDemo:Status "The month selected is $demo_month of $demo_year"
     destroy $w
 }
 
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
-	bind $w <Destroy> exit
+    bind $w <Destroy> exit
 }

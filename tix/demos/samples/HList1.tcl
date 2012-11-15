@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: HList1.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -114,7 +118,7 @@ proc hlist1:activate {w dir} {
     global demo_hlist_dir
 
     set demo_hlist_dir [$w entrycget $dir -data]
-    puts "You have selected the directory $demo_hlist_dir"
+    tixDemo:Status "You have selected the directory $demo_hlist_dir"
 
     destroy [winfo toplevel $w]
 }
@@ -122,7 +126,7 @@ proc hlist1:activate {w dir} {
 proc hlist:okcmd {w} {
     global demo_hlist_dir
 
-    puts "You have selected the directory $demo_hlist_dir"
+    tixDemo:Status "You have selected the directory $demo_hlist_dir"
 
     destroy $w
 }
@@ -148,8 +152,8 @@ static unsigned char foo_bits[] = {
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
-    bind .demo <Destroy> exit
+    bind $w <Destroy> exit
 }
 

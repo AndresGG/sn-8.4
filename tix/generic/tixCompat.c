@@ -1,3 +1,6 @@
+
+/*	$Id: tixCompat.c,v 1.2 2001/01/08 06:15:32 ioilam Exp $	*/
+
 /*
  * tixCompat.c --
  *
@@ -28,6 +31,7 @@ char * tixStrDup(s)
 
     return new_string;
 }
+
 
 #ifdef NO_STRCASECMP
 

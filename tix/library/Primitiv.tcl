@@ -1,15 +1,19 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: Primitiv.tcl,v 1.7 2004/03/28 02:44:57 hobbs Exp $
+#
 # Primitiv.tcl --
 #
 #	This is the primitive widget. It is just a frame with proper
 #	inheritance wrapping. All new Tix widgets will be derived from
 #	this widget
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-
 
 
 # No superclass, so the superclass switch is not used
@@ -31,16 +35,16 @@ tixWidgetClass tixPrimitive {
 	-options
     }
     -configspec {
-	{-background background Background #d9d9d9} 
-	{-borderwidth borderWidth BorderWidth 0} 
-	{-cursor cursor Cursor ""} 
+	{-background background Background #d9d9d9}
+	{-borderwidth borderWidth BorderWidth 0}
+	{-cursor cursor Cursor ""}
 	{-height height Height 0}
 	{-highlightbackground highlightBackground HighlightBackground #c3c3c3}
 	{-highlightcolor highlightColor HighlightColor black}
-	{-highlightthickness highlightThickness HighlightThickness 0} 
+	{-highlightthickness highlightThickness HighlightThickness 0}
 	{-options options Options ""}
 	{-relief relief Relief flat}
-	{-takefocus takeFocus TakeFocus 0 tixVerifyBoolean} 
+	{-takefocus takeFocus TakeFocus 0 tixVerifyBoolean}
 	{-width width Width 0}
     }
     -alias {
@@ -127,7 +131,7 @@ proc tixPrimitive:ParseDefaultOptions {w} {
     foreach option $classRec(options) {
 	set spec [tixInt_GetOptionSpec $data(className) $option]
 
-	if {[lindex $spec 0] == "="} {
+	if {[lindex $spec 0] eq "="} {
 	    continue
 	}
 
@@ -135,8 +139,8 @@ proc tixPrimitive:ParseDefaultOptions {w} {
 	set o_class   [lindex $spec 2]
 	set o_default [lindex $spec 3]
 
-	if {![catch "option get $w $o_name $o_class" db_default]} {
-	    if {$db_default != ""} {
+	if {![catch {option get $w $o_name $o_class} db_default]} {
+	    if {$db_default ne ""} {
 		set data($option) $db_default
 	    } else {
 		set data($option) $o_default
@@ -154,11 +158,11 @@ proc tixPrimitive:ParseUserOptions {w arglist} {
     # SET UP THE INSTANCE RECORD ACCORDING TO COMMAND ARGUMENTS FROM
     # THE USER OF THE TIX LIBRARY (i.e. Application programmer:)
     #
-    tixForEach {option arg} $arglist {
+    foreach {option arg} $arglist {
 	if {[lsearch $classRec(options) $option] != "-1"} {
 	    set spec [tixInt_GetOptionSpec $data(className) $option]
 
-	    if {[lindex $spec 0] != "="} {
+	    if {[lindex $spec 0] ne "="} {
 		set data($option) $arg
 	    } else {
 		set realOption [lindex $spec 1]
@@ -194,7 +198,7 @@ bind TixDestroyHandler <Destroy> {
 proc tixPrimitive:SetBindings {w} {
     upvar #0 $w data
 
-    if {[winfo toplevel $w] == $w} {
+    if {[winfo toplevel $w] eq $w} {
 	bindtags $w [concat TixDestroyHandler [bindtags $w]]
     } else {
 	bind $data(w:root) <Destroy> \
@@ -228,7 +232,7 @@ proc tixPrimitive:ConstructWidget {w} {
 
     set rootname *[string range $w 1 end]
 
-    tixForEach {spec value} $data(-options) {
+    foreach {spec value} $data(-options) {
 	option add $rootname*$spec $value 100
     }
 }
@@ -286,7 +290,7 @@ proc tixPrimitive:config {w option value} {
     global tixPrimOpt
     upvar #0 $w data
 
-    if [info exists tixPrimOpt($option)] {
+    if {[info exists tixPrimOpt($option)]} {
 	$data(rootCmd) config $option $value
     }
 }
@@ -314,7 +318,7 @@ proc tixPrimitive:subwidgets {w type args} {
 	    #
 	    set sub ""
 	    foreach des [tixDescendants $w] {
-		if {[winfo class $des] == $name} {
+		if {[winfo class $des] eq $name} {
 		    lappend sub $des
 		}
 	    }
@@ -322,11 +326,11 @@ proc tixPrimitive:subwidgets {w type args} {
 	    # Note: if the there is no subwidget of this class, does not
 	    # cause any error.
 	    #
-	    if {$args == ""} {
+	    if {$args eq ""} {
 		return $sub
 	    } else {
 		foreach des $sub {
-		    eval $des $args
+		    eval [linsert $args 0 $des]
 		}
 		return ""
 	    }
@@ -336,8 +340,8 @@ proc tixPrimitive:subwidgets {w type args} {
 	    set args [lrange $args 1 end]
 	    # access subwidgets of a particular group
 	    #
-	    if [info exists data(g:$name)] {
-		if {$args == ""} {
+	    if {[info exists data(g:$name)]} {
+		if {$args eq ""} {
 		    set ret ""
 		    foreach item $data(g:$name) {
 			lappend ret $w.$item
@@ -345,7 +349,7 @@ proc tixPrimitive:subwidgets {w type args} {
 		    return $ret
 		} else {
 		    foreach item $data(g:$name) {
-			eval $w.$item $args
+			eval [linsert $args 0 $w.$item]
 		    }
 		    return ""
 		}
@@ -356,11 +360,11 @@ proc tixPrimitive:subwidgets {w type args} {
 	-all {
 	    set sub [tixDescendants $w]
 
-	    if {$args == ""} {
+	    if {$args eq ""} {
 		return $sub
 	    } else {
 		foreach des $sub {
-		    eval $des $args
+		    eval [linsert $args 0 $des]
 		}
 		return ""
 	    }
@@ -379,14 +383,16 @@ proc tixPrimitive:subwidgets {w type args} {
 # Override: never
 # Chain   : never
 #
+# This is implemented in native C code in tixClass.c
+#
 proc tixPrimitive:subwidget {w name args} {
     upvar #0 $w data
 
-    if [info exists data(w:$name)] {
-	if {$args == ""} {
+    if {[info exists data(w:$name)]} {
+	if {$args eq ""} {
 	    return $data(w:$name)
 	} else {
-	    return [eval $data(w:$name) $args]
+	    return [eval [linsert $args 0 $data(w:$name)]]
 	}
     } else {
 	error "no such subwidget $name"
@@ -407,19 +413,16 @@ proc tixPrimitive:Destructor {w} {
 	return
     }
 
-    if {[info commands $w] != ""} {
+    if {[llength [info commands $w]]} {
 	# remove the command
-	#
 	rename $w ""
     }
 
-    if {[info commands $data(rootCmd)] != ""} {
+    if {[llength [info commands $data(rootCmd)]]} {
 	# remove the command of the root widget
-	#
 	rename $data(rootCmd) ""
     }
 
     # delete the widget record
-    #
     catch {unset data}
 }

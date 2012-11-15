@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: VStack.tcl,v 1.4 2004/03/28 02:44:57 hobbs Exp $
+#
 # VStack.tcl --
 #
 #	Virtual base class, do not instantiate!  This is the core
@@ -5,7 +9,8 @@
 #	of windows. It provides methods to create, delete windows as
 #	well as stepping through them.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -86,8 +91,8 @@ proc tixVStack:add {w child args} {
 proc tixVStack:delete {w child} {
     upvar #0 $w data
 
-    if [info exists data($child,createcmd)] {
-	if [winfo exists $data(w:$child)] {
+    if {[info exists data($child,createcmd)]} {
+	if {[winfo exists $data(w:$child)]} {
 	    bind $data(w:$child) <Destroy> {;}
 	    destroy $data(w:$child)
 	}
@@ -101,10 +106,10 @@ proc tixVStack:delete {w child} {
 	    incr data(nWindows) -1
 	}
 
-	if ![string comp $data(topchild) $child] {
+	if {[string equal $data(topchild) $child]} {
 	    set data(topchild) ""
 	    foreach page $data(windows) {
-		if [string comp $page $child] {
+		if {$page ne $child} {
 		    $w raise $page
 		    set data(topchild) $page
 		    break
@@ -131,7 +136,7 @@ proc tixVStack:pagecget {w child option} {
 	    return "$data($child,raisecmd)"
 	}
 	default {
-	    if {$data(w:top) != $w} {
+	    if {$data(w:top) ne $w} {
 		return [$data(w:top) pagecget $child $option]
 	    } else {
 		error "unknown option \"$option\""
@@ -180,8 +185,8 @@ proc tixVStack:pageconfigure {w child args} {
     #
     # the widget options
     set new_args ""
-    tixForEach {flag value} $args {
-	if {$flag != "-createcmd" && $flag != "-raisecmd"} {
+    foreach {flag value} $args {
+	if {$flag ne "-createcmd" && $flag ne "-raisecmd"} {
 	    lappend new_args $flag
 	    lappend new_args $value
 	}
@@ -212,7 +217,7 @@ proc tixVStack:raise {w child} {
 	error "page $child does not exist"
     }
 
-    if {[info exists data($child,createcmd)] && $data($child,createcmd) !=""} {
+    if {[llength $data($child,createcmd)]} {
 	uplevel #0 $data($child,createcmd)
 	set data($child,createcmd) ""
     }
@@ -222,8 +227,8 @@ proc tixVStack:raise {w child} {
     set oldTopChild $data(topchild)
     set data(topchild) $child
 
-    if [string comp $oldTopChild $child] {
-	if [string comp $child,raisecmd ""] {
+    if {$oldTopChild ne $child} {
+	if {[llength $data($child,raisecmd)]} {
  	    uplevel #0 $data($child,raisecmd)
 	}
     }
@@ -231,7 +236,7 @@ proc tixVStack:raise {w child} {
 
 proc tixVStack:raised {w} {
     upvar #0 $w data
- 
+
     return $data(topchild)
 }
 
@@ -266,18 +271,17 @@ proc tixVStack:RaiseChildFrame {w child} {
     upvar #0 $w data
 
     # Hide the original visible window
-    if {[string comp $data(topchild) ""] &&
-	[string comp $data(topchild) $child]} {
+    if {$data(topchild) ne "" && $data(topchild) ne $child} {
 	tixUnmapWindow $data(w:$data(topchild))
     }
 
     set myW [winfo width  $w]
     set myH [winfo height $w]
 
-    set cW [expr $myW - $data(pad-x1) - $data(pad-x2) - 2*$data(-ipadx)]
-    set cH [expr $myH - $data(pad-y1) - $data(pad-y2) - 2*$data(-ipady)]
-    set cX [expr $data(pad-x1) + $data(-ipadx)]
-    set cY [expr $data(pad-y1) + $data(-ipady)]
+    set cW [expr {$myW - $data(pad-x1) - $data(pad-x2) - 2*$data(-ipadx)}]
+    set cH [expr {$myH - $data(pad-y1) - $data(pad-y2) - 2*$data(-ipady)}]
+    set cX [expr {$data(pad-x1) + $data(-ipadx)}]
+    set cY [expr {$data(pad-y1) + $data(-ipady)}]
 
     if {$cW > 0 && $cH > 0} {
 	tixMoveResizeWindow $data(w:$child) $cX $cY $cW $cH
@@ -323,7 +327,7 @@ proc tixVStack:ClientGeomProc {w flag client} {
 	tixWidgetDoWhenIdle tixCallMethod $w Resize
     }
 
-    if {$flag == "-lostslave"} {
+    if {$flag eq "-lostslave"} {
 	error "Geometry Management Error: \
 Another geometry manager has taken control of $client.\
 This error is usually caused because a widget has been created\
@@ -365,7 +369,7 @@ proc tixVStack:Resize {w} {
 	    set reqW $maxW
 	    set reqH $maxH
 	} else {
-	    if [string comp $data(topchild) ""] {
+	    if {$data(topchild) ne ""} {
 		set reqW [winfo reqwidth  $data(w:$data(topchild))]
 		set reqH [winfo reqheight $data(w:$data(topchild))]
 	    } else {
@@ -374,8 +378,8 @@ proc tixVStack:Resize {w} {
 	    }
 	}
 
-	incr reqW [expr $data(pad-x1) + $data(pad-x2) + 2*$data(-ipadx)]
-	incr reqH [expr $data(pad-y1) + $data(pad-y2) + 2*$data(-ipady)]
+	incr reqW [expr {$data(pad-x1) + $data(pad-x2) + 2*$data(-ipadx)}]
+	incr reqH [expr {$data(pad-y1) + $data(pad-y2) + 2*$data(-ipady)}]
 
 	if {$reqW < $data(minW)} {
 	    set reqW $data(minW)
@@ -407,18 +411,18 @@ proc tixVStack:Resize {w} {
     }
     set data(counter) 0
 
-    if [string comp $data(w:top) $w] {
+    if {$data(w:top) ne $w} {
 	tixMoveResizeWindow $data(w:top) 0 0 [winfo width $w] [winfo height $w]
 	tixMapWindow $data(w:top)
     }
 
-    if ![string comp $data(topchild) ""] {
+    if {[string equal $data(topchild) ""]} {
 	set top [lindex $data(windows) 0]
     } else {
 	set top $data(topchild)
     }
 
-    if [string comp $top ""] {
+    if {$top ne ""} {
 	tixCallMethod $w raise $top
     }
 

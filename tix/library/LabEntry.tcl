@@ -1,8 +1,13 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: LabEntry.tcl,v 1.4 2004/03/28 02:44:57 hobbs Exp $
+#
 # LabEntry.tcl --
 #
 # 	TixLabelEntry Widget: an entry box with a label
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -32,8 +37,6 @@ tixWidgetClass tixLabelEntry {
 	{*entry.width			7}
 	{*label.anchor			e}
 	{*label.borderWidth		0}
-	{*Label.font                   -Adobe-Helvetica-Bold-R-Normal--*-120-*}
-	{*Entry.background		#c3c3c3}
     }
 }
 
@@ -53,7 +56,7 @@ proc tixLabelEntry:ConstructFramedWidget {w frame} {
 
 proc tixLabelEntryBind {} {
   tixBind TixLabelEntry <FocusIn>  {
-    if {![tixStrEq [focus -displayof [set %W(w:entry)]] [set %W(w:entry)]]} {
+    if {[focus -displayof [set %W(w:entry)]] ne [set %W(w:entry)]} {
 	focus [%W subwidget entry]
 	[set %W(w:entry)] selection from 0
 	[set %W(w:entry)] selection to end

@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: Console.tcl,v 1.5 2008/02/27 22:17:28 hobbs Exp $
+#
 # Console.tcl --
 #
 #	This code constructs the console window for an application.
@@ -13,7 +17,8 @@
 #	conflict with the original file.
 #
 # Copyright (c) 1995-1996 Sun Microsystems, Inc.
-# Copyright (c) 1996 Expert Interface Technologies.
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "docs/license.tcltk" for information on usage and
 # redistribution of the original file "console.tcl". These license
@@ -28,6 +33,13 @@
 #
 # Arguments:
 # 	None.
+
+foreach fun {tkTextSetCursor} {
+    if {![llength [info commands $fun]]} {
+	tk::unsupported::ExposePrivateCommand $fun
+    }
+}
+unset fun
 
 proc tixConsoleInit {} {
     global tcl_platform
@@ -72,8 +84,7 @@ proc tixConsoleInit {} {
     bind [$sizecb subwidget entry] <Escape> "focus .console"
 
     text .console  -yscrollcommand ".sb set" -setgrid true \
-	-highlightcolor [. cget -bg] -highlightbackground [. cget -bg] \
-	-cursor left_ptr
+	-highlightcolor [. cget -bg] -highlightbackground [. cget -bg]
     scrollbar .sb -command ".console yview" -highlightcolor [. cget -bg] \
 	-highlightbackground [. cget -bg]
     pack .sb -side right -fill both
@@ -135,7 +146,7 @@ proc tixConsoleInvoke {args} {
     }
     if {$cmd == ""} {
 	tixConsolePrompt
-    } elseif [info complete $cmd] {
+    } elseif {[info complete $cmd]} {
 	.console mark set output end
 	.console tag delete input
 	set err [catch {
@@ -225,7 +236,7 @@ proc tixConsolePrompt {{partial normal}} {
     if {$partial == "normal"} {
 	set temp [.console index "end - 1 char"]
 	.console mark set output end
-    	if [interp eval "info exists tcl_prompt1"] {
+    	if {[interp eval "info exists tcl_prompt1"]} {
     	    interp eval "eval \[set tcl_prompt1\]"
     	} else {
     	    puts -nonewline "% "
@@ -233,7 +244,7 @@ proc tixConsolePrompt {{partial normal}} {
     } else {
 	set temp [.console index output]
 	.console mark set output end
-    	if [interp eval "info exists tcl_prompt2"] {
+    	if {[interp eval "info exists tcl_prompt2"]} {
     	    interp eval "eval \[set tcl_prompt2\]"
     	} else {
 	    puts -nonewline "> "
@@ -286,7 +297,7 @@ proc tixConsoleBind {win} {
 	if {[%W tag nextrange sel 1.0 end] != ""} {
 	    %W tag remove sel sel.first promptEnd
 	} else {
-	    if [%W compare insert < promptEnd] {
+	    if {[%W compare insert < promptEnd]} {
 		break
 	    }
 	}
@@ -295,14 +306,14 @@ proc tixConsoleBind {win} {
 	if {[%W tag nextrange sel 1.0 end] != ""} {
 	    %W tag remove sel sel.first promptEnd
 	} else {
-	    if [%W compare insert <= promptEnd] {
+	    if {[%W compare insert <= promptEnd]} {
 		break
 	    }
 	}
     }
     foreach left {Control-a Home} {
 	bind $win <$left> {
-	    if [%W compare insert < promptEnd] {
+	    if {[%W compare insert < promptEnd]} {
 		tkTextSetCursor %W {insert linestart}
 	    } else {
 		tkTextSetCursor %W promptEnd
@@ -317,32 +328,32 @@ proc tixConsoleBind {win} {
 	}
     }
     bind $win <Control-d> {
-	if [%W compare insert < promptEnd] {
+	if {[%W compare insert < promptEnd]} {
 	    break
 	}
     }
     bind $win <Control-k> {
-	if [%W compare insert < promptEnd] {
+	if {[%W compare insert < promptEnd]} {
 	    %W mark set insert promptEnd
 	}
     }
     bind $win <Control-t> {
-	if [%W compare insert < promptEnd] {
+	if {[%W compare insert < promptEnd]} {
 	    break
 	}
     }
     bind $win <Meta-d> {
-	if [%W compare insert < promptEnd] {
+	if {[%W compare insert < promptEnd]} {
 	    break
 	}
     }
     bind $win <Meta-BackSpace> {
-	if [%W compare insert <= promptEnd] {
+	if {[%W compare insert <= promptEnd]} {
 	    break
 	}
     }
     bind $win <Control-h> {
-	if [%W compare insert <= promptEnd] {
+	if {[%W compare insert <= promptEnd]} {
 	    break
 	}
     }
@@ -359,7 +370,7 @@ proc tixConsoleBind {win} {
 	}
     }
     bind $win <Control-v> {
-	if [%W compare insert > promptEnd] {
+	if {[%W compare insert > promptEnd]} {
 	    catch {
 		%W insert insert [selection get -displayof %W] {input stdin}
 		%W see insert
@@ -377,7 +388,7 @@ proc tixConsoleBind {win} {
     }
     foreach left {Control-b Left} {
 	bind $win <$left> {
-	    if [%W compare insert == promptEnd] {
+	    if {[%W compare insert == promptEnd]} {
 		break
 	    }
 	    tkTextSetCursor %W insert-1c
@@ -513,3 +524,89 @@ proc tixConsoleExit {} {
     exit
 }
 
+# Configure the default Tk console
+proc tixConsoleEvalAppend {inter} {
+    global tixOption
+    # A slave like the console interp has no global variables set!
+    
+    if {!$inter} {
+	console hide
+
+	# Change the menubar to Close the console instead of exiting
+	# Your code must provide a way for the user to do a "console show"
+	console eval {
+	    if {[winfo exists .menubar.file]} {
+		.menubar.file entryconfigure "Hide Console" \
+			-underline 0 \
+			-label Close \
+			-command [list wm withdraw .]
+		.menubar.file entryconfigure Exit -state disabled
+	    }
+	}
+    }
+
+    console eval ".option configure -font \{$tixOption(fixed_font)\}"
+
+    console eval {
+	if {[winfo exists .menubar.edit]} {
+	    .menubar.edit add sep
+	    .menubar.edit add command \
+		    -accelerator 'Ctrl+l' \
+		    -underline 0 \
+		    -label Clear \
+		    -command [list .console delete 1.0 end]
+	    bind .console <Control-Key-l> [list .console delete 1.0 end]
+	}
+	if {![winfo exists .menubar.font]} {
+	    set m .menubar.font
+	    menu $m -tearoff 0
+	    .menubar add cascade -menu .menubar.font \
+		    -underline 0 -label Options
+
+	    global _TixConsole
+	    set font [font actual [.console cget -font]]
+	    set pos [lsearch $font -family]
+	    set _TixConsole(font) [lindex $font [incr pos]]
+	    set pos [lsearch $font -size]
+	    set _TixConsole(size) [lindex $font [incr pos]]
+	    set pos [lsearch $font -weight]
+	    set _TixConsole(weight) [lindex $font [incr pos]]
+
+	    set allowed {System Fixedsys Terminal {MS Serif} 
+	    {MS Sans Serif} Courier {Lucida Console} Tahoma 
+	    Arial {Courier New} {Times New Roman} 
+	    {Arial Black} Verdana  Garamond  {Arial Narrow}}
+	    .menubar.font add cascade -label Font -menu $m.font
+	    menu $m.font -tearoff 0
+	    foreach font [lsort [font families]] {
+		if {[lsearch $allowed $font] < 0} {continue}
+		$m.font add radiobutton -label $font \
+			-variable _TixConsole(font) \
+			-value $font \
+			-command \
+			".console configure -font \"\{$font\} \$_TixConsole(size) \$_TixConsole(weight)\""
+	    }
+
+	    .menubar.font add cascade -label Size -menu $m.size
+	    menu $m.size -tearoff 0
+	    foreach size {8 9 10 12 14 16 18} {
+		$m.size add radiobutton -label $size \
+			-variable _TixConsole(size) \
+			-value $size \
+			-command \
+			".console configure -font \"\{\$_TixConsole(font)\} $size \$_TixConsole(weight)\""
+	    }
+
+	    .menubar.font add cascade -label Weight -menu $m.weight
+	    menu $m.weight -tearoff 0
+	    foreach weight {normal bold} {
+		$m.weight add radiobutton -label [string totit $weight] \
+			-variable _TixConsole(weight) \
+			-value $weight \
+			-command \
+			".console configure -font \"\{\$_TixConsole(font)\} \$_TixConsole(size) $weight\""
+	    }
+
+	}
+    }
+}

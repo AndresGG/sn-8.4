@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: DirList.tcl,v 1.5 2004/03/28 02:44:57 hobbs Exp $
+#
 # DirList.tcl --
 #
 #	Implements the tixDirList widget.
@@ -5,7 +9,9 @@
 # 	   - overrides the -browsecmd and -command options of the
 #	     HList subwidget
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -74,17 +80,7 @@ proc tixDirList:ConstructWidget {w} {
 
     tixChainMethod $w ConstructWidget
 
-    $data(w:hlist) config \
-	-separator [tixFSSep] \
-	-selectmode "single"
-
-    # We must creat an extra copy of these images to avoid flashes on
-    # the screen when user changes directory
-    #
-#    set data(images) [image create compound -window $data(w:hlist)]
-#    $data(images) add image -image [tix getimage act_fold]
-#    $data(images) add image -image [tix getimage folder]
-#    $data(images) add image -image [tix getimage openfold]
+    $data(w:hlist) config -separator [tixFSSep] -selectmode "single"
 }
 
 proc tixDirList:SetBindings {w} {
@@ -93,17 +89,14 @@ proc tixDirList:SetBindings {w} {
     tixChainMethod $w SetBindings
 
     $data(w:hlist) config \
-	-browsecmd "tixDirList:Browse $w" \
-	-command "tixDirList:Command $w"
+	-browsecmd [list tixDirList:Browse $w] \
+	-command [list tixDirList:Command $w]
 
-    if [tixStrEq $data(-value) ""] {
-	set data(-value) [tixFSPWD]
+    if {$data(-value) eq ""
+	|| [catch {set data(-value) [tixFSNormalize $data(-value)]}]} {
+	set data(-value) [pwd]
     }
-    if [catch {
-	set data(vpath) [tixFSVPath [tixFSNormDir $data(-value)]]
-    }] {
-	set data(vpath) [tixFSVPath [tixFSNormDir [tixFSPWD]]]
-    }
+    set data(vpath) [tixFSInternal $data(-value)]
 }
 
 #----------------------------------------------------------------------
@@ -112,14 +105,13 @@ proc tixDirList:SetBindings {w} {
 proc tixDirList:Browse {w args} {
     upvar #0 $w data
 
-    uplevel #0 set TRANSPARENT_GIF_COLOR [$data(w:hlist) cget -bg]
     set vpath [tixEvent flag V]
     set value [$data(w:hlist) info data $vpath]
 
     tixDirList:HighLight $w $vpath
 
     set data(vpath)  $vpath
-    set data(-value) $value
+    set data(-value) [tixFSExternal $value]
 
     tixDirList:CallBrowseCmd $w $data(-value)
 }
@@ -129,9 +121,9 @@ proc tixDirList:Command {w args} {
 
     set vpath [tixEvent value]
     set value [$data(w:hlist) info data $vpath]
-    set data(-value) $value
+    set data(-value) [tixFSExternal $value]
 
-    tixDirList:LoadDir $w [tixFSNormDir $value] $vpath
+    tixDirList:LoadDir $w [tixFSNativeNorm $value] $vpath
     tixDirList:HighLight $w $vpath
 
     set data(vpath) $vpath
@@ -142,23 +134,23 @@ proc tixDirList:Command {w args} {
 # Outgoing-Events
 #----------------------------------------------------------------------
 
-proc tixDirList:CallBrowseCmd {w value} {
+proc tixDirList:CallBrowseCmd {w npath} {
     upvar #0 $w data
 
-    if {$data(-browsecmd) != ""} {
+    if {[llength $data(-browsecmd)]} {
 	set bind(specs) "%V"
-	set bind(%V) $value
-	tixEvalCmdBinding $w $data(-browsecmd) bind $value
+	set bind(%V) $npath
+	tixEvalCmdBinding $w $data(-browsecmd) bind $npath
     }
 }
 
-proc tixDirList:CallCommand {w value} {
+proc tixDirList:CallCommand {w npath} {
     upvar #0 $w data
 
-    if {$data(-command) != "" && !$data(-disablecallback)} {
+    if {[llength $data(-command)] && !$data(-disablecallback)} {
 	set bind(specs) "%V"
-	set bind(%V) $value
-	tixEvalCmdBinding $w $data(-command) bind $value
+	set bind(%V) $npath
+	tixEvalCmdBinding $w $data(-command) bind $npath
     }
 }
 
@@ -172,9 +164,9 @@ proc tixDirList:LoadDir {w {npath ""} {vpath ""}} {
 
     $data(w:hlist) delete all
 
-    if {![string compare $npath ""]} {
-	set npath [tixFSNormDir $data(-value)]
-	set vpath [tixFSVPath $npath]
+    if {$npath eq ""} {
+	set npath [tixFSNativeNorm $data(-value)]
+	set vpath [tixFSInternal $npath]
     }
 
     tixDirList:ListHierachy $w $npath $vpath
@@ -183,76 +175,70 @@ proc tixDirList:LoadDir {w {npath ""} {vpath ""}} {
     tixWidgetDoWhenIdle tixBusy $w off $data(w:hlist)
 }
 
-proc tixDirList:ListHierachy {w dir vpath} {
+proc tixDirList:ListHierachy {w npath vpath} {
     upvar #0 $w data
-    uplevel #0 set TRANSPARENT_GIF_COLOR [$data(w:hlist) cget -bg]
 
-    foreach p [tixFSSplit $vpath] {
-	set vpath [lindex $p 0]
-	set text  [lindex $p 1]
-	set path  [lindex $p 2]
-
-	$data(w:hlist) add $vpath -text $text -data $path \
-	    -image [tix getimage openfold]
+    set img     [tix getimage openfold]
+    set curpath ""
+    foreach part [tixFSAncestors $npath] {
+	set curpath [file join $curpath $part]
+	set text    [tixFSDisplayFileName $curpath]
+	set vpath   [tixFSInternal $curpath]
+	$data(w:hlist) add $vpath -text $text -data $curpath -image $img
     }
 }
 
-proc tixDirList:ListSubDirs {w dir vpath} {
+proc tixDirList:ListSubDirs {w npath vpath} {
     upvar #0 $w data
-    uplevel #0 set TRANSPARENT_GIF_COLOR [$data(w:hlist) cget -bg]
 
-    $data(w:hlist) entryconfig $vpath \
-	-image [tix getimage act_fold]
+    $data(w:hlist) entryconfig $vpath -image [tix getimage act_fold]
 
-    foreach ent [tixFSListDir $vpath 1 0 0 $data(-showhidden)] {
-	set vp   [lindex $ent 0]
-	set name [lindex $ent 1]
-	set path [lindex $ent 2]
-
-	$data(w:hlist) add $vp -text $name -data $path \
-	    -image [tix getimage folder]
+    set img [tix getimage folder]
+    foreach ent [tixFSListDir $npath 1 0 0 $data(-showhidden)] {
+	set curpath [file join $npath $ent]
+	set vp      [tixFSInternal $curpath]
+	if {![$data(w:hlist) info exists $vp]} {
+	    $data(w:hlist) add $vp -text $ent -data $curpath -image $img
+	}
     }
 }
 
 proc tixDirList:SetValue {w npath vpath {flag ""}} {
     upvar #0 $w data
 
-    if {![string compare $flag reload] ||
-	![$data(w:hlist) info exists $vpath]} {
+    if {$flag eq "reload" || ![$data(w:hlist) info exists $vpath]} {
     	tixDirList:LoadDir $w $npath $vpath
     }
 
     tixDirList:HighLight $w $vpath
 
-    set data(-value) [tixFSDisplayName $npath]
-    set data(vpath) $vpath
+    set data(-value) [tixFSNativeNorm $npath]
+    set data(vpath)  $vpath
     tixDirList:CallCommand $w $data(-value)
 }
 
 proc tixDirList:HighLight {w vpath} {
     upvar #0 $w data
 
-    if {![tixStrEq $data(vpath) $vpath]} {
+    if {$data(vpath) ne $vpath} {
 	set old $data(vpath)
 
-	if [$data(w:hlist) info exists $old] {
+	if {[$data(w:hlist) info exists $old]} {
 	    # Un-highlight the originally selected entry by changing its
 	    # folder image
 
-	    if {[$data(w:hlist) info children $old] == ""} {
-		$data(w:hlist) entryconfig $old\
-		    -image [tix getimage folder]
+	    if {[llength [$data(w:hlist) info children $old]]} {
+		set img [tix getimage openfold]
 	    } else {
-		$data(w:hlist) entryconfig $old\
-		    -image [tix getimage openfold]
+		set img [tix getimage folder]
 	    }
+	    $data(w:hlist) entryconfig $old -image $img
 	}
     }
 
     # Highlight the newly selected entry
     #
-    $data(w:hlist) entryconfig $vpath \
-	-image [tix getimage act_fold]
+    $data(w:hlist) entryconfig $vpath -image [tix getimage act_fold]
     $data(w:hlist) anchor set $vpath
     $data(w:hlist) select clear
     $data(w:hlist) select set $vpath
@@ -281,6 +267,6 @@ proc tixDirList:config-showhidden {w value} {
 proc tixDirList:chdir {w value} {
     upvar #0 $w data
 
-    set path [tixFSNormDir $value]
-    tixDirList:SetValue $w $path [tixFSVPath $path]
+    set npath [tixFSNativeNorm $value]
+    tixDirList:SetValue $w $npath [tixFSInternal $npath]
 }

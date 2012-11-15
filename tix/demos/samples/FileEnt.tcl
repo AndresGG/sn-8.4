@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: FileEnt.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -59,7 +63,7 @@ proc RunSample {w} {
 proc fent:okcmd {w} {
     global demo_fent_from demo_fent_to
 
-    puts "You wanted to move file from $demo_fent_from to $demo_fent_to"
+    # tixDemo:Status "You wanted to move file from $demo_fent_from to $demo_fent_to"
 
     destroy $w
 }
@@ -71,7 +75,7 @@ proc fent:okcmd {w} {
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
-	bind $w <Destroy> exit
+    bind $w <Destroy> exit
 }

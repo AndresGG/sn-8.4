@@ -1,22 +1,22 @@
 /*
  * tixWidget.c --
  *
- *	Constructs Tix-based compound widgets
+ *	Constructs Tix-based mega widgets
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000-2001 Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tixWidget.c,v 1.7 2008/02/28 04:29:17 hobbs Exp $
  */
 
 #include <tclInt.h>
 #include <tixInt.h>
-#include <tixItcl.h>
 
-static int			ParseOptions _ANSI_ARGS_((
-				    Tcl_Interp * interp,TixClassRecord * cPtr,
-				    char *widRec, int argc, char** argv));
+static int	ParseOptions(Tcl_Interp *interp, TixClassRecord *cPtr,
+	CONST84 char *widRec, int argc, CONST84 char** argv);
 
 TIX_DECLARE_CMD(Tix_InstanceCmd);
 
@@ -33,16 +33,12 @@ TIX_DEFINE_CMD(Tix_CreateWidgetCmd)
 {
     TixClassRecord * cPtr =(TixClassRecord *)clientData;
     TixConfigSpec * spec;
-    char * widRec = NULL;
-    char * rootCmd = NULL;
-    char * tmpArgv[3];
-    char * value;
+    CONST84 char * value;
+    CONST84 char * widRec = NULL;
+    char * widCmd = NULL, * rootCmd = NULL;
     int i;
     int code = TCL_OK;
     Tk_Window mainWin = Tk_MainWindow(interp);
-    Tcl_DString ds;
-
-    DECLARE_ITCL_NAMESP(nameSp, interp);
 
     if (argc <= 1) {
 	return Tix_ArgcError(interp, argc, argv, 1, "pathname ?arg? ...");
@@ -50,18 +46,22 @@ TIX_DEFINE_CMD(Tix_CreateWidgetCmd)
 	widRec = argv[1];
     }
 
+    if (strstr(argv[1], "::") != NULL) {
+        /*
+         * Cannot contain :: in widget name, otherwise all hell will
+         * rise w.r.t. namespace
+         */
+
+        Tcl_AppendResult(interp, "invalid widget name \"", argv[1],
+		"\": may not contain substring \"::\"", NULL);
+        return TCL_ERROR;
+    }
+
+    Tcl_ResetResult(interp);
     if (Tk_NameToWindow(interp, widRec, mainWin) != NULL) {
-	Tcl_ResetResult(interp);
 	Tcl_AppendResult(interp, "window name \"", widRec,
 	    "\" already exists", NULL);
 	return TCL_ERROR;
-    } else {
-	Tcl_ResetResult(interp);
-    }
-
-    if (!TixItclSetGlobalNameSp(&nameSp, interp)) {
-        code = TCL_ERROR;
-	goto done;
     }
 
     /*
@@ -70,11 +70,17 @@ TIX_DEFINE_CMD(Tix_CreateWidgetCmd)
      */
     Tcl_SetVar2(interp, "errorInfo", NULL, "", TCL_GLOBAL_ONLY);
     Tcl_SetVar2(interp, "errorCode", NULL, "", TCL_GLOBAL_ONLY);
-    Tcl_ResetResult(interp);
 
-    /* Set up the widget record */
-    rootCmd = ckalloc(strlen(widRec)+10);
-    sprintf(rootCmd, "%s:root", widRec);
+    /*
+     * Set up the widget record
+     *
+     * TODO: avoid buffer allocation if possible.
+     */
+    widCmd = ckalloc(strlen(widRec) + 3);
+    sprintf(widCmd, "::%s", widRec);
+    rootCmd = ckalloc(strlen(widRec) + 8);
+    sprintf(rootCmd, "::%s:root", widRec);
+
     Tcl_SetVar2(interp, widRec, "className", cPtr->className, TCL_GLOBAL_ONLY);
     Tcl_SetVar2(interp, widRec, "ClassName", cPtr->ClassName, TCL_GLOBAL_ONLY);
     Tcl_SetVar2(interp, widRec, "context",   cPtr->className, TCL_GLOBAL_ONLY);
@@ -85,7 +91,7 @@ TIX_DEFINE_CMD(Tix_CreateWidgetCmd)
      * database
      */
     if (Tix_CallMethod(interp, cPtr->className, widRec, "CreateRootWidget",
-	    argc-2, argv+2) != TCL_OK) {
+	    argc-2, argv+2, NULL) != TCL_OK) {
 	code = TCL_ERROR;
 	goto done;
     }
@@ -103,29 +109,10 @@ TIX_DEFINE_CMD(Tix_CreateWidgetCmd)
      * this widget
      */
 
-#ifndef TK_8_0_OR_LATER
-    tmpArgv[0] = "rename";
-    tmpArgv[1] = widRec;
-    tmpArgv[2] = rootCmd;
-
-    if (Tcl_RenameCmd((ClientData)0, interp, 3, tmpArgv) != TCL_OK) {
+    if (TclRenameCommand(interp, widCmd, rootCmd) != TCL_OK) {
 	code = TCL_ERROR;
 	goto done;
     }
-#else
-    Tcl_DStringInit(&ds);
-    Tcl_DStringAppendElement(&ds, "rename");
-    Tcl_DStringAppendElement(&ds, widRec);
-    Tcl_DStringAppendElement(&ds, rootCmd);
-	
-    if (Tcl_Eval(interp, ds.string) != TCL_OK) {
-	Tcl_DStringFree(&ds);
-	code = TCL_ERROR;
-	goto done;
-    } else {
-	Tcl_DStringFree(&ds);
-    }
-#endif
 
     Tcl_CreateCommand(interp, widRec, Tix_InstanceCmd,
 	(ClientData)cPtr, NULL);
@@ -133,19 +120,19 @@ TIX_DEFINE_CMD(Tix_CreateWidgetCmd)
     /* Now call the initialization methods defined by the Tix Intrinsics
      */
     if (Tix_CallMethod(interp, cPtr->className, widRec, "InitWidgetRec",
-	    0, 0) != TCL_OK) {
+	    0, 0, NULL) != TCL_OK) {
 	code = TCL_ERROR;
 	goto done;
     }
 
     if (Tix_CallMethod(interp, cPtr->className, widRec, "ConstructWidget",
-	    0, 0) != TCL_OK) {
+	    0, 0, NULL) != TCL_OK) {
 	code = TCL_ERROR;
 	goto done;
     }
 
     if (Tix_CallMethod(interp, cPtr->className, widRec, "SetBindings",
-		0, 0) != TCL_OK) {
+	    0, 0, NULL) != TCL_OK) {
 	code = TCL_ERROR;
 	goto done;
     }
@@ -166,31 +153,18 @@ TIX_DEFINE_CMD(Tix_CreateWidgetCmd)
 	}
     }
 
-    Tcl_SetResult(interp, widRec, TCL_VOLATILE);
+    Tcl_SetResult(interp, (char *) widRec, TCL_VOLATILE);
 
   done:
 
     if (code != TCL_OK) {
-	/* %% TCL CORE USED !! %% */
-	Interp *iPtr = (Interp *) interp;
-	char * oldResult, * oldErrorInfo, * oldErrorCode;
 	Tk_Window topLevel, tkwin;
+	Tcl_SavedResult state;
 
-	/* We need to save the old error message because
-	 * interp->result may be changed by some of the following function
-	 * calls.
+	/* We need to save the current interp state as it may be changed by
+	 * some of the following function calls.
 	 */
-	if (interp->result) {
-	    oldResult = (char*)tixStrDup(interp->result);
-#if 0
-	    printf("%s -->\n%s\n", widRec, oldResult);
-#endif
-	} else {
-	    oldResult = NULL;
-	}
-	oldErrorInfo = Tcl_GetVar2(interp, "errorInfo", NULL, TCL_GLOBAL_ONLY);
-	oldErrorCode = Tcl_GetVar2(interp, "errorCode", NULL, TCL_GLOBAL_ONLY);
-
+	Tcl_SaveResult(interp, &state);
 	Tcl_ResetResult(interp);
 
 	/* (1) window */
@@ -205,15 +179,21 @@ TIX_DEFINE_CMD(Tix_CreateWidgetCmd)
 		Tk_DestroyWindow(tkwin);
 	    }
 
-	    /* (2) widget command + root command */
-	    Tcl_DeleteCommand(interp, widRec);
+	    /*
+             * (2) Clean up widget command + root command. Because widCmd
+             *     and rootCmd contains ::, the commands will be correctly
+             *     deleted from the global namespace.
+             */
+
+	    Tcl_DeleteCommand(interp, widCmd);
 	    Tcl_DeleteCommand(interp, rootCmd);
 
 	    /* (3) widget record */
 	    Tcl_UnsetVar(interp, widRec, TCL_GLOBAL_ONLY);
 
 	    if (display) {
-#ifndef _WINDOWS
+#if !defined(__WIN32__) && !defined(MAC_TCL) && !defined(MAC_OSX_TK) /* UNIX */
+                /* TODO: why is this necessary?? */
 		XSync(display, False);
 #endif
 		while (1) {
@@ -223,27 +203,14 @@ TIX_DEFINE_CMD(Tix_CreateWidgetCmd)
 		}
 	    }
 	}
-	if (oldResult) {
-	    Tcl_SetResult(interp, oldResult, TCL_DYNAMIC);
-	}
-	if (oldErrorInfo && *oldErrorInfo) {
-	    Tcl_SetVar2(interp, "errorInfo", NULL, oldErrorInfo,
-		TCL_GLOBAL_ONLY);
-	} else {
-	    Tcl_SetVar2(interp, "errorInfo", NULL, oldResult,
-		TCL_GLOBAL_ONLY);
-	}
-	if (oldErrorCode) {
-	    Tcl_SetVar2(interp, "errorCode", NULL, oldErrorCode,
-		TCL_GLOBAL_ONLY);
-	}
-	iPtr->flags |= ERR_IN_PROGRESS;
+	Tcl_RestoreResult(interp, &state);
+    }
+    if (widCmd) {
+	ckfree(widCmd);
     }
     if (rootCmd) {
 	ckfree(rootCmd);
     }
-
-    TixItclRestoreGlobalNameSp(&nameSp, interp);
 
     return code;
 }
@@ -257,14 +224,14 @@ TIX_DEFINE_CMD(Tix_CreateWidgetCmd)
 static int ParseOptions(interp, cPtr, widRec, argc, argv)
     Tcl_Interp * interp;
     TixClassRecord * cPtr;
-    char *widRec;
+    CONST84 char *widRec;
     int argc;
-    char** argv;
+    CONST84 char** argv;
 {
     int i;
     TixConfigSpec *spec;
     Tk_Window tkwin;
-    char * value;
+    CONST84 char * value;
 
     if ((argc %2) != 0) {
 	Tcl_AppendResult(interp, "missing argument for \"", argv[argc-1],
@@ -277,6 +244,7 @@ static int ParseOptions(interp, cPtr, widRec, argc, argv)
     }
 
     /* Set all specs by their default values */
+    /* BUG: default value may be override by options database */
     for (i=0; i<cPtr->nSpecs; i++) {
 	spec = cPtr->specs[i];
 

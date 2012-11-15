@@ -1,3 +1,6 @@
+
+/*	$Id: tixPort.h,v 1.6 2005/03/25 20:15:53 hobbs Exp $	*/
+
 /*
  * tixPort.h --
  *
@@ -46,45 +49,36 @@
 #   if defined(MAC_TCL)
 #	include "tixMacPort.h"
 #   else
+#   if defined(MAC_OSX_TK)
+#	include <X11/X.h>
+#	define Cursor XCursor
+#	define Region XRegion
 #	include "../unix/tixUnixPort.h"
+#   else
+#	include "../unix/tixUnixPort.h"
+#   endif
 #   endif
 #endif
 
-#ifdef BUILD_tix
-# undef TCL_STORAGE_CLASS
-# define TCL_STORAGE_CLASS DLLEXPORT
-#endif
-
-#ifdef TK_4_1_OR_LATER
-
 EXTERN Tcl_HashTable *	TixGetHashTable _ANSI_ARGS_((Tcl_Interp * interp,
-			    char * name, Tcl_InterpDeleteProc *deleteProc));
-#define _TixGetHashTable(i,n,p) TixGetHashTable(i,n,p)
-
-#else
-
-EXTERN Tcl_HashTable *	TixGetHashTable _ANSI_ARGS_((Tcl_Interp * interp,
-			    char * name));
-#define _TixGetHashTable(i,n,p) TixGetHashTable(i,n)
-
-#endif
-
-#if (TK_MAJOR_VERSION > 4)
+			    char * name, Tcl_InterpDeleteProc *deleteProc,
+                            int keyType));
 
 /*
- * The font handling is changed in Tk 8.0 and later
+ * Some pre-Tk8.0 style font handling. Should be updated to new Tk
+ * font functions soon.
  */
 
 typedef Tk_Font TixFont;
 #define TixFontId(font) Tk_FontId(font)
 
 EXTERN void		TixComputeTextGeometry _ANSI_ARGS_((
-			    TixFont fontStructPtr, char *string,
+			    TixFont fontStructPtr, CONST84 char *string,
 			    int numChars, int wrapLength, int *widthPtr,
 			    int *heightPtr));
 EXTERN void		TixDisplayText _ANSI_ARGS_((Display *display,
 			    Drawable drawable, TixFont font,
-			    char *string, int numChars, int x, int y,
+			    CONST84 char *string, int numChars, int x, int y,
 			    int length, Tk_Justify justify, int underline,
 			    GC gc));
 
@@ -92,30 +86,15 @@ EXTERN void		TixDisplayText _ANSI_ARGS_((Display *display,
 #define TixNameOfFont Tk_NameOfFont
 #define TixGetFont Tk_GetFont
 
-#else
+/*
+ * Tcl 8.4.a2 defines this macro that causes Tix compiled with
+ * Tcl 8.4 to break in Tcl 8.3
+ */
 
-typedef XFontStruct* TixFont;
-#define TixFontId(font) ((font)->fid)
-#define TixComputeTextGeometry TkComputeTextGeometry
-#define TixDisplayText TkDisplayText
-#define TixFreeFont Tk_FreeFontStruct
-#define TixNameOfFont Tk_NameOfFontStruct
-#define TixGetFont Tk_GetFontStruct
-
-EXTERN void		TkDisplayText _ANSI_ARGS_((Display *display,
-			    Drawable drawable, XFontStruct *fontStructPtr,
-			    char *string, int numChars, int x, int y,
-			    int length, Tk_Justify justify, int underline,
-			    GC gc));
-EXTERN void		TkComputeTextGeometry _ANSI_ARGS_((
-			    XFontStruct *fontStructPtr, char *string,
-			    int numChars, int wrapLength, int *widthPtr,
-			    int *heightPtr));
-
-
+#if defined(Tcl_InitHashTable) && defined(USE_TCL_STUBS)
+#undef Tcl_InitHashTable
+#define Tcl_InitHashTable \
+    (tclStubsPtr->tcl_InitHashTable)
 #endif
-
-#undef TCL_STORAGE_CLASS
-#define TCL_STORAGE_CLASS DLLIMPORT
 
 #endif /* _TIX_PORT_H_ */

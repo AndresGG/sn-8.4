@@ -1,9 +1,15 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: VTree.tcl,v 1.6 2004/03/28 02:44:57 hobbs Exp $
+#
 # VTree.tcl --
 #
 #	Virtual base class for Tree widgets.
 #
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -36,8 +42,8 @@ proc tixVTree:ConstructWidget {w} {
 
     tixChainMethod $w ConstructWidget
 
-    set data(indStyle) [tixDisplayStyle image -refwindow $data(w:hlist) \
-	-padx 0 -pady 0]
+    set data(indStyle) \
+	[tixDisplayStyle image -refwindow $data(w:hlist) -padx 0 -pady 0]
 }
 
 proc tixVTree:SetBindings {w} {
@@ -46,38 +52,34 @@ proc tixVTree:SetBindings {w} {
     tixChainMethod $w SetBindings
 
     $data(w:hlist) config \
-	-indicatorcmd "tixVTree:IndicatorCmd $w" \
-	-browsecmd "tixVTree:BrowseCmdHook $w"\
-	-command "tixVTree:CommandHook $w"
+	-indicatorcmd [list tixVTree:IndicatorCmd $w] \
+	-browsecmd [list tixVTree:BrowseCmdHook $w] \
+	-command [list tixVTree:CommandHook $w]
 }
 
 proc tixVTree:IndicatorCmd {w args} {
     upvar #0 $w data
 
-    uplevel #0 set TRANSPARENT_GIF_COLOR [$data(w:hlist) cget -bg]
     set event [tixEvent type]
     set ent   [tixEvent flag V]
 
-    set type [tixVTree:GetType $w $ent]
-    set plus	 [tix getimage plus] 
-    set plusarm	 [tix getimage plusarm] 
-    set minus	 [tix getimage minus] 
-    set minusarm [tix getimage minusarm] 
+    set type     [tixVTree:GetType $w $ent]
+    set plus	 [tix getimage plus]
+    set plusarm	 [tix getimage plusarm]
+    set minus	 [tix getimage minus]
+    set minusarm [tix getimage minusarm]
 
-    case $event {
+    if {![$data(w:hlist) info exists $ent]} {return}
+    switch -exact -- $event {
 	<Arm> {
-	    if {$type == "open"} {
-		$data(w:hlist) indicator config $ent -image $plusarm
-	    } else {
-		$data(w:hlist) indicator config $ent -image $minusarm
-	    }
+	    if {![$data(w:hlist) indicator exists $ent]} {return}
+	    $data(w:hlist) indicator config $ent \
+		-image [expr {$type eq "open" ? $plusarm : $minusarm}]
 	}
 	<Disarm> {
-	    if {$type == "open"} {
-		$data(w:hlist) indicator config $ent -image $plus
-	    } else {
-		$data(w:hlist) indicator config $ent -image $minus
-	    }
+	    if {![$data(w:hlist) indicator exists $ent]} {return}
+	    $data(w:hlist) indicator config $ent \
+		-image [expr {$type eq "open" ? $plus : $minus}]
 	}
 	<Activate> {
 	    upvar bind bind
@@ -91,17 +93,12 @@ proc tixVTree:IndicatorCmd {w args} {
 proc tixVTree:GetType {w ent} {
     upvar #0 $w data
 
-    uplevel #0 set TRANSPARENT_GIF_COLOR [$data(w:hlist) cget -bg]
-    if ![$data(w:hlist) indicator exists $ent] {
+    if {![$data(w:hlist) indicator exists $ent]} {
 	return none
     }
 
     set img [$data(w:hlist) indicator cget $ent -image]
-
-    if {$img == [tix getimage plus]} {
-	return open
-    }
-    if {$img == [tix getimage plusarm]} {
+    if {$img eq [tix getimage plus] || $img eq [tix getimage plusarm]} {
 	return open
     }
     return close
@@ -110,17 +107,12 @@ proc tixVTree:GetType {w ent} {
 proc tixVTree:Activate {w ent type} {
     upvar #0 $w data
 
-    uplevel #0 set TRANSPARENT_GIF_COLOR [$data(w:hlist) cget -bg]
-
-    set plus	 [tix getimage plus] 
-    set minus	 [tix getimage minus] 
-
-    if {$type == "open"} {
+    if {$type eq "open"} {
 	tixCallMethod $w OpenCmd $ent
-	$data(w:hlist) indicator config $ent -image $minus
+	$data(w:hlist) indicator config $ent -image [tix getimage minus]
     } else {
 	tixCallMethod $w CloseCmd $ent
-	$data(w:hlist) indicator config $ent -image $plus
+	$data(w:hlist) indicator config $ent -image [tix getimage plus]
     }
 }
 
@@ -141,9 +133,7 @@ proc tixVTree:BrowseCmdHook {w args} {
 proc tixVTree:SetMode {w ent mode} {
     upvar #0 $w data
 
-    uplevel #0 set TRANSPARENT_GIF_COLOR [$data(w:hlist) cget -bg]
-
-    case $mode {
+    switch -exact -- $mode {
 	open {
 	    $data(w:hlist) indicator create $ent -itemtype image \
 		-image [tix getimage plus]  -style $data(indStyle)
@@ -153,7 +143,7 @@ proc tixVTree:SetMode {w ent mode} {
 		-image [tix getimage minus] -style $data(indStyle)
 	}
 	none {
-	    if [$data(w:hlist) indicator exist $ent] {
+	    if {[$data(w:hlist) indicator exist $ent]} {
 		$data(w:hlist) indicator delete $ent 
 	    }
 	}
@@ -191,7 +181,7 @@ proc tixVTree:Command {w B} {
 	return
     }
     set ent [tixEvent flag V]
-    if [$data(w:hlist) indicator exist $ent] {
+    if {[$data(w:hlist) indicator exist $ent]} {
 	tixVTree:Activate $w $ent [tixVTree:GetType $w $ent]
     }
 }

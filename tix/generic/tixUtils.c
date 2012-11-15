@@ -4,17 +4,16 @@
  *	This file contains some utility functions for Tix, such as the
  *	subcommand handling functions and option handling functions.
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000-2001 Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tixUtils.c,v 1.13 2008/02/28 04:29:17 hobbs Exp $
  */
 
-/*
- * tclInt.h is needed for the va_list declaration.
- */
-#include <tclInt.h>
+#include <tcl.h>
 #include <tixPort.h>
 #include <tixInt.h>
 
@@ -22,99 +21,16 @@
  * Forward declarations for procedures defined later in this file:
  */
 
-static void		Prompt _ANSI_ARGS_((Tcl_Interp *interp, int partial));
-static void		StdinProc _ANSI_ARGS_((ClientData clientData,
-			    int mask));
-
-static int		ReliefParseProc _ANSI_ARGS_((ClientData clientData,
-			    Tcl_Interp *interp, Tk_Window tkwin, char *value,
-			    char *widRec, int offset));
-static char *		ReliefPrintProc _ANSI_ARGS_((ClientData clientData,
-			    Tk_Window tkwin, char *widRec, int offset,
-			    Tix_FreeProc **freeProcPtr));
-/*
- * Global vars used in this file
- */
-static Tcl_DString command;	/* Used to assemble lines of terminal input
-				 * into Tcl commands. */
-
+static int	ReliefParseProc(ClientData clientData,
+	Tcl_Interp *interp, Tk_Window tkwin, CONST84 char *value,
+	char *widRec, int offset);
+static char *	ReliefPrintProc(ClientData clientData,
+	Tk_Window tkwin, char *widRec, int offset,
+	Tix_FreeProc **freeProcPtr);
 
 #define WRONG_ARGC 1
 #define NO_MATCH   2
 
-
-/*----------------------------------------------------------------------
- * TixSaveInterpState --
- *
- *	Save the current application-visible state of the interpreter.
- *	This can later be restored by the TixSaveInterpState() function.
- *	These two functions are useful if you want to evaluate a Tcl
- *	command, which may cause errors, inside a command function.
- *
- *	Each TixSaveInterpState() call much be matched by one
- *	TixRestoreInterpState() call with the same statePtr. statePtr
- *	should be allocated by the calling function, usually
- *	as a variable on the stack.
- *----------------------------------------------------------------------
- */
-
-void
-TixSaveInterpState(interp, statePtr)
-    Tcl_Interp * interp;
-    TixInterpState * statePtr;
-{
-    char * p;
-    if (interp->result) {
-	statePtr->result = (char*)tixStrDup(interp->result);
-    } else {
-	statePtr->result = NULL;
-    }
-
-    p = Tcl_GetVar2(interp, "errorInfo", NULL, TCL_GLOBAL_ONLY);
-    if (p) {
-	statePtr->errorInfo = (char*)tixStrDup(p);
-    } else {
-	statePtr->errorInfo = NULL;
-    }
-
-    p = Tcl_GetVar2(interp, "errorCode", NULL, TCL_GLOBAL_ONLY);
-    if (p) {
-	statePtr->errorCode = (char*)tixStrDup(p);
-    } else {
-	statePtr->errorCode = NULL;
-    }
-}
-
-/*----------------------------------------------------------------------
- * TixRestoreInterpState --
- *
- *	See TixSaveInterpState above.
- *----------------------------------------------------------------------
- */
-
-void
-TixRestoreInterpState(interp, statePtr)
-    Tcl_Interp * interp;
-    TixInterpState * statePtr;
-{
-    if (statePtr->result) {
-	Tcl_SetResult(interp, statePtr->result, TCL_DYNAMIC);
-    }
-    if (statePtr->errorInfo) {
-	Tcl_SetVar2(interp, "errorInfo", NULL, statePtr->errorInfo,
-		TCL_GLOBAL_ONLY);
-	ckfree((char*)statePtr->errorInfo);
-    } else {
-	Tcl_UnsetVar2(interp, "errorInfo", NULL, TCL_GLOBAL_ONLY);
-    }
-    if (statePtr->errorCode) {
-	Tcl_SetVar2(interp, "errorCode", NULL, statePtr->errorCode,
-		TCL_GLOBAL_ONLY);
-	ckfree((char*)statePtr->errorCode);
-    } else {
-	Tcl_UnsetVar2(interp, "errorCode", NULL, TCL_GLOBAL_ONLY);
-    }
-}
 
 /*----------------------------------------------------------------------
  * Tix_HandleSubCmds --
@@ -137,12 +53,12 @@ int Tix_HandleSubCmds(cmdInfo, subCmdInfo, clientData, interp, argc, argv)
 				 * interpreter. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
 
     int i;
-    int len;
     int error = NO_MATCH;
+    unsigned int len;
     Tix_SubCmdInfo * s;
 
     /*
@@ -261,85 +177,17 @@ void Tix_Exit(interp, code)
     Tcl_Interp* interp;
     int code;
 {
-    if (code != 0 && interp && interp->result != 0) {
-	fprintf(stderr, "%s\n", interp->result);
-	fprintf(stderr, "%s\n", 
+    const char *str;
+    if (code != 0 && interp && ((str = Tcl_GetStringResult(interp)) != NULL)) {
+	fprintf(stderr, "%s\n", str);
+	fprintf(stderr, "%s\n",
 	    Tcl_GetVar(interp, "errorInfo", TCL_GLOBAL_ONLY));
     }
 
     if (interp) {
-	Tcl_GlobalEval(interp, "exit");
+	Tcl_EvalEx(interp, "exit", -1, TCL_GLOBAL_ONLY);
     }
     exit(code);
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * Tix_LoadTclLibrary --
- *
- *	Loads in a TCL library for an application according to 
- *	the library settings.
- *
- * Results:
- *	TCL_OK or TCL_ERROR
- *
- * envName	the environment variable that indicates the library
- * tclName	the TCL variable that points to the TCL library.
- * initFile	the file to load in during initialization.
- * defDir	the default directory to search if the user hasn't set
- *		the environment variable.
- * appName	the name of the application.
- *----------------------------------------------------------------------
- */
-
-/* Some compilers can't handle multi-line character strings very well ...
- * So I just using this big lump of mess here.
- */
-
-static char _format[] = "lappend auto_path $%s \nif [file exists $%s/%s] {\nsource $%s/%s\n} else {\nset msg \"\ncan't find $%s/%s;\\nperhaps you \"\nappend msg \"need to install %s\\nor set your %s \"\nappend msg \"environment variable?\"\nerror $msg\n}";
-
-int
-Tix_LoadTclLibrary(interp, envName, tclName, initFile, defDir, appName)
-    Tcl_Interp *interp;
-    char *envName;
-    char *tclName;
-    char *initFile;
-    char *defDir;
-    char *appName;
-{
-    char * libDir, *initCmd;
-    size_t size;
-    int code;
-    char *format;
-    format = _format;
-
-    libDir = getenv(envName);
-    if (libDir == NULL) {
-	libDir = defDir;
-    }
-
-    /*
-     * This size should be big enough.
-     */
-
-    size = strlen(format) + strlen(tclName)*4 + strlen(initFile)*3
-	+ strlen(appName) + strlen(envName) + 100;
-    initCmd = ckalloc(sizeof(char) * size);
-
-    Tcl_SetVar(interp, tclName, libDir, TCL_GLOBAL_ONLY);
-
-    sprintf(initCmd, format,
-	tclName,
-	tclName, initFile,
-	tclName, initFile,
-	tclName, initFile,
-	appName, envName
-    );
-
-    code =  Tcl_GlobalEval(interp, initCmd);
-    ckfree(initCmd);
-    return code;
 }
 
 /*----------------------------------------------------------------------
@@ -350,6 +198,8 @@ Tix_LoadTclLibrary(interp, envName, tclName, initFile, defDir, appName)
  *----------------------------------------------------------------------
  */
 
+static int initialized = 0;
+
 void Tix_CreateCommands(interp, commands, clientData, deleteProc)
     Tcl_Interp *interp;
     Tix_TclCmd *commands;
@@ -358,20 +208,127 @@ void Tix_CreateCommands(interp, commands, clientData, deleteProc)
 {
     Tix_TclCmd * cmdPtr;
 
+    if (!initialized) {
+	Tcl_CmdInfo cmdInfo;
+
+	initialized = 1;
+	if (!Tcl_GetCommandInfo(interp,"image", (Tcl_CmdInfo *) &cmdInfo)) {
+	    Tcl_Panic("cannot find the \"image\" command");
+	} else if (cmdInfo.isNativeObjectProc == 1) {
+	    initialized = 2; /* we use objects */
+	}
+    }
     for (cmdPtr = commands; cmdPtr->name != NULL; cmdPtr++) {
 	Tcl_CreateCommand(interp, cmdPtr->name,
 	     cmdPtr->cmdProc, clientData, deleteProc);
     }
 }
 
-/*----------------------------------------------------------------------
- * Tix_DrawAnchorLines --
+/*
+ *----------------------------------------------------------------------
+ * Tix_GetAnchorGC --
  *
- * 	Draw dotted anchor lines around anchor elements
+ *	Get the GC for drawing the anchor dotted lines around anchor
+ *	elements.
+ *
+ * Results:
+ *	Returns a GC that can be passed to Tix_DrawAnchorLines for
+ *	drawing an anchor line for the given background color.
+ *
+ * Side effects:
+ *	None.
  *----------------------------------------------------------------------
  */
 
-void Tix_DrawAnchorLines(display, drawable, gc, x, y, w, h)
+GC
+Tix_GetAnchorGC(tkwin, bgColor)
+	Tk_Window tkwin;
+	XColor *bgColor;
+{
+    XGCValues gcValues;
+    XColor valueKey;
+    XColor * anchorColor;
+    int r, g, b;
+    int max;
+
+    /*
+     * Get the best color to draw the dotted lines on the given background
+     * color.
+     */
+
+    r = bgColor->red;
+    g = bgColor->green;
+    b = bgColor->blue;
+
+    r = (65535 - r) & 0xffff;
+    g = (65535 - g) & 0xffff;
+    b = (65535 - b) & 0xffff;
+
+    max = r;
+    if (max < g) {
+	max = g;
+    }
+    if (max < b) {
+	max = b;
+    }
+
+    max = max / 256;
+    if (max > 96) {
+	/*
+	 * scale color up
+	 */
+
+	r = (r * 255) / max;
+	g = (g * 255) / max;
+	b = (b * 255) / max;
+    } else {
+	/*
+	 * scale color down
+	 */
+	int min = r;
+	if (min > g) {
+	    min = g;
+	}
+	if (min > b) {
+	    min = b;
+	}
+	r = r - min;
+	g = g - min;
+	b = b - min;
+    }
+
+    valueKey.red   = r;
+    valueKey.green = g;
+    valueKey.blue  = b;
+
+    anchorColor = Tk_GetColorByValue(tkwin, &valueKey);
+
+    gcValues.foreground		= anchorColor->pixel;
+    gcValues.graphics_exposures = False;
+    gcValues.subwindow_mode	= IncludeInferiors;
+
+    return Tk_GetGC(tkwin, GCForeground|GCGraphicsExposures|GCSubwindowMode,
+	    &gcValues);
+}
+
+/*
+ *----------------------------------------------------------------------
+ * Tix_DrawAnchorLines --
+ *
+ *	Draw dotted anchor lines around anchor elements. The exact
+ *	behavior is defined in the platform-specific
+ *	TixpDrawAnchorLines function.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *----------------------------------------------------------------------
+ */
+
+void
+Tix_DrawAnchorLines(display, drawable, gc, x, y, w, h)
     Display *display;
     Drawable drawable;
     GC gc;
@@ -395,16 +352,16 @@ Tk_Window
 Tix_CreateSubWindow(interp, tkwin, subPath)
     Tcl_Interp * interp;
     Tk_Window tkwin;
-    char * subPath;
+    CONST84 char * subPath;
 {
     Tcl_DString dString;
     Tk_Window subwin;
 
     Tcl_DStringInit(&dString);
     Tcl_DStringAppend(&dString, Tk_PathName(tkwin),
-	strlen(Tk_PathName(tkwin)));
+	    (int) strlen(Tk_PathName(tkwin)));
     Tcl_DStringAppend(&dString, ".tixsw:", 7);
-    Tcl_DStringAppend(&dString, subPath, strlen(subPath));
+    Tcl_DStringAppend(&dString, subPath, (int) strlen(subPath));
 
     subwin = Tk_CreateWindowFromPath(interp, tkwin, dString.string,
 	(char *) NULL);
@@ -413,20 +370,6 @@ Tix_CreateSubWindow(interp, tkwin, subPath)
 
     return subwin;
 }
-
-/*----------------------------------------------------------------------
- * Tix_GetRenderBuffer --
- *
- *	Returns a drawable for rendering a widget. If there is sufficient
- *	resource, a pixmap is returned so that double-buffering can
- *	be done. However, if resource is insufficient, then the
- *	windowId is returned. In the second case happens, the caller
- *	of this function has two choices: (1) draw to the window directly
- *	(which may lead to flashing on the screen) or (2) try to allocate
- *	smaller pixmaps.
- *----------------------------------------------------------------------
- */
-
 static int
 ErrorProc(clientData, errorEventPtr)
     ClientData clientData;
@@ -438,14 +381,48 @@ ErrorProc(clientData, errorEventPtr)
     return 0;				/* return 0 means error has been
 					 * handled properly */
 }
+
+/*
+ *----------------------------------------------------------------------
+ * Tix_GetRenderBuffer --
+ *
+ *	Returns a drawable for rendering a widget. If there is
+ *	sufficient graphics resource, a pixmap is returned so that
+ *	double-buffering can be done. However, if resource is
+ *	insufficient, then the windowId is returned. In the second
+ *	case happens, the caller of this function has two choices: (1)
+ *	draw to the window directly (which may lead to flickering on
+ *	the screen) or (2) try to allocate smaller pixmaps.
+ *
+ * Results:
+ *	An allocated pixmap of the same depth as the window, or the
+ *	window itself.
+ *
+ * Side effects:
+ *	A pixmap may be allocated. The caller should call
+ *	Tk_FreePixmap() to free the pixmap returned by this function.
+ *
+ *----------------------------------------------------------------------
+ */
 
-Drawable Tix_GetRenderBuffer(display, windowId, width, height, depth)
-    Display *display;
-    Window windowId;
-    int width;
-    int height;
-    int depth;
+/*
+ * Uncomment this if you want to use single-buffer mode drawing to
+ * debug paintings.
+ */
+
+/* #define PAINT_DEBUG 1 */
+
+Drawable
+Tix_GetRenderBuffer(display, windowId, width, height, depth)
+    Display *display;		/* Display of the windowId */
+    Window windowId;		/* Window to draw into */
+    int width;			/* width of the drawing region */
+    int height;			/* height of the drawing region */
+    int depth;			/* Depth of the window. TODO remove this arg*/
 {
+#ifdef PAINT_DEBUG
+    return windowId;
+#else
     Tk_ErrorHandler handler;
     Pixmap pixmap;
     int badAlloc = 0;
@@ -454,7 +431,7 @@ Drawable Tix_GetRenderBuffer(display, windowId, width, height, depth)
 	-1, -1, (Tk_ErrorProc *) ErrorProc, (ClientData) &badAlloc);
     pixmap = Tk_GetPixmap(display, windowId, width, height, depth);
 
-#ifndef _WINDOWS
+#if !defined(__WIN32__) && !defined(MAC_TCL) && !defined(MAC_OSX_TK) /* UNIX */
     /*
      * This XSync call is necessary because X may delay the delivery of the
      * error message. This will make our graphics a bit slower, though,
@@ -471,6 +448,7 @@ Drawable Tix_GetRenderBuffer(display, windowId, width, height, depth)
     } else {
 	return windowId;
     }
+#endif
 }
 
 /*
@@ -484,7 +462,7 @@ Drawable Tix_GetRenderBuffer(display, windowId, width, height, depth)
  *
  * Results:
  *	A standard Tcl return result.  An error message or other
- *	result may be left in interp->result.
+ *	result may be left in the interp's result.
  *
  * Side effects:
  *	Depends on what was done by the command.
@@ -493,19 +471,7 @@ Drawable Tix_GetRenderBuffer(display, windowId, width, height, depth)
  */
 	/* VARARGS2 */ /* ARGSUSED */
 int
-#ifdef TCL_VARARGS_DEF
 Tix_GlobalVarEval TCL_VARARGS_DEF(Tcl_Interp *,arg1)
-#else
-#ifndef lint
-Tix_GlobalVarEval(va_alist)
-#else
-Tix_GlobalVarEval(iPtr, p, va_alist)
-    Tcl_Interp *iPtr;		/* Interpreter in which to execute command. */
-    char *p;			/* One or more strings to concatenate,
-				 * terminated with a NULL string. */
-#endif
-    va_dcl
-#endif
 {
     va_list argList;
     Tcl_DString buf;
@@ -513,10 +479,9 @@ Tix_GlobalVarEval(iPtr, p, va_alist)
     Tcl_Interp *interp;
     int result;
 
-#ifdef TCL_VARARGS_DEF
     /*
      * Copy the strings one after the other into a single larger
-     * string.  Use stack-allocated space for small commands, but if
+     * string.	Use stack-allocated space for small commands, but if
      * the command gets too large than call ckalloc to create the
      * space.
      */
@@ -532,26 +497,10 @@ Tix_GlobalVarEval(iPtr, p, va_alist)
     }
     va_end(argList);
 
-    result = Tcl_GlobalEval(interp, Tcl_DStringValue(&buf));
+    result = Tcl_EvalEx(interp, Tcl_DStringValue(&buf),
+	    Tcl_DStringLength(&buf), TCL_GLOBAL_ONLY);
     Tcl_DStringFree(&buf);
     return result;
-#else
-    va_start(argList);
-    interp = va_arg(argList, Tcl_Interp *);
-    Tcl_DStringInit(&buf);
-    while (1) {
-	string = va_arg(argList, char *);
-	if (string == NULL) {
-	    break;
-	}
-	Tcl_DStringAppend(&buf, string, -1);
-    }
-    va_end(argList);
-
-    result = Tcl_GlobalEval(interp, Tcl_DStringValue(&buf));
-    Tcl_DStringFree(&buf);
-    return result;
-#endif
 }
 
 /*----------------------------------------------------------------------
@@ -563,8 +512,6 @@ Tix_GlobalVarEval(iPtr, p, va_alist)
  *
  *----------------------------------------------------------------------
  */
-
-#ifdef TK_4_1_OR_LATER
 
 static void		DeleteHashTableProc _ANSI_ARGS_((ClientData clientData,
 			    Tcl_Interp * interp));
@@ -586,20 +533,41 @@ DeleteHashTableProc(clientData, interp)
     Tcl_DeleteHashTable(htPtr);
     ckfree((char*)htPtr);
 }
+
+/*
+ *----------------------------------------------------------------------
+ * TixGetHashTable() --
+ *
+ *	Returns a named hashtable to be used for the given
+ *	interpreter. Creates the hashtable if it doesn't exist yet. It
+ *	uses Tcl_GetAssocData to make sure that the hashtable is not
+ *	shared by different interpreters.
+ *
+ * Results:
+ *	Pointer to the hashtable.
+ *
+ * Side effects:
+ *	The hashtable is created if it doesn't exist yet.
+ *
+ *----------------------------------------------------------------------
+ */
 
 Tcl_HashTable *
-TixGetHashTable(interp, name, deleteProc)
+TixGetHashTable(interp, name, deleteProc, keyType)
     Tcl_Interp * interp;
     char * name;
     Tcl_InterpDeleteProc *deleteProc;
+    int keyType;
 {
     Tcl_HashTable * htPtr;
 
     htPtr = (Tcl_HashTable*)Tcl_GetAssocData(interp, name, NULL);
+
     if (htPtr == NULL) {
 	htPtr = (Tcl_HashTable *)ckalloc(sizeof(Tcl_HashTable));
-	Tcl_InitHashTable(htPtr, TCL_STRING_KEYS);
+	Tcl_InitHashTable(htPtr, keyType);
 	Tcl_SetAssocData(interp, name, NULL, (ClientData)htPtr);
+
 	if (deleteProc) {
 	    Tcl_CallWhenDeleted(interp, deleteProc, (ClientData)htPtr);
 	} else {
@@ -610,37 +578,6 @@ TixGetHashTable(interp, name, deleteProc)
 
     return htPtr;
 }
-
-#else
-
-Tcl_HashTable *
-TixGetHashTable(interp, name)
-    Tcl_Interp * interp;	/* Current interpreter. */
-    char * name;		/* Textual name of the hash table. */
-{
-    static int inited = 0;
-    static Tcl_HashTable classTable;
-    static Tcl_HashTable methodTable;
-    static Tcl_HashTable specTable;
-
-    if (!inited) {
-	Tcl_InitHashTable(&classTable, TCL_STRING_KEYS);
-	Tcl_InitHashTable(&methodTable, TCL_STRING_KEYS);
-	Tcl_InitHashTable(&specTable, TCL_STRING_KEYS);
-	inited = 1;
-    }
-
-    if (strcmp(name, "tixClassTab") == 0) {
-	return &classTable;
-    } else if (strcmp(name, "tixSpecTab") == 0) {
-	return &specTable;
-    } else if (strcmp(name, "tixMethodTab") == 0) {
-	return &methodTable;
-    } else {
-	panic("Unknown hash table %s", name);
-    }
-}
-#endif
 
 /*----------------------------------------------------------------------
  *
@@ -656,16 +593,17 @@ TixGetHashTable(interp, name)
  *	inside the widget record.
  *----------------------------------------------------------------------
  */
-static int ReliefParseProc(clientData, interp, tkwin, value, widRec,offset)
+static int
+ReliefParseProc(clientData, interp, tkwin, value, widRec,offset)
     ClientData clientData;
     Tcl_Interp *interp;
     Tk_Window tkwin;
-    char *value;
-    char *widRec;		/* Must point to a valid Tix_DItem struct */
+    CONST84 char *value;
+    char *widRec;	/* Must point to a valid Tix_DItem struct */
     int offset;
 {
     Tix_Relief * ptr = (Tix_Relief *)(widRec + offset);
-    Tix_Relief   newVal;
+    Tix_Relief	 newVal;
 
     if (value != NULL) {
 	size_t len = strlen(value);
@@ -699,7 +637,8 @@ static int ReliefParseProc(clientData, interp, tkwin, value, widRec,offset)
     return TCL_ERROR;
 }
 
-static char *ReliefPrintProc(clientData, tkwin, widRec,offset, freeProcPtr)
+static char *
+ReliefPrintProc(clientData, tkwin, widRec,offset, freeProcPtr)
     ClientData clientData;
     Tk_Window tkwin;
     char *widRec;
@@ -742,21 +681,15 @@ Tk_CustomOption tixConfigRelief = {
  */
 void Tix_SetRcFileName(interp, rcFileName)
     Tcl_Interp * interp;
-    char * rcFileName;
+    CONST84 char * rcFileName;
 {
-#ifdef TCL_7_5_OR_LATER
     /*
      * Starting from TCL 7.5, the symbol tcl_rcFileName is no longer
      * exported by libtcl.a. Instead, this variable must be set using
      * a TCL global variable
      */
     Tcl_SetVar(interp, "tcl_rcFileName", rcFileName, TCL_GLOBAL_ONLY);
-#else
-    tcl_RcFileName = rcFileName;
-#endif
 }
-
-#if (TK_MAJOR_VERSION > 4)
 
 /*
  * The TkComputeTextGeometry function is no longer supported in Tk 8.0+
@@ -784,10 +717,11 @@ void
 TixComputeTextGeometry(font, string, numChars, wrapLength,
 	widthPtr, heightPtr)
     TixFont font;		/* Font that will be used to display text. */
-    char *string;		/* String whose dimensions are to be
+    CONST84 char *string;	/* String whose dimensions are to be
 				 * computed. */
     int numChars;		/* Number of characters to consider from
-				 * string. */
+				 * string. -1 means the entire size of
+				 * the text string */
     int wrapLength;		/* Longest permissible line length, in
 				 * pixels.  <= 0 means no automatic wrapping:
 				 * just let lines get as long as needed. */
@@ -832,25 +766,25 @@ TixDisplayText(display, drawable, font, string, numChars, x, y,
 				 * text. */
     TixFont font;		/* Font that determines geometry of text
 				 * (should be same as font in gc). */
-    char *string;		/* String to display;  may contain embedded
+    CONST84 char *string;	/* String to display;  may contain embedded
 				 * newlines. */
     int numChars;		/* Number of characters to use from string. */
     int x, y;			/* Pixel coordinates within drawable of
 				 * upper left corner of display area. */
     int length;			/* Line length in pixels;  used to compute
 				 * word wrap points and also for
-				 * justification.   Must be > 0. */
+				 * justification. Must be > 0. */
     Tk_Justify justify;		/* How to justify lines. */
     int underline;		/* Index of character to underline, or < 0
 				 * for no underlining. */
     GC gc;			/* Graphics context to use for drawing text. */
 {
     Tk_TextLayout textLayout;
-    int dummy;
+    int dummyx, dummyy;
 
     textLayout = Tk_ComputeTextLayout(font,
 	string, numChars, length, justify, 0,
-	&dummy, &dummy);
+	&dummyx, &dummyy);
 
     Tk_DrawTextLayout(display, drawable, gc, textLayout,
 	    x, y, 0, -1);
@@ -859,5 +793,29 @@ TixDisplayText(display, drawable, font, string, numChars, x, y,
 
     Tk_FreeTextLayout(textLayout);
 }
-#endif
+
+/*
+ *----------------------------------------------------------------------
+ * Tix_ZAlloc --
+ *
+ *	Allocate the memory block with ckalloc and zeros it.
+ *
+ * Results:
+ *	Same as ckalloc() except the new memory block is filled with 
+ *	zero. Returns NULL if memory allocation fails.
+ *
+ * Side effects:
+ *	None.
+ *----------------------------------------------------------------------
+ */
 
+char * Tix_ZAlloc(nbytes)
+    unsigned int nbytes;	/* size of memory block to alloc, in
+				 * number of bytes.*/
+{
+    char * ptr = (char*)ckalloc(nbytes);
+    if (ptr) {
+	memset(ptr, 0, nbytes);
+    }
+    return ptr;
+}

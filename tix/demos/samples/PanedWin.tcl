@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: PanedWin.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -9,7 +13,7 @@
 # This file demonstrates the use of the tixPanedWindow widget. This program
 # is a dummy news reader: the user can adjust the sizes of the list
 # of artical names and the size of the text widget that shows the body
-# of the artical
+# of the article
 #
 
 proc RunSample {w} {
@@ -31,7 +35,7 @@ proc RunSample {w} {
     pack $w.top.name -side top -anchor c -fill x -padx 14 -pady 6
     # Now use a PanedWindow to contain the list and text widgets
     #
-    tixPanedWindow $w.top.pane -paneborderwidth 0 -separatorbg gray50
+    tixPanedWindow $w.top.pane -paneborderwidth 0
     pack $w.top.pane -side top -expand yes -fill both -padx 10 -pady 10
 
     set p1 [$w.top.pane add list -min 70 -size 100]
@@ -101,8 +105,8 @@ interfaces!}
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
-	bind $w <Destroy> {if {"%W" == ".demo"} exit}
+    bind $w <Destroy> {if {"%W" == ".demo"} exit}
 }
 

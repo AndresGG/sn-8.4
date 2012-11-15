@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: AllSampl.tcl,v 1.4 2001/12/09 05:31:07 idiscovery Exp $
+#
 # AllSampl.tcl --
 #
 #	This file is a directory of all the sample programs in the
@@ -73,7 +77,11 @@ set hlist {
 set tlist {
     {f "ScrolledTList (1)"	STList1.tcl	{c tixTList}}
     {f "ScrolledTList (2)"	STList2.tcl	{c tixTList}}
-    {f "TList File Viewer"	STList3.tcl	{c tixTList}}
+}
+global tcl_platform
+#  This demo hangs windows
+if {$tcl_platform(platform) != "windows"} {
+lappend tlist     {f "TList File Viewer"	STList3.tcl	{c tixTList}}
 }
 
 set grid {

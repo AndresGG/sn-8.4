@@ -1,3 +1,6 @@
+#
+#	$Id: hanno.tcl,v 1.1.1.1 2000/05/17 11:08:53 idiscovery Exp $
+#
 #!/bin/sh
 # the next line restarts using tixwish \
 exec tclsh7.6 "$0" "$@"

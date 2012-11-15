@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: MkSample.tcl,v 1.3 2001/12/09 05:34:59 idiscovery Exp $
+#
 # MkSample.tcl --
 #
 #	This file implements the "Sample" page in the widget demo
@@ -18,10 +22,10 @@
 #
 
 set tix_demo_running 1
-set samples_dir [tixNSubFolder $demo_dir samples]
+set samples_dir [file join $demo_dir samples]
 set sample_filename {}
 
-uplevel #0 source [list [tixNSubFolder $samples_dir AllSampl.tcl]]
+uplevel #0 source [list [file join $samples_dir AllSampl.tcl]]
 
 
 proc MkSample {nb page} {
@@ -79,7 +83,6 @@ proc MkSample {nb page} {
     # Set up the text subwidget
 
     set text [$stext subwidget text]
-    bind $text <1> "focus %W"
     bind $text <Up>    "%W yview scroll -1 unit"
     bind $text <Down>  "%W yview scroll 1 unit"
     bind $text <Left>  "%W xview scroll -1 unit"
@@ -106,9 +109,7 @@ proc MkSample {nb page} {
 	-wideselect false
 
     set style [tixDisplayStyle imagetext -refwindow $hlist \
-	-fg #202060 -padx 4]
-
-    uplevel #0 set TRANSPARENT_GIF_COLOR [$hlist cget -bg]
+	-fg $tixOption(fg) -padx 4]
 
     set file   [tix getimage textfile]
     set folder [tix getimage openfold]
@@ -171,19 +172,19 @@ proc Sample:Action {w slb action args} {
 	    RunProg $title $prog
 	}
 	"view" {
-	    LoadFile [tixNSubFolder $samples_dir $prog]
+	    LoadFile [file join $samples_dir $prog]
 	}
 	"browse" {
 	    # Bring up a short description of the sample program
 	    # in the scrolled text about
 
 	    set text [$demo(w:stext) subwidget text]
-	    uplevel #0 set sample_filename [list [tixNSubFolder $samples_dir $prog]]
+	    uplevel #0 set sample_filename [list [file join $samples_dir $prog]]
 	    tixWidgetDoWhenIdle ReadFileWhenIdle $text
 
 	    $demo(w:lab1) subwidget entry config -state normal
 	    $demo(w:lab1) subwidget entry delete 0 end
-	    $demo(w:lab1) subwidget entry insert end [tixNSubFolder $samples_dir $prog]
+	    $demo(w:lab1) subwidget entry insert end [file join $samples_dir $prog]
 	    $demo(w:lab1) subwidget entry xview end
 	    $demo(w:lab1) subwidget entry config -state disabled
 	}
@@ -202,7 +203,7 @@ proc RunProg {title prog} {
 	return
     }
 
-    uplevel #0 source [list [tixNSubFolder $samples_dir $prog]]
+    uplevel #0 source [list [file join $samples_dir $prog]]
 
     toplevel $w 
     wm title $w $title

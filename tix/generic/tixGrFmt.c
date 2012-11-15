@@ -1,3 +1,6 @@
+
+/*	$Id: tixGrFmt.c,v 1.3 2004/03/28 02:44:56 hobbs Exp $	*/
+
 /* 
  * tixGrFmt.c --
  *
@@ -45,28 +48,11 @@ typedef struct GridFmtStruct {
     int filled;
 } GridFmtStruct;
 
-#ifdef BUILD_tix
-# undef TCL_STORAGE_CLASS
-# define TCL_STORAGE_CLASS DLLEXPORT
-#endif
-
 static TIX_DECLARE_SUBCMD(Tix_GrFormatBorder);
 static TIX_DECLARE_SUBCMD(Tix_GrFormatGrid);
 EXTERN TIX_DECLARE_SUBCMD(Tix_GrFormat);
 
-#ifdef ITCL_21
-
-/*
- * ITcl 2.1 changed the definition of the constants for Tk configuration,
- * e.g., TK_CONFIG_COLOR, etc. This problem doesn't appear in itcl 2.2.
- */
-typedef Tk_ConfigProc * CFG_TYPE;
-
-#else
-
 typedef int CFG_TYPE;
-
-#endif
 
 static int		Tix_GrSaveColor _ANSI_ARGS_((WidgetPtr wPtr,
 			    CFG_TYPE type, void * ptr));
@@ -82,7 +68,7 @@ static void		Tix_GrFillCells _ANSI_ARGS_((WidgetPtr wPtr,
 			    int borderWidth, int relief, int filled,
 			    int bw[2][2]));
 static int		GetInfo _ANSI_ARGS_((WidgetPtr wPtr,
-			    Tcl_Interp *interp, int argc, char **argv,
+			    Tcl_Interp *interp, int argc, CONST84 char **argv,
 			    FormatStruct * infoPtr,
 			    Tk_ConfigSpec * configSpecs));
 
@@ -186,7 +172,7 @@ Tix_GrFormat(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     static Tix_SubCmdInfo subCmdInfo[] = {
 	{TIX_DEFAULT_LEN, "border", 4, TIX_VAR_ARGS, Tix_GrFormatBorder,
@@ -216,7 +202,7 @@ GetInfo(wPtr, interp, argc, argv, infoPtr, configSpecs)
     WidgetPtr wPtr;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
     FormatStruct * infoPtr;
     Tk_ConfigSpec * configSpecs;
 {
@@ -458,7 +444,7 @@ Tix_GrFormatBorder(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     BorderFmtStruct info;
@@ -503,7 +489,7 @@ Tix_GrFormatBorder(clientData, interp, argc, argv)
 
 #if 0
     /* now it works */
-#ifdef _WINDOWS
+#ifdef __WIN32__
     if (bx1 == 0 && bx2 == 0 && by1 == 0 && by2 == 0) {
 	/* some how this doesn't work in BC++ 4.5 */
 	goto done;
@@ -562,7 +548,7 @@ Tix_GrFormatGrid(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     GridFmtStruct info;
@@ -740,19 +726,15 @@ static int Tix_GrSaveColor(wPtr, type, ptr)
     CFG_TYPE type;
     void * ptr;
 {
-    Tk_3DBorder border;
-    XColor * color;
     long pixel;
     Tix_ListIterator li;
     int found;
     ColorInfo * cPtr;
 
     if (type == TK_CONFIG_COLOR) {
-	color = (XColor *)ptr;
-	pixel = color->pixel;
+	pixel = ((XColor *)ptr)->pixel;
     } else {
-	border = (Tk_3DBorder)ptr;
-	pixel = Tk_3DBorderColor(border)->pixel;
+	pixel = Tk_3DBorderColor((Tk_3DBorder)ptr)->pixel;
     }
 
     Tix_SimpleListIteratorInit(&li);
@@ -771,9 +753,9 @@ static int Tix_GrSaveColor(wPtr, type, ptr)
     cPtr = (ColorInfo *)ckalloc(sizeof(ColorInfo));
 	
     if (type == TK_CONFIG_COLOR) {
-	cPtr->color  = color;
+	cPtr->color  = (XColor *)ptr;
     } else {
-	cPtr->border = border;
+	cPtr->border = (Tk_3DBorder)ptr;
     }
     cPtr->type  = (int)type;
     cPtr->pixel = pixel;

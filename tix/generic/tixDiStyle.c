@@ -3,12 +3,13 @@
  *
  *	This file implements the "Display Item Styles" in the Tix library.
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000-2001 Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- *
+ * $Id: tixDiStyle.c,v 1.6 2004/03/28 02:44:56 hobbs Exp $
  */
 
 #include <tixPort.h>
@@ -29,7 +30,7 @@ typedef struct StyleInfo {
 
 static int   		DItemStyleParseProc _ANSI_ARGS_((ClientData clientData,
 			    Tcl_Interp *interp, Tk_Window tkwin,
-			    char *value,char *widRec, int offset));
+			    CONST84 char *value,char *widRec, int offset));
 static char *		DItemStylePrintProc _ANSI_ARGS_((
 			    ClientData clientData, Tk_Window tkwin, 
 			    char *widRec, int offset,
@@ -37,11 +38,10 @@ static char *		DItemStylePrintProc _ANSI_ARGS_((
 static Tix_DItemStyle*	FindDefaultStyle _ANSI_ARGS_((
 			    Tix_DItemInfo * diTypePtr, Tk_Window tkwin));
 static Tix_DItemStyle*	FindStyle _ANSI_ARGS_((
-			    char *styleName));
+			    CONST84 char *styleName, Tcl_Interp *interp));
 static Tix_DItemStyle* 	GetDItemStyle  _ANSI_ARGS_((
 			    Tix_DispData * ddPtr, Tix_DItemInfo * diTypePtr,
-			    char * styleName, int *isNew_ret));
-static void 		InitHashTables _ANSI_ARGS_((void));
+			    CONST84 char *styleName, int *isNew_ret));
 static void		ListAdd _ANSI_ARGS_((Tix_DItemStyle * stylePtr,
 			    Tix_DItem *iPtr));
 static void		ListDelete _ANSI_ARGS_((Tix_DItemStyle * stylePtr,
@@ -50,10 +50,10 @@ static void		ListDeleteAll _ANSI_ARGS_((Tix_DItemStyle * stylePtr));
 static void		StyleCmdDeletedProc _ANSI_ARGS_((
 			    ClientData clientData));
 static int		StyleCmd _ANSI_ARGS_((ClientData clientData,
-			    Tcl_Interp *interp, int argc, char **argv));
+			    Tcl_Interp *interp, int argc, CONST84 char **argv));
 static int		StyleConfigure _ANSI_ARGS_((Tcl_Interp *interp,
 			    Tix_DItemStyle* stylePtr, int argc,
-			    char **argv, int flags));
+			    CONST84 char **argv, int flags));
 static void		StyleDestroy _ANSI_ARGS_((ClientData clientData));
 static void		DeleteStyle _ANSI_ARGS_((Tix_DItemStyle * stylePtr));
 static void		DefWindowStructureProc _ANSI_ARGS_((
@@ -67,10 +67,48 @@ static TIX_DECLARE_SUBCMD(StyleConfigCmd);
 static TIX_DECLARE_SUBCMD(StyleCGetCmd);
 static TIX_DECLARE_SUBCMD(StyleDeleteCmd);
 
-static Tcl_HashTable styleTable;
 static Tcl_HashTable defaultTable;
-static int tableInited = 0;
 
+/*
+ * This macro returns a hashtable to convert from style names (such as
+ * "tixStyle0") to Tix_DItemStyle structures.
+ */
+
+#define GetStyleTable(x) \
+    (TixGetHashTable((x), "tixStyleTab", NULL, TCL_STRING_KEYS))
+
+
+/*
+ *--------------------------------------------------------------
+ *
+ * TixInitializeDisplayItems --
+ *
+ *	Initializes the Display Item subsystem.
+ *
+ * Results:
+ *	Nothing
+ *
+ * Side effects:
+ *	Built-in Display Types styles are created.
+ *
+ *--------------------------------------------------------------
+ */
+
+void
+TixInitializeDisplayItems()
+{
+    static int inited = 0;
+
+    if (!inited) {
+        inited = 1;
+        Tcl_InitHashTable(&defaultTable, TCL_ONE_WORD_KEYS);
+
+	Tix_AddDItemType(&tix_ImageTextItemType);
+	Tix_AddDItemType(&tix_TextItemType);
+	Tix_AddDItemType(&tix_WindowItemType);
+	Tix_AddDItemType(&tix_ImageItemType);
+    }
+}
 
 /*
  *--------------------------------------------------------------
@@ -91,7 +129,9 @@ static int tableInited = 0;
  *
  *--------------------------------------------------------------
  */
-void TixDItemStyleFree(iPtr, stylePtr)
+
+void
+TixDItemStyleFree(iPtr, stylePtr)
     Tix_DItem *iPtr;
     Tix_DItemStyle * stylePtr;
 {
@@ -114,25 +154,22 @@ void TixDItemStyleFree(iPtr, stylePtr)
  *
  *--------------------------------------------------------------
  */
+
 int
 Tix_ItemStyleCmd(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     Tix_DItemInfo * diTypePtr;
     Tk_Window tkwin = (Tk_Window)clientData;
-    char * styleName = NULL;
+    CONST84 char * styleName = NULL;
     Tix_DispData dispData;
-    char buff[100];
+    char buff[16 + TCL_INTEGER_SPACE];
     int i, n;
     static int counter = 0;
     Tix_DItemStyle * stylePtr;
-
-    if (tableInited == 0) {
-	InitHashTables();
-    }
 
     if (argc < 2) {
 	return Tix_ArgcError(interp, argc, argv, 1, 
@@ -149,6 +186,7 @@ Tix_ItemStyleCmd(clientData, interp, argc, argv)
      * etc. Usually, you should set the -refwindow to the window that
      * holds the display items which are controlled by this style.
      */
+
     if (argc > 2) {
 	size_t len;
 	if (argc %2 != 0) {
@@ -166,9 +204,9 @@ Tix_ItemStyleCmd(clientData, interp, argc, argv)
 	    }
 	    if (strncmp(argv[i], "-stylename", len) == 0) {
 		styleName = argv[i+1];
-		if (FindStyle(styleName) != NULL) {
+		if (FindStyle(styleName, interp) != NULL) {
 		    Tcl_AppendResult(interp, "style \"", argv[i+1],
-			"\" already exist", NULL);
+			"\" already exists", NULL);
 		    return TCL_ERROR;
 		}
 		continue;
@@ -185,13 +223,21 @@ Tix_ItemStyleCmd(clientData, interp, argc, argv)
 
     if (styleName == NULL) {
 	/*
-	 * No name is given, we'll make a unique name by default
-	 * (ToDo: check if the name has already been used)
+	 * No name is given, we'll make a unique name by default. The
+         * following loop hopefully will not run forever (unless 
+         * the user has created more than 4 billion styles with default
+         * names ...:-)
 	 */
-	sprintf(buff, "tixStyle%d", counter++);
-	styleName = buff;
-    }
 
+        while (1) {
+            sprintf(buff, "tixStyle%d", counter++);
+            if (Tcl_FindHashEntry(GetStyleTable(interp), buff) == NULL) {
+                styleName = buff;
+                break;
+            }
+        }
+    }
+            
     dispData.interp  = interp;
     dispData.display = Tk_Display(tkwin);
     dispData.tkwin   = tkwin;
@@ -217,7 +263,7 @@ StyleCmd(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;
     int argc;
-    char **argv;
+    CONST84 char **argv;
 {
     int code;
 
@@ -251,7 +297,7 @@ StyleCGetCmd(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     Tix_DItemStyle* stylePtr= (Tix_DItemStyle*) clientData;
 
@@ -269,7 +315,7 @@ StyleConfigCmd(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     Tix_DItemStyle* stylePtr= (Tix_DItemStyle*) clientData;
 
@@ -296,7 +342,7 @@ StyleDeleteCmd(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     Tix_DItemStyle* stylePtr= (Tix_DItemStyle*) clientData;
 
@@ -316,7 +362,7 @@ StyleConfigure(interp, stylePtr, argc, argv, flags)
     Tix_DItemStyle* stylePtr;	/* Information about the style;  may or may
 				 * not already have values for some fields. */
     int argc;			/* Number of valid entries in argv. */
-    char **argv;		/* Arguments. */
+    CONST84 char **argv;	/* Arguments. */
     int flags;			/* Flags to pass to Tk_ConfigureWidget. */
 {
     Tix_DItemInfo * diTypePtr = stylePtr->base.diTypePtr;
@@ -338,6 +384,7 @@ StyleDestroy(clientData)
     ClientData clientData;
 {
     Tix_DItemStyle* stylePtr= (Tix_DItemStyle*) clientData;
+    int i;
 
     if ((stylePtr->base.flags & TIX_STYLE_DEFAULT)) {
 	/*
@@ -367,6 +414,22 @@ StyleDestroy(clientData)
 
     Tcl_DeleteHashTable(&stylePtr->base.items);
     ckfree((char*)stylePtr->base.name);
+
+    for (i=0; i<4; i++) {
+	if (stylePtr->base.colors[i].backGC != None) {
+	    Tk_FreeGC(Tk_Display(stylePtr->base.tkwin),
+                    stylePtr->base.colors[i].backGC);
+	}
+	if (stylePtr->base.colors[i].foreGC != None) {
+	    Tk_FreeGC(Tk_Display(stylePtr->base.tkwin), 
+                    stylePtr->base.colors[i].foreGC);
+	}
+	if (stylePtr->base.colors[i].anchorGC != None) {
+	    Tk_FreeGC(Tk_Display(stylePtr->base.tkwin),
+                      stylePtr->base.colors[i].anchorGC);
+	}
+    }
+
     stylePtr->base.diTypePtr->styleFreeProc(stylePtr);
 }
 
@@ -396,17 +459,39 @@ DeleteStyle(stylePtr)
     if (!(stylePtr->base.flags & TIX_STYLE_DELETED)) {
 	stylePtr->base.flags |= TIX_STYLE_DELETED;
 
+        /*
+         * Delete the Tcl command of this style
+         */
+
 	if (stylePtr->base.styleCmd != NULL) {
 	    Tcl_DeleteCommand(stylePtr->base.interp,
-	        Tcl_GetCommandName(stylePtr->base.interp,
-	        stylePtr->base.styleCmd));
+	            Tcl_GetCommandName(stylePtr->base.interp,
+	            stylePtr->base.styleCmd));
 	}
-	hashPtr=Tcl_FindHashEntry(&styleTable, stylePtr->base.name);
+
+        /*
+         * Remove info about this style from the hash table.
+         */
+
+	hashPtr = Tcl_FindHashEntry(GetStyleTable(stylePtr->base.interp),
+                stylePtr->base.name);
 	if (hashPtr != NULL) {
 	    Tcl_DeleteHashEntry(hashPtr);
 	}
 	ListDeleteAll(stylePtr);
 
+        /*
+         * Make sure the event handler is removed. Otherwise we'd crash
+         * when the interpreter exits.
+         */
+
+        Tk_DeleteEventHandler(stylePtr->base.tkwin, StructureNotifyMask,
+	        RefWindowStructureProc, (ClientData)stylePtr);
+
+        /*
+         * Schedule it to be free'd
+         */
+        
 	Tk_EventuallyFree((ClientData)stylePtr, (Tix_FreeProc *)StyleDestroy);
     }
 }
@@ -435,9 +520,6 @@ FindDefaultStyle(diTypePtr, tkwin)
     StyleInfo * infoPtr;
     StyleLink * linkPtr;
 
-    if (tableInited == 0) {
-	InitHashTables();
-    }
     if ((hashPtr=Tcl_FindHashEntry(&defaultTable, (char*)tkwin)) == NULL) {
 	return NULL;
     }
@@ -459,10 +541,6 @@ static void SetDefaultStyle(diTypePtr, tkwin, stylePtr)
     StyleInfo * infoPtr;
     StyleLink * newPtr;
     int isNew;
-
-    if (tableInited == 0) {
-	InitHashTables();
-    }
 
     newPtr = (StyleLink *)ckalloc(sizeof(StyleLink));
     newPtr->diTypePtr = diTypePtr;
@@ -517,10 +595,6 @@ TixGetDefaultDItemStyle(ddPtr, diTypePtr, iPtr, oldStylePtr)
     Tix_DItemStyle* stylePtr;
     int isNew;
 
-    if (tableInited  == 0) {
-	InitHashTables();
-    }
-
     stylePtr = FindDefaultStyle(diTypePtr, ddPtr->tkwin);
     if (stylePtr == NULL) {
 	/*
@@ -529,9 +603,10 @@ TixGetDefaultDItemStyle(ddPtr, diTypePtr, iPtr, oldStylePtr)
 	Tcl_DStringInit(&dString);
 	Tcl_DStringAppend(&dString, "style", 5);
 	Tcl_DStringAppend(&dString, Tk_PathName(ddPtr->tkwin),
-	    strlen(Tk_PathName(ddPtr->tkwin)));
+		(int) strlen(Tk_PathName(ddPtr->tkwin)));
 	Tcl_DStringAppend(&dString, ":", 1);
-	Tcl_DStringAppend(&dString, diTypePtr->name, strlen(diTypePtr->name));
+	Tcl_DStringAppend(&dString, diTypePtr->name,
+		(int) strlen(diTypePtr->name));
 
 	/*
 	 * Create the new style
@@ -562,10 +637,6 @@ void Tix_SetDefaultStyleTemplate(tkwin, tmplPtr)
     StyleInfo * infoPtr;
     StyleLink * linkPtr;
     int isNew;
-
-    if (tableInited == 0) {
-	InitHashTables();
-    }
 
     hashPtr=Tcl_CreateHashEntry(&defaultTable, (char*)tkwin, &isNew);
     if (!isNew) {
@@ -609,35 +680,40 @@ static Tix_DItemStyle*
 GetDItemStyle(ddPtr, diTypePtr, styleName, isNew_ret)
     Tix_DispData * ddPtr;
     Tix_DItemInfo * diTypePtr;
-    char * styleName;
+    CONST84 char * styleName;
     int * isNew_ret;
 {
     Tcl_HashEntry *hashPtr;
-    int isNew;
+    int isNew, i;
     Tix_DItemStyle * stylePtr;
 
-    if (tableInited == 0) {
-	InitHashTables();
-    }
-
-    hashPtr = Tcl_CreateHashEntry(&styleTable, styleName, &isNew);
+    hashPtr = Tcl_CreateHashEntry(GetStyleTable(ddPtr->interp),
+            styleName, &isNew);
     if (!isNew) {
 	stylePtr = (Tix_DItemStyle *)Tcl_GetHashValue(hashPtr);
-    }
-    else {
+    } else {
 	stylePtr = diTypePtr->styleCreateProc(ddPtr->interp,
-	    ddPtr->tkwin, diTypePtr, styleName);
+	        ddPtr->tkwin, diTypePtr, (char *) styleName);
 	stylePtr->base.styleCmd = Tcl_CreateCommand(ddPtr->interp,
-	    styleName, StyleCmd, (ClientData)stylePtr, StyleCmdDeletedProc);
+	        styleName, StyleCmd, (ClientData)stylePtr,
+                StyleCmdDeletedProc);
 	stylePtr->base.interp 	 = ddPtr->interp;
 	stylePtr->base.tkwin  	 = ddPtr->tkwin;
 	stylePtr->base.diTypePtr = diTypePtr;
-	stylePtr->base.name      = (char*)tixStrDup(styleName);
+	stylePtr->base.name      = tixStrDup(styleName);
 	stylePtr->base.pad[0] 	 = 0;
 	stylePtr->base.pad[1] 	 = 0;
 	stylePtr->base.anchor 	 = TK_ANCHOR_CENTER;
 	stylePtr->base.refCount  = 0;
 	stylePtr->base.flags     = 0;
+        for (i=0; i<4; i++) {
+            stylePtr->base.colors[i].bg = NULL;
+            stylePtr->base.colors[i].fg = NULL;
+            stylePtr->base.colors[i].backGC= None;
+            stylePtr->base.colors[i].foreGC = None;
+            stylePtr->base.colors[i].anchorGC = None;
+        }
+
 	Tcl_InitHashTable(&stylePtr->base.items, TCL_ONE_WORD_KEYS);
 
 	Tcl_SetHashValue(hashPtr, (char*)stylePtr);
@@ -646,22 +722,23 @@ GetDItemStyle(ddPtr, diTypePtr, styleName, isNew_ret)
     if (isNew_ret != NULL) {
 	* isNew_ret = isNew;
     }
+
     return stylePtr;
 }
 
-static Tix_DItemStyle* FindStyle(styleName)
-    char *styleName;
+static Tix_DItemStyle *
+FindStyle(styleName, interp)
+    CONST84 char *styleName;
+    Tcl_Interp *interp;		/* Current interpreter. */
 {
+    Tix_DItemStyle* retval = NULL;
     Tcl_HashEntry *hashPtr;
 
-    if (tableInited == 0) {
-	InitHashTables();
-    }
-    if ((hashPtr=Tcl_FindHashEntry(&styleTable, styleName)) == NULL) {
-	return NULL;
+    if ((hashPtr=Tcl_FindHashEntry(GetStyleTable(interp), styleName))!= NULL) {
+        retval = (Tix_DItemStyle *)Tcl_GetHashValue(hashPtr);
     }
 
-    return (Tix_DItemStyle *)Tcl_GetHashValue(hashPtr);
+    return retval;
 }
 
 /*----------------------------------------------------------------------
@@ -673,7 +750,8 @@ static Tix_DItemStyle* FindStyle(styleName)
  *----------------------------------------------------------------------
  */
 
-void TixDItemStyleChanged(diTypePtr, stylePtr)
+void
+TixDItemStyleChanged(diTypePtr, stylePtr)
     Tix_DItemInfo * diTypePtr;
     Tix_DItemStyle * stylePtr;
 {
@@ -755,16 +833,6 @@ ListDeleteAll(stylePtr)
     }
 }
 
-static void
-InitHashTables()
-{
-    if (tableInited == 0) {
-	Tcl_InitHashTable(&styleTable, TCL_STRING_KEYS);
-	Tcl_InitHashTable(&defaultTable, TCL_ONE_WORD_KEYS);
-	tableInited = 1;
-    }
-}
-
 /*
  *--------------------------------------------------------------
  *
@@ -795,12 +863,11 @@ DefWindowStructureProc(clientData, eventPtr)
     if (eventPtr->type != DestroyNotify) {
 	return;
     }
-    if (tableInited == 0) {
-	InitHashTables();
-    }
+
     if ((hashPtr=Tcl_FindHashEntry(&defaultTable, (char*)tkwin)) == NULL) {
 	return;
     }
+
     infoPtr = (StyleInfo *)Tcl_GetHashValue(hashPtr);
     for (linkPtr = infoPtr->linkHead; linkPtr; ) {
 	toFree = linkPtr;
@@ -875,7 +942,7 @@ static int DItemStyleParseProc(clientData, interp, tkwin, value, widRec,offset)
     ClientData clientData;
     Tcl_Interp *interp;
     Tk_Window tkwin;
-    char *value;
+    CONST84 char *value;
     char *widRec;		/* Must point to a valid Tix_DItem struct */
     int offset;
 {
@@ -883,10 +950,6 @@ static int DItemStyleParseProc(clientData, interp, tkwin, value, widRec,offset)
     Tix_DItemStyle ** ptr = (Tix_DItemStyle **)(widRec + offset);
     Tix_DItemStyle  * oldPtr = *ptr;
     Tix_DItemStyle  * newPtr;
-
-    if (tableInited  == 0) {
-	InitHashTables();
-    }
 
     if (value == NULL || strlen(value) == 0) {
 	/*
@@ -906,7 +969,7 @@ static int DItemStyleParseProc(clientData, interp, tkwin, value, widRec,offset)
 	    newPtr = NULL;
 	}
     } else {
-	if ((newPtr = FindStyle(value)) == NULL) {
+	if ((newPtr = FindStyle(value, interp)) == NULL) {
 	    goto not_found;
 	}
 	if (newPtr->base.flags & TIX_STYLE_DELETED) {
@@ -948,5 +1011,60 @@ static char *DItemStylePrintProc(clientData, tkwin, widRec,offset, freeProcPtr)
 	return stylePtr->base.name;
     } else {
 	return 0;
+    }
+}
+
+void
+TixDItemStyleConfigureGCs(style)
+    Tix_DItemStyle *style;
+{
+    TixColorStyle * stylePtr = (TixColorStyle *)style;
+    XGCValues gcValues;
+    GC newGC;
+    int i;
+
+    gcValues.graphics_exposures = False;
+    for (i=0; i<4; i++) {
+	/*
+         * Foreground GC
+         */
+
+	gcValues.background = stylePtr->colors[i].bg->pixel;
+	gcValues.foreground = stylePtr->colors[i].fg->pixel;
+	newGC = Tk_GetGC(stylePtr->tkwin,
+	    GCForeground|GCBackground|GCGraphicsExposures, &gcValues);
+
+	if (stylePtr->colors[i].foreGC != None) {
+	    Tk_FreeGC(Tk_Display(stylePtr->tkwin),
+		stylePtr->colors[i].foreGC);
+	}
+	stylePtr->colors[i].foreGC = newGC;
+
+	/*
+         * Background GC
+         */
+
+	gcValues.foreground = stylePtr->colors[i].bg->pixel;
+	newGC = Tk_GetGC(stylePtr->tkwin,
+	    GCForeground|GCGraphicsExposures, &gcValues);
+
+	if (stylePtr->colors[i].backGC != None) {
+	    Tk_FreeGC(Tk_Display(stylePtr->tkwin),
+		stylePtr->colors[i].backGC);
+	}
+	stylePtr->colors[i].backGC = newGC;
+
+        /*
+         * Anchor GC
+         */
+
+        newGC = Tix_GetAnchorGC(stylePtr->tkwin,
+                stylePtr->colors[i].bg);
+
+	if (stylePtr->colors[i].anchorGC != None) {
+	    Tk_FreeGC(Tk_Display(stylePtr->tkwin),
+		stylePtr->colors[i].anchorGC);
+	}
+	stylePtr->colors[i].anchorGC = newGC;
     }
 }

@@ -1,8 +1,13 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: Meter.tcl,v 1.3 2001/12/09 05:04:02 idiscovery Exp $
+#
 # Meter.tcl --
 #
 #	Implements the tixMeter widget
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -121,4 +126,12 @@ proc tixMeter:config-text {w value} {
     set data(-text) $value
     tixMeter:Update $w
 }
+
+proc tixMeter:config-fillcolor {w value} {
+    upvar #0 $w data
+
+    set data(-fillcolor) $value
+    tixMeter:Update $w
+}
+  
 

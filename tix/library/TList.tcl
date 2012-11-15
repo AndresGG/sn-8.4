@@ -1,15 +1,23 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: TList.tcl,v 1.6 2002/01/24 09:13:58 idiscovery Exp $
+#
 # TList.tcl --
 #
 #	This file defines the default bindings for Tix Tabular Listbox
 #	widgets.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
 
-
+global tkPriv
+if {![llength [info globals tkPriv]]} {
+    tk::unsupported::ExposePrivateVariable tkPriv
+}
 
 #--------------------------------------------------------------------------
 # tkPriv elements used in this file:
@@ -99,6 +107,16 @@ proc tixTListBind {} {
     tixBind TixTList <space> {
 	tixTList:Space %W 
     }
+    #
+    # Don't use tixBind because %A causes Tk 8.3.2 to crash
+    #
+    bind TixTList <MouseWheel> {
+        if {"[%W cget -orient]" == "vertical"} {
+            %W xview scroll [expr {- (%D / 120) * 4}] units
+        } else {
+            %W yview scroll [expr {- (%D / 120) * 2}] units
+        }
+    }
 }
 
 #----------------------------------------------------------------------
@@ -113,7 +131,7 @@ proc tixTList:Button-1 {w x y} {
     if {[$w cget -state] == "disabled"} {
 	return
     }
-    if [$w cget -takefocus] {
+    if {[$w cget -takefocus]} {
 	focus $w
     }
     case [tixTList:GetState $w] {
@@ -136,7 +154,7 @@ proc tixTList:Shift-Button-1 {w x y} {
     if {[$w cget -state] == "disabled"} {
 	return
     }
-    if [$w cget -takefocus] {
+    if {[$w cget -takefocus]} {
 	focus $w
     }
     case [tixTList:GetState $w] {
@@ -159,7 +177,7 @@ proc tixTList:Control-Button-1 {w x y} {
     if {[$w cget -state] == "disabled"} {
 	return
     }
-    if [$w cget -takefocus] {
+    if {[$w cget -takefocus]} {
 	focus $w
     }
     case [tixTList:GetState $w] {
@@ -386,6 +404,17 @@ proc tixTList:Space {w} {
 proc tixTList:GetState {w} {
     global $w:priv:state
 
+    if {[info exists $w:priv:state]} {
+        #
+        # If the app has changed the selectmode, reset the state to the
+        # original state.
+        #
+        set type [string index [$w cget -selectmode] 0]
+        if {"[string index [set $w:priv:state] 0]" != "$type"} {
+            unset $w:priv:state
+        }
+    }
+
     if {![info exists $w:priv:state]} {
 	case [$w cget -selectmode] {
 	    single {
@@ -436,6 +465,7 @@ proc tixTList:GoState-s1 {w x y} {
     set ent [$w nearest $x $y]
     if {$ent != ""} {
 	$w anchor set $ent
+        $w see $ent
     }
     tixTList:GoState s2 $w
 }
@@ -457,6 +487,7 @@ proc tixTList:GoState-s4 {w x y} {
     set ent [$w nearest $x $y]
     if {$ent != ""} {
 	$w anchor set $ent
+        $w see $ent
     }
 }
 
@@ -545,6 +576,7 @@ proc tixTList:GoState-b1 {w x y} {
     set ent [$w nearest $x $y]
     if {$ent != ""} {
 	$w anchor set $ent
+        $w see $ent
 	$w selection clear
 	$w selection set $ent
 	tixTList:CallBrowseCmd $w $ent
@@ -569,6 +601,7 @@ proc tixTList:GoState-b4 {w x y} {
     set ent [$w nearest $x $y]
     if {$ent != ""} {
 	$w anchor set $ent
+        $w see $ent
 	$w selection clear
 	$w selection set $ent
 	tixTList:CallBrowseCmd $w $ent
@@ -664,6 +697,7 @@ proc tixTList:GoState-m1 {w x y} {
     set ent [$w nearest $x $y]
     if {$ent != ""} {
 	$w anchor set $ent
+        $w see $ent
 	$w selection clear
 	$w selection set $ent
 	tixTList:CallBrowseCmd $w $ent
@@ -710,6 +744,7 @@ proc tixTList:GoState-m7 {w x y} {
     if {$from == ""} {
 	set from $to
 	$w anchor set $from
+        $w see $from
     }
     if {$to != ""} {
 	$w selection clear
@@ -749,6 +784,7 @@ proc tixTList:GoState-e1 {w x y} {
     set ent [$w nearest $x $y]
     if {$ent != ""} {
 	$w anchor set $ent
+        $w see $ent
 	$w selection clear
 	$w selection set $ent
 	tixTList:CallBrowseCmd $w $ent
@@ -795,6 +831,7 @@ proc tixTList:GoState-e7 {w x y} {
     if {$from == ""} {
 	set from $to
 	$w anchor set $from
+        $w see $from
     }
     if {$to != ""} {
 	$w selection clear
@@ -818,8 +855,9 @@ proc tixTList:GoState-e10 {w x y} {
     if {$ent != ""} {
 	if {[$w info anchor] == ""} {
 	    $w anchor set $ent
+	    $w see $ent
 	}
-	if [$w selection includes $ent] {
+	if {[$w selection includes $ent]} {
 	    $w selection clear $ent
 	} else {
 	    $w selection set $ent
@@ -839,86 +877,6 @@ proc tixTList:GoState-xm7 {w x y} {
     }
     tixTList:GoState e0 $w
 }
-
-#----------------------------------------------------------------------
-#	HODGE PODGE
-#----------------------------------------------------------------------
-
-proc tixTList:GoState-12 {w x y} {
-    tkCancelRepeat
-    tixTList:GoState 5 $w $x $y 
-}
-
-proc tixTList:GoState-13 {w ent oldEnt} {
-    global tkPriv
-    set tkPriv(tix,indicator) $ent
-    set tkPriv(tix,oldEnt)    $oldEnt
-    tixTList:IndicatorCmd $w <Arm> $ent
-}
-
-proc tixTList:GoState-14 {w x y} {
-    global tkPriv
-
-    if [tixTList:InsideArmedIndicator $w $x $y] {
-	$w anchor set $tkPriv(tix,indicator)
-	$w select clear
-	$w select set $tkPriv(tix,indicator)
-	tixTList:IndicatorCmd $w <Activate> $tkPriv(tix,indicator)
-    } else {
-	tixTList:IndicatorCmd $w <Disarm>   $tkPriv(tix,indicator)
-    }
-
-    unset tkPriv(tix,indicator)
-    tixTList:GoState 0 $w
-}
-
-proc tixTList:GoState-16 {w ent} {
-    if {$ent == ""} {
-	return
-    }
-    if {[$w cget -selectmode] != "single"} {
-	tixTList:Select $w $ent
-	tixTList:Browse $w $ent
-    }
-}
-
-proc tixTList:GoState-18 {w} {
-    global tkPriv
-    tkCancelRepeat
-    tixTList:GoState 6 $w $tkPriv(x) $tkPriv(y) 
-}
-
-proc tixTList:GoState-20 {w x y} {
-    global tkPriv
-
-    if {![tixTList:InsideArmedIndicator $w $x $y]} {
-	tixTList:GoState 21 $w $x $y
-    } else {
-	tixTList:IndicatorCmd $w <Arm> $tkPriv(tix,indicator)
-    }
-}
-
-proc tixTList:GoState-21 {w x y} {
-    global tkPriv
-
-    if {[tixTList:InsideArmedIndicator $w $x $y]} {
-	tixTList:GoState 20 $w $x $y
-    } else {
-	tixTList:IndicatorCmd $w <Disarm> $tkPriv(tix,indicator)
-    }
-}
-
-proc tixTList:GoState-22 {w} {
-    global tkPriv
-
-    if {$tkPriv(tix,oldEnt) != ""} {
-	$w anchor set $tkPriv(tix,oldEnt)
-    } else {
-	$w anchor clear
-    }
-    tixTList:GoState 0 $w
-}
-
 
 #----------------------------------------------------------------------
 #			callback actions

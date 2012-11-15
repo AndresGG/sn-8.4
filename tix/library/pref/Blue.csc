@@ -1,3 +1,6 @@
+#
+# $Id: Blue.csc,v 1.2 2000/10/12 01:59:28 idiscovery Exp $
+#
 proc tixPref:SetScheme-Color:Blue {} {
 
     global tixOption
@@ -70,7 +73,7 @@ option add *Scrollbar.borderWidth		1 $tixOption(prioLevel)
 option add *Scrollbar.width			15 $tixOption(prioLevel)
 option add *Text.background		$tixOption(input1_bg) $tixOption(prioLevel)
 option add *Text.relief		sunken $tixOption(prioLevel)
-option add *TixBalloon*background 			"#ffff60" $tixOption(prioLevel)
+option add *TixBalloon*background 			#ffff60 $tixOption(prioLevel)
 option add *TixBalloon*foreground 			black $tixOption(prioLevel)
 option add *TixBalloon.background 			black $tixOption(prioLevel)
 option add *TixBalloon*Label.anchor 			w $tixOption(prioLevel)
@@ -238,7 +241,7 @@ option add *Scrollbar.borderWidth		1 $tixOption(prioLevel)
 option add *Scrollbar.width			15 $tixOption(prioLevel)
 option add *Text.background		$tixOption(input1_bg) $tixOption(prioLevel)
 option add *Text.relief		sunken $tixOption(prioLevel)
-option add *TixBalloon*background 			"#ffff60" $tixOption(prioLevel)
+option add *TixBalloon*background 			#ffff60 $tixOption(prioLevel)
 option add *TixBalloon*foreground 			black $tixOption(prioLevel)
 option add *TixBalloon.background 			black $tixOption(prioLevel)
 option add *TixBalloon*Label.anchor 			w $tixOption(prioLevel)

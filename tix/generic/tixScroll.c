@@ -1,3 +1,6 @@
+
+/*	$Id: tixScroll.c,v 1.2 2004/03/28 02:44:57 hobbs Exp $	*/
+
 /*
  * tixScroll.c -- Handle all the mess of Tk scroll bars
  *
@@ -119,7 +122,7 @@ int Tix_SetScrollBarView(interp, siPtr, argc, argv, compat)
     Tcl_Interp *interp;		/* Current interpreter. */
     Tix_ScrollInfo * siPtr;
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
     int compat;			/* compatibility mode */
 {
     Tix_IntScrollInfo*    isiPtr = (Tix_IntScrollInfo*)   siPtr;

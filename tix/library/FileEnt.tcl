@@ -1,8 +1,14 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: FileEnt.tcl,v 1.7 2004/03/28 02:44:57 hobbs Exp $
+#
 # FileEnt.tcl --
 #
 # 	TixFileEntry Widget: an entry box for entering filenames.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -40,11 +46,9 @@ tixWidgetClass tixFileEntry {
     -default {
 	{*frame.borderWidth		2}
 	{*frame.relief			sunken}
-	{*Label.font         -Adobe-Helvetica-Bold-R-Normal--*-120-*-*-*-*-*-*}
 	{*Button.highlightThickness	0}
 	{*Entry.highlightThickness	0}
 	{*Entry.borderWidth 		0}
-	{*Entry.background 		#c3c3c3}
     }
 }
 
@@ -54,9 +58,9 @@ proc tixFileEntry:InitWidgetRec {w} {
     tixChainMethod $w InitWidgetRec
     set data(varInited)	  0
 
-	if {$data(-filebitmap) == ""} {
-	    set data(-filebitmap) [tix getbitmap openfile]
-	}
+    if {$data(-filebitmap) eq ""} {
+	set data(-filebitmap) [tix getbitmap openfile]
+    }
 }
 
 proc tixFileEntry:ConstructFramedWidget {w frame} {
@@ -66,7 +70,7 @@ proc tixFileEntry:ConstructFramedWidget {w frame} {
 
     set data(w:entry)  [entry  $frame.entry]
     set data(w:button) [button $frame.button -bitmap $data(-filebitmap) \
-	-takefocus 0]
+			    -takefocus 0]
     set data(entryfg) [$data(w:entry) cget -fg]
 
     pack $data(w:button) -side right -fill both
@@ -78,23 +82,23 @@ proc tixFileEntry:SetBindings {w} {
 
     tixChainMethod $w SetBindings
 
-    $data(w:button) config -command "tixFileEntry:OpenFile $w"
+    $data(w:button) config -command [list tixFileEntry:OpenFile $w]
     tixSetMegaWidget $data(w:entry) $w
 
     # If user press <return>, verify the value and call the -command
     #
-    bind $data(w:entry) <Return> "tixFileEntry:invoke $w"
+    bind $data(w:entry) <Return> [list tixFileEntry:invoke $w]
     bind $data(w:entry) <KeyPress> {
-	if {[set [tixGetMegaWidget %W](-selectmode)] == "immediate"} {
+	if {[set [tixGetMegaWidget %W](-selectmode)] eq "immediate"} {
 	    tixFileEntry:invoke [tixGetMegaWidget %W]
 	}
     }
     bind $data(w:entry) <FocusOut>  {
-        if {"%d" == "NotifyNonlinear" || "%d" == "NotifyNonlinearVirtual"} {
+        if {"%d" eq "NotifyNonlinear" || "%d" eq "NotifyNonlinearVirtual"} {
 	    tixFileEntry:invoke [tixGetMegaWidget %W]
         }
     }
-    bind $w <FocusIn> "focus $data(w:entry)"
+    bind $w <FocusIn> [list focus $data(w:entry)]
 }
 
 #----------------------------------------------------------------------
@@ -103,18 +107,14 @@ proc tixFileEntry:SetBindings {w} {
 proc tixFileEntry:config-state {w value} {
     upvar #0 $w data
 
-    if {$value == "normal"} {
+    if {$value eq "normal"} {
 	$data(w:button) config -state $value
 	$data(w:entry)  config -state $value -fg $data(entryfg)
-	catch {
-	    $data(w:label)  config -fg $data(entryfg)
-	}
+	catch {$data(w:label)  config -fg $data(entryfg)}
     } else {
 	$data(w:button) config -state $value
 	$data(w:entry)  config -state $value -fg $data(-disabledforeground)
-	catch {
-	    $data(w:label)  config -fg $data(-disabledforeground)
-	}
+	catch {$data(w:label)  config -fg $data(-disabledforeground)}
     }
 
     return ""
@@ -127,7 +127,7 @@ proc tixFileEntry:config-value {w value} {
 proc tixFileEntry:config-variable {w arg} {
     upvar #0 $w data
 
-    if [tixVariable:ConfigVariable $w $arg] {
+    if {[tixVariable:ConfigVariable $w $arg]} {
        # The value of data(-value) is changed if tixVariable:ConfigVariable 
        # returns true
        tixFileEntry:SetValue $w $data(-value)
@@ -144,7 +144,7 @@ proc tixFileEntry:config-variable {w arg} {
 proc tixFileEntry:invoke {w} {
     upvar #0 $w data
 
-    if {[catch {$data(w:entry) index sel.first}] == 0} {
+    if {![catch {$data(w:entry) index sel.first}]} {
 	# THIS ENTRY OWNS SELECTION --> TURN IT OFF
 	#
 	$data(w:entry) select from end
@@ -157,17 +157,17 @@ proc tixFileEntry:invoke {w} {
 proc tixFileEntry:filedialog {w args} {
     upvar #0 $w data
 
-    if {$args == ""} {
-	return [tix filedialog $data(-dialogtype)]
-    } else {
+    if {[llength $args]} {
 	return [eval [tix filedialog $data(-dialogtype)] $args]
+    } else {
+	return [tix filedialog $data(-dialogtype)]
     }
 }
 
 proc tixFileEntry:update {w} {
     upvar #0 $w data
 
-    if {"x[$data(w:entry) get]" != "x$data(-value)"} {
+    if {[$data(w:entry) get] ne $data(-value)} {
 	tixFileEntry:invoke $w
     }
 }
@@ -181,15 +181,50 @@ proc tixFileEntry:OpenFile {w} {
 	 uplevel #0 $data(-activatecmd)
      }
 
-     set filedlg [tix filedialog $data(-dialogtype)]
+     switch -- $data(-dialogtype) tk_chooseDirectory {
+	 set args [list -parent [winfo toplevel $w]]
+	 if {[set initial $data(-value)] != ""} {
+	     lappend args -initialdir $data(value)
+	 }
+	 set retval [eval [linsert $args 0 tk_chooseDirectory]]
 
+	 if {$retval != ""} {tixFileEntry:SetValue $w [tixFSNative $retval]}
+     } tk_getOpenFile - tk_getSaveFile {
+	 set args [list -parent [winfo toplevel $w]]
 
-     $filedlg config -parent [winfo toplevel $w] \
-	 -command "tixFileEntry:FileDlgCallback $w"
+	 if {[set initial [$data(w:entry) get]] != ""} {
+	     switch -glob -- $initial *.py {
+		 set types [list {"Python Files" {.py .pyw}} {"All Files" *}]
+	     } *.txt {
+		 set types [list {"Text Files" .txt} {"All Files" *}]
+	     } *.tcl {
+		 set types [list {"Tcl Files" .tcl} {"All Files" *}]
+	     } * - default {
+		 set types [list {"All Files" *}]
+	     }
+	     if {[file isfile $initial]} {
+		 lappend args -initialdir [file dir $initial] \
+			 -initialfile $initial
+	     } elseif {[file isdir $initial]} {
+		 lappend args -initialdir $initial
+	     }
+	 } else {
+	     set types [list {"All Files" *}]
+	 }
+	 lappend args -filetypes $types
 
-     focus $data(w:entry)
+	 set retval [eval $data(-dialogtype) $args]
+	 if {$retval != ""} {tixFileEntry:SetValue $w [tixFSNative $retval]}
+     } default {
+	 set filedlg [tix filedialog $data(-dialogtype)]
 
-     $filedlg popup
+	 $filedlg config -parent [winfo toplevel $w] \
+		 -command [list tixFileEntry:FileDlgCallback $w]
+
+	 focus $data(w:entry)
+
+	 $filedlg popup
+     }
 }
 
 proc tixFileEntry:FileDlgCallback {w args} {
@@ -201,11 +236,11 @@ proc tixFileEntry:FileDlgCallback {w args} {
 proc tixFileEntry:SetValue {w value} {
     upvar #0 $w data
 
-    if {$data(-validatecmd) != ""} {
+    if {[llength $data(-validatecmd)]} {
 	set value [tixEvalCmdBinding $w $data(-validatecmd) "" $value]
     }
 
-    if {$data(-state) == "normal"} {
+    if {$data(-state) eq "normal"} {
 	$data(w:entry) delete 0 end
 	$data(w:entry) insert 0 $value
 	$data(w:entry) xview end
@@ -215,7 +250,7 @@ proc tixFileEntry:SetValue {w value} {
 
     tixVariable:UpdateVariable $w
 
-    if {$data(-command) != "" && !$data(-disablecallback)} {
+    if {[llength $data(-command)] && !$data(-disablecallback)} {
 	if {![info exists data(varInited)]} {
 	    set bind(specs) ""
 	    tixEvalCmdBinding $w $data(-command) bind $value

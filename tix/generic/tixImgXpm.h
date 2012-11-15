@@ -1,3 +1,6 @@
+
+/*	$Id: tixImgXpm.h,v 1.1.1.1 2000/05/17 11:08:42 idiscovery Exp $	*/
+
 /*
  * tixImgXpm.h --
  *
@@ -14,9 +17,8 @@
 #ifndef _TIX_IMG_XPM_H_
 #define _TIX_IMG_XPM_H_
 
-#ifdef BUILD_tix
-# undef TCL_STORAGE_CLASS
-# define TCL_STORAGE_CLASS DLLEXPORT
+#ifndef _CTYPE_H_
+#include <ctype.h>
 #endif
 
 /*
@@ -132,8 +134,5 @@ EXTERN void		TixpXpmDisplay _ANSI_ARGS_((ClientData clientData,
 			    Display *display, Drawable drawable,
 			    int imageX, int imageY, int width, int height,
 			    int drawableX, int drawableY));
-
-#undef TCL_STORAGE_CLASS
-#define TCL_STORAGE_CLASS DLLIMPORT
 
 #endif

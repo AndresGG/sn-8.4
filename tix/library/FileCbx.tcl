@@ -1,10 +1,16 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: FileCbx.tcl,v 1.5 2004/03/28 02:44:57 hobbs Exp $
+#
 # tixFileCombobox --
 #
 #	A combobox widget for entering file names, directory names, file
 #	patterns, etc.
 #
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -39,8 +45,8 @@ proc tixFileComboBox:InitWidgetRec {w} {
 
     tixChainMethod $w InitWidgetRec
 
-    if ![string comp $data(-directory) ""] {
-	set data(-directory) [tixFSPWD]
+    if {$data(-directory) eq ""} {
+	set data(-directory) [pwd]
     }
 }
 
@@ -56,7 +62,7 @@ proc tixFileComboBox:SetBindings {w} {
     upvar #0 $w data
 
     tixChainMethod $w SetBindings
-    $data(w:combo) config -command "tixFileComboBox:OnComboCmd $w"
+    $data(w:combo) config -command [list tixFileComboBox:OnComboCmd $w]
 }
 
 proc tixFileComboBox:OnComboCmd {w args} {
@@ -64,17 +70,19 @@ proc tixFileComboBox:OnComboCmd {w args} {
 
     set text [string trim [tixEvent value]]
 
-    set fInfo [tixFSNorm [tixFSVPath $data(-directory)] \
-	$text $data(-defaultfile) "" errorMsg]
-    if [info exists errorMsg] {
-
+    set path [tixFSJoin $data(-directory) $text]
+    if {[file isdirectory $path]} {
+	set path [tixFSJoin $path $data(-defaultfile)]
+	set tail $data(-defaultfile)
     } else {
-	tixSetSilent $data(w:combo) [lindex $fInfo 0]
-	if [string compare $data(-command) ""] {
-	    set bind(specs) {%V}
-	    set bind(%V)    $fInfo
-	    tixEvalCmdBinding $w $data(-command) bind $fInfo
-	}
+	set tail [file tail $path]
+    }
+    set norm [tixFSNormalize $path]
+    tixSetSilent $data(w:combo) $norm
+    if {[llength $data(-command)]} {
+	set bind(specs) {%V}
+	set bind(%V)    [list $norm $path $tail ""]
+	tixEvalCmdBinding $w $data(-command) bind $bind(%V)
     }
 }
 
@@ -87,7 +95,7 @@ proc tixFileComboBox:config-text {w val} {
 proc tixFileComboBox:config-directory {w val} {
     upvar #0 $w data
 
-    set data(-directory) [tixFSNormDir $val]
+    set data(-directory) [tixFSNormalize $val]
     return $data(-directory)
 }
 

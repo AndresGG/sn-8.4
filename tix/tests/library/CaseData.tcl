@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: CaseData.tcl,v 1.4 2004/03/28 02:44:57 hobbs Exp $
+#
 # CaseData.tcl --
 #
 #	Contains data for test cases
@@ -14,7 +18,7 @@
 #	home directories
 #
 proc GetHomeDirs {} {
-    set tryList {root ftp admin operator uucp adm man john ioi}
+    set tryList {root ftp admin operator man john ioi}
     if [catch {
 	lappend tryList [exec whoami]
     }] {
@@ -47,7 +51,7 @@ proc GetCases_FsNormDir {} {
 
     if [tixStrEq [tix platform] unix] {
 	#   PATHNAME to TEST		expected result   Causes error for
-	#						    tixFSNormDir?
+	#						    file normalize?
 	#----------------------------------------------------------------
 	set list {
 	    {.					""		1}

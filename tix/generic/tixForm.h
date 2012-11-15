@@ -1,3 +1,6 @@
+
+/*	$Id: tixForm.h,v 1.2 2004/03/28 02:44:56 hobbs Exp $	*/
+
 /*
  * tixForm.h --
  *
@@ -37,11 +40,6 @@
 #define ATT_GRID		1
 #define ATT_OPPOSITE		2
 #define ATT_PARALLEL		3
-
-#ifdef BUILD_tix
-# undef TCL_STORAGE_CLASS
-# define TCL_STORAGE_CLASS DLLEXPORT
-#endif
 
 /*
  * The following structures carry information about the client windows
@@ -121,7 +119,7 @@ typedef struct _MasterInfo {
 
 EXTERN int 		TixFm_Configure _ANSI_ARGS_((FormInfo *clientPtr,
 			    Tk_Window topLevel,
-			    Tcl_Interp* interp, int argc, char **argv));
+			    Tcl_Interp* interp, int argc, CONST84 char **argv));
 
 /* tixForm.c */
 EXTERN FormInfo * 	TixFm_GetFormInfo _ANSI_ARGS_((Tk_Window tkwin,
@@ -135,15 +133,11 @@ EXTERN void 		TixFm_DeleteMaster _ANSI_ARGS_((
 EXTERN void		TixFm_FreeMasterInfo _ANSI_ARGS_((
 			    ClientData clientData));
 EXTERN FormInfo * 	TixFm_FindClientPtrByName _ANSI_ARGS_((
-			    Tcl_Interp * interp, char * name,
+			    Tcl_Interp * interp, CONST84 char * name,
 			    Tk_Window topLevel));
 EXTERN void		TixFm_ForgetOneClient _ANSI_ARGS_((
 			    FormInfo *clientPtr));
 EXTERN void  		TixFm_Unlink _ANSI_ARGS_((FormInfo *clientPtr));
 EXTERN void  		TixFm_UnlinkFromMaster _ANSI_ARGS_((
 			    FormInfo *clientPtr));
-
-#undef TCL_STORAGE_CLASS
-#define TCL_STORAGE_CLASS DLLIMPORT
-
 #endif /* _TIX_FORM_H */

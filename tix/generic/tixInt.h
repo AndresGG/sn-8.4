@@ -3,12 +3,15 @@
  *
  *	Defines internal data types and functions used by the Tix library.
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000-2001 Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tixInt.h,v 1.7 2008/02/28 04:29:17 hobbs Exp $
  */
+
 #ifndef _TIX_INT_H_
 #define _TIX_INT_H_
 
@@ -18,11 +21,6 @@
 
 #ifndef _TIX_PORT_H_
 #include <tixPort.h>
-#endif
-
-#ifdef BUILD_tix
-# undef TCL_STORAGE_CLASS
-# define TCL_STORAGE_CLASS DLLEXPORT
 #endif
 
 /*----------------------------------------------------------------------
@@ -39,7 +37,8 @@
 #define TIX_DITEM_IMAGE			4
 
 /*
- * The flags for drawing DItems
+ * The following 12 values can be OR'ed to passed as the flags
+ * parameter to Tix_DItemDisplay().
  */
 
 #define TIX_DITEM_NORMAL_BG		(0x1 <<	 0)
@@ -53,17 +52,13 @@
 #define TIX_DITEM_FONT			(0x1 <<	 8)
 #define TIX_DITEM_PADX			(0x1 <<	 9)
 #define TIX_DITEM_PADY			(0x1 << 10)
+#define TIX_DITEM_ANCHOR                (0x1 << 11)
 
-#if  0
-    /*
-     * %bordercolor not used
-     */
-#define TIX_DITEM_BORDER_COLOR		(0x1 << 11)
-#define TIX_DITEM_BORDER_WIDTH		(0x1 << 12)
-#define TIX_DITEM_RELIEF		(0x1 << 13)
-#define TIX_DITEM_BOTTOM		(0x1 << 14)
-#define TIX_DITEM_RIGHT			(0x1 << 15)
-#endif
+#define TIX_DITEM_OTHER_BG \
+    (TIX_DITEM_ACTIVE_BG|TIX_DITEM_SELECTED_BG|TIX_DITEM_DISABLED_BG)
+
+#define TIX_DITEM_ALL_BG \
+    (TIX_DITEM_NORMAL_BG|TIX_DITEM_OTHER_BG)
 
 #define TIX_DONT_CALL_CONFIG		TK_CONFIG_USER_BIT
 
@@ -89,45 +84,36 @@ typedef struct Tix_DItemInfo		Tix_DItemInfo;
 typedef struct Tix_DispData		Tix_DispData;
 typedef struct Tix_StyleTemplate	Tix_StyleTemplate;
 
-typedef void		Tix_DItemCalculateSizeProc  _ANSI_ARGS_((
-			    Tix_DItem * iPtr));
-typedef char *		Tix_DItemComponentProc _ANSI_ARGS_((
-			    Tix_DItem * iPtr, int x, int y));
-typedef int		Tix_DItemConfigureProc _ANSI_ARGS_((
-			    Tix_DItem * iPtr, int argc, char ** argv,
-			    int flags));
-typedef Tix_DItem *	Tix_DItemCreateProc _ANSI_ARGS_((
-			    Tix_DispData * ddPtr,
-			    Tix_DItemInfo * diTypePtr));
-typedef void		Tix_DItemDisplayProc  _ANSI_ARGS_((
-			    Pixmap pixmap, GC gc, Tix_DItem * iPtr,
-			    int x, int y, int width, int height, int flag));
-typedef void		Tix_DItemFreeProc  _ANSI_ARGS_((Tix_DItem * diPtr));
-typedef void		Tix_DItemSizeChangedProc  _ANSI_ARGS_((
-			    Tix_DItem * iPtr));
+typedef void		Tix_DItemCalculateSizeProc(Tix_DItem * iPtr);
+typedef char *		Tix_DItemComponentProc(Tix_DItem * iPtr, int x, int y);
+typedef int		Tix_DItemConfigureProc(Tix_DItem * iPtr,
+	int argc, CONST84 char **argv, int flags);
+typedef Tix_DItem *	Tix_DItemCreateProc(Tix_DispData * ddPtr,
+	Tix_DItemInfo * diTypePtr);
+typedef void		Tix_DItemDisplayProc(Drawable drawable,
+	Tix_DItem * iPtr,
+	int x, int y, int width, int height,
+	int xOffset, int yOffset, int flag);
+typedef void		Tix_DItemFreeProc(Tix_DItem * diPtr);
+typedef void		Tix_DItemSizeChangedProc(Tix_DItem * iPtr);
 
-typedef void		Tix_DItemStyleChangedProc  _ANSI_ARGS_((
-			    Tix_DItem * iPtr));
-typedef void		Tix_DItemLostStyleProc	_ANSI_ARGS_((
-			    Tix_DItem * iPtr));
-typedef int		Tix_DItemStyleConfigureProc _ANSI_ARGS_((
-			    Tix_DItemStyle* style, int argc, char ** argv,
-			    int flags));
-typedef Tix_DItemStyle*	Tix_DItemStyleCreateProc _ANSI_ARGS_((
-			    Tcl_Interp * interp, Tk_Window tkwin,
-			    Tix_DItemInfo * diTypePtr, char * name));
-typedef void		Tix_DItemStyleFreeProc _ANSI_ARGS_((
-			    Tix_DItemStyle* style));
-typedef void		Tix_DItemStyleSetTemplateProc _ANSI_ARGS_((
-			    Tix_DItemStyle* style,
-			    Tix_StyleTemplate * tmplPtr));
+typedef void		Tix_DItemStyleChangedProc(Tix_DItem * iPtr);
+typedef void		Tix_DItemLostStyleProc(Tix_DItem * iPtr);
+typedef int		Tix_DItemStyleConfigureProc(Tix_DItemStyle* style,
+	int argc, CONST84 char **argv, int flags);
+typedef Tix_DItemStyle*	Tix_DItemStyleCreateProc(Tcl_Interp * interp,
+	Tk_Window tkwin,
+	Tix_DItemInfo * diTypePtr, char * name);
+typedef void		Tix_DItemStyleFreeProc(Tix_DItemStyle* style);
+typedef void		Tix_DItemStyleSetTemplateProc(Tix_DItemStyle* style,
+	Tix_StyleTemplate * tmplPtr);
 
 /*
  * These are debugging routines
  */
 
-typedef int		Tix_DItemRefCountProc _ANSI_ARGS_(());
-typedef int		Tix_DItemStyleRefCountProc _ANSI_ARGS_(());
+typedef int		Tix_DItemRefCountProc();
+typedef int		Tix_DItemStyleRefCountProc();
 
 /*----------------------------------------------------------------------
  * Tix_DItemInfo --
@@ -241,7 +227,8 @@ typedef struct TixWindowItem		TixWindowItem;
     Tix_DItemInfo * diTypePtr; \
     Tix_DispData * ddPtr; \
     ClientData clientData; \
-    int size[2]			/* Size of this element */ \
+    int size[2];		/* Size of this element */ \
+    int selX, selY, selW, selH  /* Location of the selection highlight */
 
 struct TixBaseItem {
     ITEM_COMMON_MEMBERS;
@@ -269,26 +256,18 @@ struct TixBaseItem {
     Tix_DItemInfo * diTypePtr; \
     Tk_Anchor anchor;		/* Anchor information */ \
     char * name;		/* Name of this style */ \
-    int pad[2]			/* paddings */ 
-
-
-#if 0
-    Tix_Relief relief
-    /* %bordercolor not used */
-    int borderWidth; 
-    XColor * borderColor;	/* color of the border when it is displayed 
-				 * in "flat border" mode 
-				 */ 
-    GC borderGC
-#endif
-
-#define STYLE_COLOR_MEMBERS \
+    int pad[2];			/* paddings */ \
+    \
     struct { \
 	XColor * bg; \
 	XColor * fg; \
 	GC foreGC;   \
 	GC backGC;   \
+        GC anchorGC; \
     } colors[4]			/* colors and GC's for the four basic modes*/
+
+
+#define STYLE_COLOR_MEMBERS     /* Backwards-cimpatibility */
 
 struct TixBaseStyle {
     STYLE_COMMON_MEMBERS;
@@ -302,7 +281,6 @@ struct TixBaseStyle {
  */
 struct TixColorStyle {
     STYLE_COMMON_MEMBERS;
-    STYLE_COLOR_MEMBERS;
 };
 
 /*----------------------------------------------------------------------
@@ -347,7 +325,6 @@ struct TixImageTextItem {
 
 struct TixImageTextStyle {
     STYLE_COMMON_MEMBERS;
-    STYLE_COLOR_MEMBERS;
     int wrapLength;
     Tk_Justify justify;		/* Justification to use for multi-line text. */
     TixFont font;
@@ -377,7 +354,6 @@ struct TixImageItem {
 
 struct TixImageStyle {
     STYLE_COMMON_MEMBERS;
-    STYLE_COLOR_MEMBERS;
 };
 /*----------------------------------------------------------------------
  * TextItem --
@@ -394,7 +370,7 @@ struct TixTextItem {
 	/*-------------------------*/
 
     char * text;		/* Show descriptive text */
-    size_t numChars;		/* Size of text */
+    int numChars;		/* Size of text */
     int textW, textH;
     int underline;		/* Index of character to underline.  < 0 means
 				 * don't underline anything. */
@@ -402,7 +378,6 @@ struct TixTextItem {
 
 struct TixTextStyle {
     STYLE_COMMON_MEMBERS;
-    STYLE_COLOR_MEMBERS;
     int wrapLength;
     Tk_Justify justify;		/* Justification to use for multi-line text. */
     TixFont font;
@@ -462,6 +437,8 @@ union Tix_DItemStyle {
 #define TIX_WIDTH  0
 #define TIX_HEIGHT 1
 
+typedef struct _TixpSubRegion TixpSubRegion;
+
 /*----------------------------------------------------------------------
  * Tix_ArgumentList --
  * 
@@ -472,7 +449,7 @@ union Tix_DItemStyle {
 #define FIXED_SIZE 4
 typedef struct {
     int argc;
-    char ** argv;
+    CONST84 char **argv;
 } Tix_Argument;
 
 typedef struct {
@@ -557,7 +534,7 @@ struct _TixConfigSpec {
     unsigned int isStatic	: 1;
     unsigned int forceCall	: 1;
 
-    char * argvName;
+    char *argvName;
     char * defValue;
 
     char * dbName;		/* The additional parts of a */
@@ -580,37 +557,37 @@ typedef struct _Tix_ExportSpec {
 
 typedef struct _Tix_SubWidgetSpec {
     struct _Tix_SubWidgetSpec * next;
-    char * name;
+    CONST84 char * name;
     Tix_ExportSpec export;
 } Tix_SubWidgetSpec;
 
 typedef struct _Tix_StringLink {
     struct _Tix_StringLink *next;
-    char * string;
+    CONST84 char * string;
 } Tix_StringLink;
 
 typedef struct _Tix_SubwidgetDef {
     struct _TixSubwidgetDef * next;
-    char * spec;
-    char * value;
+    CONST84 char * spec;
+    CONST84 char * value;
 } Tix_SubwidgetDef;
 
 typedef struct _TixClassParseStruct {
-    char * alias;
-    char * ClassName;
-    char * configSpec;
-    char * def;
-    char * flag;
-    char * forceCall;
-    char * method;
-    char * readOnly;
-    char * isStatic;
-    char * superClass;
-    char * subWidget;
-    char * isVirtual;
+    CONST84 char * alias;
+    CONST84 char * ClassName;
+    CONST84 char * configSpec;
+    CONST84 char * def;
+    CONST84 char * flag;
+    CONST84 char * forceCall;
+    CONST84 char * method;
+    CONST84 char * readOnly;
+    CONST84 char * isStatic;
+    CONST84 char * superClass;
+    CONST84 char * subWidget;
+    CONST84 char * isVirtual;
 
     int	    optArgc;
-    char ** optArgv;
+    CONST84 char ** optArgv;
 } TixClassParseStruct;
 
 struct _TixClassRecord {
@@ -666,140 +643,145 @@ typedef struct _TixInterpState {
  *----------------------------------------------------------------------
  */
 
-EXTERN int		Tix_CallConfigMethod _ANSI_ARGS_((
+EXTERN int		Tix_CallConfigMethod(
+    Tcl_Interp *interp, TixClassRecord *cPtr,
+    CONST84 char * widRec, TixConfigSpec *spec, CONST84 char * value);
+EXTERN int		Tix_CallMethod(Tcl_Interp *interp,
+	CONST84 char *context, CONST84 char *widRec, CONST84 char *method,
+	int argc, CONST84 char **argv, int *foundPtr);
+EXTERN int		Tix_ChangeOneOption(
+    Tcl_Interp *interp, TixClassRecord *cPtr,
+    CONST84 char * widRec, TixConfigSpec *spec, CONST84 char * value,
+    int isDefault, int isInit);
+EXTERN int		Tix_ChangeOptions(
 			    Tcl_Interp *interp, TixClassRecord *cPtr,
-			    char * widRec, TixConfigSpec *spec, char * value));
-EXTERN int		Tix_CallMethod _ANSI_ARGS_((Tcl_Interp *interp,
-			    char *context, char *widRec, char *method,
-			    int argc, char **argv));
-EXTERN int		Tix_ChangeOneOption _ANSI_ARGS_((
-			    Tcl_Interp *interp, TixClassRecord *cPtr,
-			    char * widRec, TixConfigSpec *spec, char * value,
-			    int isDefault, int isInit));
-EXTERN int		Tix_ChangeOptions _ANSI_ARGS_((
-			    Tcl_Interp *interp, TixClassRecord *cPtr,
-			    char * widRec, int argc, char ** argv));
-EXTERN TixConfigSpec *	Tix_FindConfigSpecByName _ANSI_ARGS_((
+			    CONST84 char * widRec, int argc, CONST84 char **argv);
+EXTERN TixConfigSpec *	Tix_FindConfigSpecByName(
 			    Tcl_Interp * interp,
-			    TixClassRecord * cPtr, char * name));
-EXTERN char  *		Tix_FindMethod _ANSI_ARGS_((Tcl_Interp *interp,
-			    char *context, char *method));
-EXTERN char *		Tix_FindPublicMethod _ANSI_ARGS_((
+			    TixClassRecord * cPtr, CONST84 char * name);
+EXTERN CONST84 char  *	Tix_FindMethod(Tcl_Interp *interp,
+			    CONST84 char *context, CONST84 char *method);
+EXTERN char *		Tix_FindPublicMethod(
 			    Tcl_Interp *interp, TixClassRecord * cPtr, 
-			    char * method));
-EXTERN int		Tix_GetChars _ANSI_ARGS_((Tcl_Interp *interp,
-			    char *string, double *doublePtr));
-EXTERN char  *		Tix_GetConfigSpecFullName _ANSI_ARGS_((char *clasRec,
-			    char *flag));
-EXTERN char *		Tix_GetContext _ANSI_ARGS_((
-			    Tcl_Interp * interp, char * widRec));
-EXTERN char  *		Tix_GetMethodFullName _ANSI_ARGS_((char *context,
-			    char *method));
-EXTERN void		Tix_GetPublicMethods _ANSI_ARGS_((Tcl_Interp *interp,
-			    char *widRec, int *numMethods,
-			    char *** validMethods));
-EXTERN int		Tix_GetWidgetOption _ANSI_ARGS_((
+			    CONST84 char * method);
+EXTERN int		Tix_GetChars(Tcl_Interp *interp,
+			    CONST84 char *string, double *doublePtr);
+EXTERN CONST84 char  *	Tix_GetConfigSpecFullName(CONST84 char *clasRec,
+			    CONST84 char *flag);
+EXTERN CONST84 char *	Tix_GetContext(
+			    Tcl_Interp * interp, CONST84 char * widRec);
+EXTERN CONST84 char *	Tix_GetMethodFullName(CONST84 char *context,
+			    CONST84 char *method);
+EXTERN void		Tix_GetPublicMethods(Tcl_Interp *interp,
+			    CONST84 char *widRec, int *numMethods,
+			    char *** validMethods);
+EXTERN int		Tix_GetWidgetOption(
 			    Tcl_Interp *interp, Tk_Window tkwin,
-			    char *argvName, char *dbName, char *dbClass,
-			    char *defValue, int argc, char **argv,
-			    int type, char *ptr));
-EXTERN int		Tix_GetVar _ANSI_ARGS_((
+			    CONST84 char *argvName, CONST84 char *dbName, CONST84 char *dbClass,
+			    CONST84 char *defValue, int argc, CONST84 char **argv,
+			    int type, char *ptr);
+EXTERN int		Tix_GetVar(
 			    Tcl_Interp *interp, TixClassRecord *cPtr,
-			    char * widRec, char * flag));
-EXTERN int		Tix_QueryAllOptions _ANSI_ARGS_((
+			    CONST84 char * widRec, CONST84 char * flag);
+EXTERN int		Tix_QueryAllOptions(
 			    Tcl_Interp *interp, TixClassRecord * cPtr,
-			    char *widRec));
-EXTERN int		Tix_QueryOneOption _ANSI_ARGS_((
+			    CONST84 char *widRec);
+EXTERN int		Tix_QueryOneOption(
 			    Tcl_Interp *interp, TixClassRecord *cPtr,
-			    char *widRec, char *flag));
-EXTERN int		Tix_SuperClass _ANSI_ARGS_((Tcl_Interp *interp,
-			    char *widClass, char ** superClass_ret));
-EXTERN int		Tix_UnknownPublicMethodError _ANSI_ARGS_((
+			    CONST84 char *widRec, CONST84 char *flag);
+EXTERN int		Tix_SuperClass(Tcl_Interp *interp,
+			    CONST84 char *widClass, CONST84 char ** superClass_ret);
+EXTERN int		Tix_UnknownPublicMethodError(
 			    Tcl_Interp *interp, TixClassRecord * cPtr,
-			    char * widRec, char * method));
-EXTERN int		Tix_ValueMissingError _ANSI_ARGS_((Tcl_Interp *interp,
-			    char *spec));
-EXTERN void		Tix_AddDItemType _ANSI_ARGS_((
-			    Tix_DItemInfo * diTypePtr));
-EXTERN int		Tix_ConfigureInfo2 _ANSI_ARGS_((
+			    CONST84 char * widRec, CONST84 char * method);
+EXTERN int		Tix_ValueMissingError(Tcl_Interp *interp,
+			    CONST84 char *spec);
+EXTERN void		Tix_AddDItemType(
+			    Tix_DItemInfo * diTypePtr);
+EXTERN int		Tix_ConfigureInfo2(
 			    Tcl_Interp *interp, Tk_Window tkwin,
-			    char *entRec, Tk_ConfigSpec *entConfigSpecs,
-			    Tix_DItem * iPtr, char *argvName, int flags));
-EXTERN int		Tix_ConfigureValue2 _ANSI_ARGS_((Tcl_Interp *interp,
-			    Tk_Window tkwin, char * entRec,
+			    CONST84 char *entRec, Tk_ConfigSpec *entConfigSpecs,
+			    Tix_DItem * iPtr, CONST84 char *argvName, int flags);
+EXTERN int		Tix_ConfigureValue2(Tcl_Interp *interp,
+			    Tk_Window tkwin, CONST84 char * entRec,
 			    Tk_ConfigSpec *entConfigSpecs, Tix_DItem * iPtr,
-			    char *argvName, int flags));
-EXTERN void		Tix_DItemCalculateSize _ANSI_ARGS_((
-			    Tix_DItem * iPtr));
-EXTERN char *		Tix_DItemComponent _ANSI_ARGS_((Tix_DItem * diPtr,
-			    int x, int y));
-EXTERN int		Tix_DItemConfigure _ANSI_ARGS_((
+			    CONST84 char *argvName, int flags);
+EXTERN void		Tix_DItemCalculateSize(
+			    Tix_DItem * iPtr);
+EXTERN char *		Tix_DItemComponent(Tix_DItem * diPtr,
+			    int x, int y);
+EXTERN int		Tix_DItemConfigure(
 			    Tix_DItem * diPtr, int argc,
-			    char ** argv, int flags));
-EXTERN Tix_DItem *	Tix_DItemCreate _ANSI_ARGS_((Tix_DispData * ddPtr,
-			    char * type));
-EXTERN void		Tix_DItemDrawBackground _ANSI_ARGS_((
-			    Pixmap pixmap, GC gc, Tix_DItem * iPtr,
-			    int x, int y, int width, int height, int flags));
-EXTERN void		Tix_DItemDisplay _ANSI_ARGS_((
-			    Pixmap pixmap, GC gc, Tix_DItem * iPtr,
-			    int x, int y, int width, int height, int flag));
-EXTERN void		Tix_DItemFree _ANSI_ARGS_((
-			    Tix_DItem * iPtr));
-EXTERN void		TixDItemStyleChanged _ANSI_ARGS_((
+			    CONST84 char **argv, int flags);
+EXTERN Tix_DItem *	Tix_DItemCreate(Tix_DispData * ddPtr,
+			    CONST84 char * type);
+EXTERN void		Tix_DItemDrawBackground(Drawable drawable,
+                           TixpSubRegion *subRegPtr, Tix_DItem * iPtr,
+                           int x, int y, int width, int height, 
+                           int xOffset, int yOffset, int flags);
+EXTERN void		Tix_DItemDisplay(
+			    Drawable drawable, Tix_DItem * iPtr,
+			    int x, int y, int width, int height,
+                            int xOffset, int yOffset, int flag);
+EXTERN int              Tix_DItemFillNormalBG(Drawable drawable,
+                           TixpSubRegion *subRegPtr, Tix_DItem * iPtr,
+                           int x, int y, int width, int height, 
+                           int xOffset, int yOffset, int flags);
+EXTERN void		Tix_DItemFree(
+			    Tix_DItem * iPtr);
+EXTERN void		TixDItemStyleChanged(
 			    Tix_DItemInfo * diTypePtr,
-			    Tix_DItemStyle * stylePtr));
-EXTERN void		TixDItemStyleFree  _ANSI_ARGS_((Tix_DItem *iPtr, 
-			    Tix_DItemStyle * stylePtr));
-EXTERN void		TixDItemGetAnchor _ANSI_ARGS_((Tk_Anchor anchor,
+			    Tix_DItemStyle * stylePtr);
+EXTERN void             TixDItemStyleConfigureGCs(
+                            Tix_DItemStyle *style);
+EXTERN void		TixDItemStyleFree(Tix_DItem *iPtr, 
+			    Tix_DItemStyle * stylePtr);
+EXTERN void		TixDItemGetAnchor(Tk_Anchor anchor,
 			    int x, int y, int cav_w, int cav_h,
-			    int width, int height, int * x_ret, int * y_ret));
-EXTERN void		Tix_FreeArgumentList _ANSI_ARGS_((
-			    Tix_ArgumentList *argListPtr));
-EXTERN void		TixGetColorDItemGC _ANSI_ARGS_((
+			    int width, int height, int * x_ret, int * y_ret);
+EXTERN void		Tix_FreeArgumentList(
+			    Tix_ArgumentList *argListPtr);
+EXTERN void		TixGetColorDItemGC(
 			    Tix_DItem * iPtr, GC * backGC_ret,
-			    GC * foreGC_ret, int flags));
-EXTERN Tix_DItemStyle*	TixGetDefaultDItemStyle _ANSI_ARGS_((
+			    GC * foreGC_ret, GC * anchorGC_ret, int flags);
+EXTERN Tix_DItemStyle*	TixGetDefaultDItemStyle(
 			    Tix_DispData * ddPtr, Tix_DItemInfo * diTypePtr,
-			    Tix_DItem *iPtr, Tix_DItemStyle* oldStylePtr));
-EXTERN Tix_DItemInfo *	Tix_GetDItemType _ANSI_ARGS_((
-			    Tcl_Interp * interp, char *type));
-EXTERN void		Tix_GetScrollFractions _ANSI_ARGS_((
+			    Tix_DItem *iPtr, Tix_DItemStyle* oldStylePtr);
+EXTERN Tix_DItemInfo *	Tix_GetDItemType(
+			    Tcl_Interp * interp, CONST84 char *type);
+EXTERN void		Tix_GetScrollFractions(
 			    Tix_ScrollInfo * siPtr,
-			    double * first_ret, double * last_ret));
-EXTERN void		Tix_InitScrollInfo  _ANSI_ARGS_((
-			    Tix_ScrollInfo * siPtr, int type));
-EXTERN int		Tix_MultiConfigureInfo _ANSI_ARGS_((
+			    double * first_ret, double * last_ret);
+EXTERN void		Tix_InitScrollInfo(
+			    Tix_ScrollInfo * siPtr, int type);
+EXTERN int		Tix_MultiConfigureInfo(
 			    Tcl_Interp * interp,
 			    Tk_Window tkwin, Tk_ConfigSpec **specsList,
-			    int numLists, char **widgRecList, char *argvName,
-			    int flags, int request));
-EXTERN void		Tix_SetDefaultStyleTemplate _ANSI_ARGS_((
-			    Tk_Window tkwin, Tix_StyleTemplate * tmplPtr));
-EXTERN int		Tix_SetScrollBarView _ANSI_ARGS_((
+			    int numLists, CONST84 char **widgRecList, CONST84 char *argvName,
+			    int flags, int request);
+EXTERN void		Tix_SetDefaultStyleTemplate(
+			    Tk_Window tkwin, Tix_StyleTemplate * tmplPtr);
+EXTERN int		Tix_SetScrollBarView(
 			    Tcl_Interp *interp, Tix_ScrollInfo * siPtr,
-			    int argc, char **argv, int compat));
-EXTERN void		Tix_SetWindowItemSerial _ANSI_ARGS_((
+			    int argc, CONST84 char **argv, int compat);
+EXTERN void		Tix_SetWindowItemSerial(
 			    Tix_LinkList * lPtr, Tix_DItem * iPtr,
-			    int serial));
-EXTERN int		Tix_SplitConfig _ANSI_ARGS_((Tcl_Interp * interp,
+			    int serial);
+EXTERN int		Tix_SplitConfig(Tcl_Interp * interp,
 			    Tk_Window tkwin, Tk_ConfigSpec  ** specsList,
-			    int numLists, int argc, char ** argv,
-			    Tix_ArgumentList * argListPtr));
-EXTERN void		Tix_UnmapInvisibleWindowItems _ANSI_ARGS_((
-			    Tix_LinkList * lPtr, int serial));
-EXTERN void		Tix_UpdateScrollBar  _ANSI_ARGS_((
-			    Tcl_Interp *interp, Tix_ScrollInfo * siPtr));
-EXTERN int		Tix_WidgetConfigure2 _ANSI_ARGS_((
-			    Tcl_Interp *interp, Tk_Window tkwin, char * entRec,
+			    int numLists, int argc, CONST84 char **argv,
+			    Tix_ArgumentList * argListPtr);
+EXTERN void		Tix_UnmapInvisibleWindowItems(
+			    Tix_LinkList * lPtr, int serial);
+EXTERN void		Tix_UpdateScrollBar(
+			    Tcl_Interp *interp, Tix_ScrollInfo * siPtr);
+EXTERN int		Tix_WidgetConfigure2(
+			    Tcl_Interp *interp, Tk_Window tkwin, CONST84 char * entRec,
 			    Tk_ConfigSpec *entConfigSpecs,
-			    Tix_DItem * iPtr, int argc, char ** argv,
-			    int flags, int forced, int * sizeChanged_ret));
-EXTERN void		Tix_WindowItemListRemove  _ANSI_ARGS_((
-			    Tix_LinkList * lPtr, Tix_DItem * iPtr));
-
-typedef struct _TixpSubRegion TixpSubRegion;
-
+			    Tix_DItem * iPtr, int argc, CONST84 char **argv,
+			    int flags, int forced, int * sizeChanged_ret);
+EXTERN void		Tix_WindowItemListRemove(
+			    Tix_LinkList * lPtr, Tix_DItem * iPtr);
 /* 
  * Functions that should be used by Tix only. Functions prefixed by "Tix"
  * are generic functions that has one implementation for all platforms.
@@ -807,74 +789,70 @@ typedef struct _TixpSubRegion TixpSubRegion;
  * platform.
  */
 
-EXTERN int		TixInitSam _ANSI_ARGS_((Tcl_Interp * interp));
-EXTERN int		TixLoadLibrary _ANSI_ARGS_((Tcl_Interp * interp));
-EXTERN void		TixRestoreInterpState _ANSI_ARGS_((
-			    Tcl_Interp * interp, TixInterpState * statePtr));
-EXTERN void		TixSaveInterpState _ANSI_ARGS_((Tcl_Interp * interp,
-			    TixInterpState * statePtr));
-
-EXTERN void		TixpDrawAnchorLines _ANSI_ARGS_((Display *display,
+extern void             TixInitializeDisplayItems(void);
+extern void		TixpDrawAnchorLines(Display *display,
 			    Drawable drawable, GC gc, int x, int y,
-			    int w, int h));
-EXTERN void		TixpDrawTmpLine _ANSI_ARGS_((int x1, int y1,
-			    int x2, int y2, Tk_Window tkwin));
-EXTERN void		TixpEndSubRegionDraw _ANSI_ARGS_((Display *display,
+			    int w, int h);
+extern void		TixpDrawTmpLine(int x1, int y1,
+			    int x2, int y2, Tk_Window tkwin);
+extern void		TixpEndSubRegionDraw(Display *display,
 			     Drawable drawable, GC gc,
-			     TixpSubRegion * subRegPtr));
-EXTERN int		TixpSetWindowParent _ANSI_ARGS_((Tcl_Interp * interp,
+			     TixpSubRegion * subRegPtr);
+extern int		TixpSetWindowParent(Tcl_Interp * interp,
 			    Tk_Window tkwin, Tk_Window newParent,
-			    int parentId));
-EXTERN void		TixpStartSubRegionDraw _ANSI_ARGS_((Display *display,
+			    int parentId);
+extern void		TixpStartSubRegionDraw(Display *display,
 			     Drawable drawable, GC gc,
 			     TixpSubRegion * subRegPtr, int origX,
 			     int origY, int x, int y, int width, int height,
-			     int needWidth, int needHeight));
-EXTERN void		TixpSubRegDisplayText _ANSI_ARGS_((Display *display,
+			     int needWidth, int needHeight);
+extern void		TixpSubRegDisplayText(Display *display,
 			    Drawable drawable, GC gc,
 			    TixpSubRegion * subRegPtr,
-			    TixFont font, char *string,
+			    TixFont font, CONST84 char *string,
 			    int numChars, int x, int y, int length,
-			    Tk_Justify justify, int underline));
-EXTERN void		TixpSubRegDrawBitmap _ANSI_ARGS_((Display *display,
+			    Tk_Justify justify, int underline);
+extern void		TixpSubRegDrawBitmap(Display *display,
 			    Drawable drawable, GC gc,
 			    TixpSubRegion * subRegPtr, Pixmap bitmap,
 			    int src_x, int src_y, int width, int height,
-			    int dest_x, int dest_y, unsigned long plane));
-EXTERN void 		TixpSubRegDrawImage _ANSI_ARGS_((
+			    int dest_x, int dest_y, unsigned long plane);
+extern void 		TixpSubRegDrawImage(
 			    TixpSubRegion * subRegPtr, Tk_Image image,
 			    int imageX, int imageY, int width, int height,
-			    Drawable drawable, int drawableX, int drawableY));
-EXTERN void		TixpSubRegFillRectangle _ANSI_ARGS_((Display *display,
+			    Drawable drawable, int drawableX, int drawableY);
+extern void             TixpSubRegDrawAnchorLines(
+                            Display *display, Drawable drawable,
+                            GC gc, TixpSubRegion * subRegPtr,
+                            int x, int y, int w, int h);
+extern void		TixpSubRegFillRectangle(Display *display,
 			    Drawable drawable, GC gc,
 			    TixpSubRegion * subRegPtr, int x, int y,
-			    int width, int height));
-
+			    int width, int height);
+extern void             TixpSubRegSetClip(
+                            Display *display, TixpSubRegion * subRegPtr,
+                            GC gc);
+extern void             TixpSubRegUnsetClip(
+                            Display *display, TixpSubRegion * subRegPtr,
+                            GC gc);
+extern char *           tixStrDup( CONST char * s);
+extern int 		TixMwmProtocolHandler(
+			    ClientData clientData, XEvent *eventPtr);
 
 /*
- * Console Stuff
+ * Image types implemented by Tix.
  */
 
-#if ((TCL_MAJOR_VERSION == 7) && (TCL_MINOR_VERSION == 5))
+extern Tk_ImageType tixPixmapImageType;
+extern Tk_ImageType tixCompoundImageType;
 
 /*
- * The TixConsole stuff was implemented for Tcl 7.5 only
+ * Display Items implemented in the Tix core.
  */
 
-extern void		TixConsoleCreate _ANSI_ARGS_((Tcl_Interp *interp));
-extern int		TixConsoleInit _ANSI_ARGS_((Tcl_Interp *interp));
-
-#else
-
-extern void		TkConsoleCreate _ANSI_ARGS_((void));
-extern int		TkConsoleInit _ANSI_ARGS_((Tcl_Interp *interp));
-
-#define TixConsoleCreate(x)	TkConsoleCreate()
-#define TixConsoleInit(x)	TkConsoleInit(x)
-
-#endif
-
-#undef TCL_STORAGE_CLASS
-#define TCL_STORAGE_CLASS DLLIMPORT
+extern Tix_DItemInfo tix_ImageTextItemType;
+extern Tix_DItemInfo tix_TextItemType;
+extern Tix_DItemInfo tix_WindowItemType;
+extern Tix_DItemInfo tix_ImageItemType;
 
 #endif /* _TIX_INT_H_ */

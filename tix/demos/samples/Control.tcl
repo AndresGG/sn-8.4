@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: Control.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -110,7 +114,7 @@ proc ctl:validate_maker {w value} {
 proc ctl:okcmd {w} {
     global demo_maker demo_thrust demo_num_engins
 
-    puts "You selected $demo_num_engins engin(s) of thrust $demo_thrust made \
+    tixDemo:Status "You selected $demo_num_engins engin(s) of thrust $demo_thrust made \
 by $demo_maker"
 
     destroy $w
@@ -123,7 +127,7 @@ by $demo_maker"
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
-	bind $w <Destroy> exit
+    bind $w <Destroy> exit
 }

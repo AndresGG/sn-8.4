@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: ChkList.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -48,10 +52,10 @@ proc RunSample {w} {
     set names(2) "BCPL"
     set names(3) "C"
     set names(4) "Dylan"
-    set names(5) "Eiffle"
+    set names(5) "Eiffel"
     set names(6) "Fortran"
     set names(7) "Incr Tcl"
-    set names(8) "Matlab"
+    set names(8) "Python"
     set names(9) "Scheme"
     set names(0) "TCL"
 
@@ -74,7 +78,7 @@ proc RunSample {w} {
     $c1 setstatus 5 off
     $c1 setstatus 6 on
     $c1 setstatus 7 off
-    $c1 setstatus 8 off
+    $c1 setstatus 8 on
     $c1 setstatus 9 on
     $c1 setstatus 0 default
 
@@ -105,7 +109,7 @@ proc RunSample {w} {
     $h3 add 0.0 -itemtype imagetext -text Lisp
     $h3 add 0.1 -itemtype imagetext -text Scheme
     $h3 add 1.0 -itemtype imagetext -text C
-    $h3 add 1.1 -itemtype imagetext -text Pascal
+    $h3 add 1.1 -itemtype imagetext -text Python
 
     $c3 setstatus 0   on
     $c3 setstatus 1   on
@@ -119,8 +123,8 @@ proc RunSample {w} {
 
     $c3 autosetmode
 
-    global chklist
-    set chklist(disabled) [tixDisplayStyle imagetext -fg gray48 \
+    global chklist tixOption
+    set chklist(disabled) [tixDisplayStyle imagetext -fg $tixOption(disabled_fg) \
 	-refwindow [$c3 subwidget hlist]]
     set chklist(normal)   [tixDisplayStyle imagetext -fg black \
 	-refwindow [$c3 subwidget hlist]]
@@ -132,9 +136,9 @@ proc RunSample {w} {
 }
 
 proc ChkList_Result {clist} {
-    puts "Selected items: [$clist getselection on]"
-    puts "Unselected items: [$clist getselection off]"
-    puts "Default items: [$clist getselection default]"
+    tixDemo:Status "Selected items: [$clist getselection on]"
+    tixDemo:Status "Unselected items: [$clist getselection off]"
+    tixDemo:Status "Default items: [$clist getselection default]"
 }
 
 # This function monitors if any of the two "general groups"
@@ -169,7 +173,7 @@ proc ChkList:Monitor {c3 ent} {
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
     bind $w <Destroy> exit
 }

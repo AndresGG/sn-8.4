@@ -1,3 +1,6 @@
+
+/*	$Id: tixHLInd.c,v 1.2 2004/03/28 02:44:56 hobbs Exp $	*/
+
 /*
  *  tixHLInd.c ---
  *
@@ -31,7 +34,7 @@ Tix_HLIndicator(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     static Tix_SubCmdInfo subCmdInfo[] = {
 	{TIX_DEFAULT_LEN, "cget", 2, 2, Tix_HLIndCGet,
@@ -64,7 +67,7 @@ Tix_HLIndCGet(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -91,7 +94,7 @@ Tix_HLIndConfig(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -130,14 +133,14 @@ Tix_HLIndCreate(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
     int i;
     size_t len;
     Tix_DItem * iPtr;
-    char * ditemType = NULL;
+    CONST84 char * ditemType = NULL;
 
     if ((chPtr = Tix_HLFindElement(interp, wPtr, argv[0])) == NULL) {
 	return TCL_ERROR;
@@ -192,7 +195,7 @@ Tix_HLIndDelete(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -230,7 +233,7 @@ Tix_HLIndExists(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -256,7 +259,7 @@ Tix_HLIndSize(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;

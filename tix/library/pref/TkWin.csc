@@ -1,5 +1,7 @@
+#
+# $Id: TkWin.csc,v 1.2 2002/01/24 09:16:22 idiscovery Exp $
+#
 proc tixPref:SetScheme-Color:TkWin {} {
-
     global tixOption
 
     set tixOption(bg)           SystemButtonFace
@@ -31,30 +33,6 @@ proc tixPref:SetScheme-Color:TkWin {} {
 
     set tixOption(selector)	SystemHighlight
 
-option add *Menubutton.padY			5 $tixOption(prioLevel)
-option add *Button.borderWidth		2 $tixOption(prioLevel)
-option add *Button.anchor		c $tixOption(prioLevel)
-option add *Entry.relief		sunken $tixOption(prioLevel)
-option add *Entry.highlightBackground	$tixOption(bg) $tixOption(prioLevel)
-option add *Entry.background		$tixOption(input1_bg) $tixOption(prioLevel)
-option add *Entry.foreground		black $tixOption(prioLevel)
-option add *Entry.insertBackground	black $tixOption(prioLevel)
-option add *Label.anchor		w $tixOption(prioLevel)
-option add *Label.borderWidth		0 $tixOption(prioLevel)
-option add *Listbox.background		$tixOption(light1_bg) $tixOption(prioLevel)
-option add *Listbox.relief		sunken $tixOption(prioLevel)
-option add *Scale.foreground		$tixOption(fg) $tixOption(prioLevel)
-option add *Scale.activeForeground	$tixOption(bg) $tixOption(prioLevel)
-option add *Scale.background		$tixOption(bg) $tixOption(prioLevel)
-option add *Scale.sliderForeground	$tixOption(bg) $tixOption(prioLevel)
-option add *Scale.sliderBackground	$tixOption(light1_bg) $tixOption(prioLevel)
-option add *Scrollbar.background		$tixOption(bg) $tixOption(prioLevel)
-option add *Scrollbar.troughColor		$tixOption(light1_bg) $tixOption(prioLevel)
-option add *Scrollbar.relief		sunken $tixOption(prioLevel)
-option add *Scrollbar.borderWidth		1 $tixOption(prioLevel)
-#option add *Scrollbar.width			15 $tixOption(prioLevel)
-option add *Text.background		$tixOption(input1_bg) $tixOption(prioLevel)
-option add *Text.relief		sunken $tixOption(prioLevel)
 option add *TixBalloon*background 			"#ffff60" $tixOption(prioLevel)
 option add *TixBalloon*foreground 			black $tixOption(prioLevel)
 option add *TixBalloon.background 			black $tixOption(prioLevel)
@@ -108,7 +86,7 @@ option add *TixMultiList*Listbox.highlightThickness	0 $tixOption(prioLevel)
 option add *TixMultiList*Scrollbar.background		$tixOption(bg) $tixOption(prioLevel)
 option add *TixMultiList*Scrollbar.troughColor		$tixOption(light1_bg) $tixOption(prioLevel)
 option add *TixMultiList*Scrollbar.relief		sunken $tixOption(prioLevel)
-#option add *TixMultiList*Scrollbar.width		15 $tixOption(prioLevel)
+option add *TixMultiList*Scrollbar.width		15 $tixOption(prioLevel)
 option add *TixMultiList*f1.borderWidth		2 $tixOption(prioLevel)
 option add *TixMultiList*f1.relief			sunken $tixOption(prioLevel)
 option add *TixMultiList*f1.highlightThickness		2 $tixOption(prioLevel)
@@ -158,6 +136,35 @@ option add *TixComboBox*Entry.selectForeground	$tixOption(select_fg) $tixOption(
 option add *TixComboBox*TixScrolledListBox.selectBackground	$tixOption(select_bg) $tixOption(prioLevel)
 option add *TixComboBox*TixScrolledListBox.selectForeground	$tixOption(select_fg) $tixOption(prioLevel)
 }
+
+# Leave the standard widgets alone
+if {0} {
+option add *Menubutton.padY			5 $tixOption(prioLevel)
+option add *Button.borderWidth		2 $tixOption(prioLevel)
+option add *Button.anchor		c $tixOption(prioLevel)
+option add *Entry.relief		sunken $tixOption(prioLevel)
+option add *Entry.highlightBackground	$tixOption(bg) $tixOption(prioLevel)
+option add *Entry.background		$tixOption(input1_bg) $tixOption(prioLevel)
+option add *Entry.foreground		black $tixOption(prioLevel)
+option add *Entry.insertBackground	black $tixOption(prioLevel)
+option add *Label.anchor		w $tixOption(prioLevel)
+option add *Label.borderWidth		0 $tixOption(prioLevel)
+option add *Listbox.background		$tixOption(light1_bg) $tixOption(prioLevel)
+option add *Listbox.relief		sunken $tixOption(prioLevel)
+option add *Scale.foreground		$tixOption(fg) $tixOption(prioLevel)
+option add *Scale.activeForeground	$tixOption(bg) $tixOption(prioLevel)
+option add *Scale.background		$tixOption(bg) $tixOption(prioLevel)
+option add *Scale.sliderForeground	$tixOption(bg) $tixOption(prioLevel)
+option add *Scale.sliderBackground	$tixOption(light1_bg) $tixOption(prioLevel)
+option add *Scrollbar.background		$tixOption(bg) $tixOption(prioLevel)
+option add *Scrollbar.troughColor		$tixOption(light1_bg) $tixOption(prioLevel)
+option add *Scrollbar.relief		sunken $tixOption(prioLevel)
+option add *Scrollbar.borderWidth		1 $tixOption(prioLevel)
+option add *Scrollbar.width			15 $tixOption(prioLevel)
+option add *Text.background		$tixOption(input1_bg) $tixOption(prioLevel)
+option add *Text.relief		sunken $tixOption(prioLevel)
+}
+
 proc tixPref:SetScheme-Mono:TkWin {} {
 
     global tixOption
@@ -191,30 +198,7 @@ proc tixPref:SetScheme-Mono:TkWin {} {
 
     set tixOption(selector)	SystemHighlight
 
-option add *Menubutton.padY			5 $tixOption(prioLevel)
-option add *Button.borderWidth		2 $tixOption(prioLevel)
-option add *Button.anchor		c $tixOption(prioLevel)
-option add *Entry.relief		sunken $tixOption(prioLevel)
-option add *Entry.highlightBackground	$tixOption(bg) $tixOption(prioLevel)
-option add *Entry.background		$tixOption(input1_bg) $tixOption(prioLevel)
-option add *Entry.foreground		black $tixOption(prioLevel)
-option add *Entry.insertBackground	black $tixOption(prioLevel)
-option add *Label.anchor		w $tixOption(prioLevel)
-option add *Label.borderWidth		0 $tixOption(prioLevel)
-option add *Listbox.background		$tixOption(light1_bg) $tixOption(prioLevel)
-option add *Listbox.relief		sunken $tixOption(prioLevel)
-option add *Scale.foreground		$tixOption(fg) $tixOption(prioLevel)
-option add *Scale.activeForeground	$tixOption(bg) $tixOption(prioLevel)
-option add *Scale.background		$tixOption(bg) $tixOption(prioLevel)
-option add *Scale.sliderForeground	$tixOption(bg) $tixOption(prioLevel)
-option add *Scale.sliderBackground	$tixOption(light1_bg) $tixOption(prioLevel)
-option add *Scrollbar.background		$tixOption(bg) $tixOption(prioLevel)
-option add *Scrollbar.troughColor		$tixOption(light1_bg) $tixOption(prioLevel)
-option add *Scrollbar.relief		sunken $tixOption(prioLevel)
-option add *Scrollbar.borderWidth		1 $tixOption(prioLevel)
-#option add *Scrollbar.width			15 $tixOption(prioLevel)
-option add *Text.background		$tixOption(input1_bg) $tixOption(prioLevel)
-option add *Text.relief		sunken $tixOption(prioLevel)
+
 option add *TixBalloon*background 			"#ffff60" $tixOption(prioLevel)
 option add *TixBalloon*foreground 			black $tixOption(prioLevel)
 option add *TixBalloon.background 			black $tixOption(prioLevel)
@@ -268,7 +252,7 @@ option add *TixMultiList*Listbox.highlightThickness	0 $tixOption(prioLevel)
 option add *TixMultiList*Scrollbar.background		$tixOption(bg) $tixOption(prioLevel)
 option add *TixMultiList*Scrollbar.troughColor		$tixOption(light1_bg) $tixOption(prioLevel)
 option add *TixMultiList*Scrollbar.relief		sunken $tixOption(prioLevel)
-#option add *TixMultiList*Scrollbar.width		15 $tixOption(prioLevel)
+option add *TixMultiList*Scrollbar.width		15 $tixOption(prioLevel)
 option add *TixMultiList*f1.borderWidth		2 $tixOption(prioLevel)
 option add *TixMultiList*f1.relief			sunken $tixOption(prioLevel)
 option add *TixMultiList*f1.highlightThickness		2 $tixOption(prioLevel)
@@ -318,3 +302,32 @@ option add *TixComboBox*Entry.selectForeground	$tixOption(select_fg) $tixOption(
 option add *TixComboBox*TixScrolledListBox.selectBackground	$tixOption(select_bg) $tixOption(prioLevel)
 option add *TixComboBox*TixScrolledListBox.selectForeground	$tixOption(select_fg) $tixOption(prioLevel)
 }
+
+# Leave the standard widgets alone
+if {0} {
+option add *Menubutton.padY			5 $tixOption(prioLevel)
+option add *Button.borderWidth		2 $tixOption(prioLevel)
+option add *Button.anchor		c $tixOption(prioLevel)
+option add *Entry.relief		sunken $tixOption(prioLevel)
+option add *Entry.highlightBackground	$tixOption(bg) $tixOption(prioLevel)
+option add *Entry.background		$tixOption(input1_bg) $tixOption(prioLevel)
+option add *Entry.foreground		black $tixOption(prioLevel)
+option add *Entry.insertBackground	black $tixOption(prioLevel)
+option add *Label.anchor		w $tixOption(prioLevel)
+option add *Label.borderWidth		0 $tixOption(prioLevel)
+option add *Listbox.background		$tixOption(light1_bg) $tixOption(prioLevel)
+option add *Listbox.relief		sunken $tixOption(prioLevel)
+option add *Scale.foreground		$tixOption(fg) $tixOption(prioLevel)
+option add *Scale.activeForeground	$tixOption(bg) $tixOption(prioLevel)
+option add *Scale.background		$tixOption(bg) $tixOption(prioLevel)
+option add *Scale.sliderForeground	$tixOption(bg) $tixOption(prioLevel)
+option add *Scale.sliderBackground	$tixOption(light1_bg) $tixOption(prioLevel)
+option add *Scrollbar.background		$tixOption(bg) $tixOption(prioLevel)
+option add *Scrollbar.troughColor		$tixOption(light1_bg) $tixOption(prioLevel)
+option add *Scrollbar.relief		sunken $tixOption(prioLevel)
+option add *Scrollbar.borderWidth		1 $tixOption(prioLevel)
+option add *Scrollbar.width			15 $tixOption(prioLevel)
+option add *Text.background		$tixOption(input1_bg) $tixOption(prioLevel)
+option add *Text.relief		sunken $tixOption(prioLevel)
+}
+

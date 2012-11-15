@@ -1,3 +1,6 @@
+
+/*	$Id: tixGrRC.c,v 1.3 2004/03/28 02:44:56 hobbs Exp $	*/
+
 /* 
  * tixGrRC.c --
  *
@@ -15,11 +18,6 @@
 #include <tixDef.h>
 #include <tixGrid.h>
 
-#ifdef BUILD_tix
-# undef TCL_STORAGE_CLASS
-# define TCL_STORAGE_CLASS DLLEXPORT
-#endif
-
 static TIX_DECLARE_SUBCMD(Tix_GrRCSize);
 EXTERN TIX_DECLARE_SUBCMD(Tix_GrSetSize);
 
@@ -28,7 +26,7 @@ Tix_GrSetSize(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     static Tix_SubCmdInfo subCmdInfo[] = {
 	{TIX_DEFAULT_LEN, "row",    1, TIX_VAR_ARGS, Tix_GrRCSize,
@@ -50,13 +48,14 @@ Tix_GrRCSize(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int which, index, code;
     char errorMsg[300];
     int changed;
 
+    /* TODO: can the index be <0?? */
     if (argv[-1][0] == 'c') {
 	which = 0;
     } else {
@@ -66,16 +65,20 @@ Tix_GrRCSize(clientData, interp, argc, argv)
 	size_t len = strlen(argv[0]);
 
 	Tcl_ResetResult(interp);
-	if (strncmp(argv[0], "default", len)!=0) {
+	if (strncmp(argv[0], "default", len) != 0) {
 	    Tcl_AppendResult(interp, "unknown option \"", argv[0],
 		"\"; must be an integer or \"default\"", NULL);
 	    return TCL_ERROR;
 	} else {
-	    /* Setting the default sizes */
+	    /*
+             * Set the default sizes
+             */
+
+            /* Buffer size checked: test=grrc-1.2 */
 	    sprintf(errorMsg, "%s %s ?option value ...?", argv[-2], argv[-1]);
 
 	    code = Tix_GrConfigSize(interp, wPtr, argc-1, argv+1,
-		&wPtr->defSize[which],errorMsg, &changed);
+		    &wPtr->defSize[which], errorMsg, &changed);
 
 	    /* Handling special cases */
 	    if (code == TCL_OK) {
@@ -103,6 +106,7 @@ Tix_GrRCSize(clientData, interp, argc, argv)
 	    }
 	}
     } else {
+        /* Buffer size checked: test=grrc-1.3 */
 	sprintf(errorMsg, "%s %s ?option value ...?", argv[-2], argv[-1]);
 
 	code = TixGridDataConfigRowColSize(interp, wPtr, wPtr->dataSet,

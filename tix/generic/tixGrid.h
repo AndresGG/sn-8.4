@@ -3,11 +3,13 @@
  *
  *	Defines main data structures for tixGrid
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000      Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tixGrid.h,v 1.3 2004/03/28 02:44:56 hobbs Exp $
  */
 
 #ifndef _TIX_GRID_H_
@@ -15,11 +17,6 @@
 
 #ifndef _TIX_GRID_DATA_H_
 #include "tixGrData.h"
-#endif
-
-#ifdef BUILD_tix
-# undef TCL_STORAGE_CLASS
-# define TCL_STORAGE_CLASS DLLEXPORT
 #endif
 
 #define TIX_X 0
@@ -342,46 +339,6 @@ typedef struct GridStruct {
 typedef Grid   WidgetRecord;
 typedef Grid * WidgetPtr;
 
-#define DEF_GRID_BG_COLOR		NORMAL_BG
-#define DEF_GRID_BG_MONO		WHITE
-#define DEF_GRID_BORDER_WIDTH		"2"
-#define DEF_GRID_BROWSE_COMMAND		""
-#define DEF_GRID_COMMAND		""
-#define DEF_GRID_CURSOR			""
-#define DEF_GRID_DEFAULT_WIDTH		"40"
-#define DEF_GRID_DEFAULT_HEIGHT		"20"
-#define DEF_GRID_EDITDONE_COMMAND	""
-#define DEF_GRID_EDITNOTIFY_COMMAND	""
-#define DEF_GRID_FLOATING_ROWS		"0"
-#define DEF_GRID_FLOATING_COLS		"0"
-#define DEF_GRID_FONT	      	CTL_FONT
-#define DEF_GRID_FG_COLOR		BLACK
-#define DEF_GRID_FG_MONO		BLACK
-#define DEF_GRID_FORMAT_COMMAND		""
-#define DEF_GRID_HEIGHT			"10"
-#define DEF_GRID_HIGHLIGHT_COLOR	BLACK
-#define DEF_GRID_HIGHLIGHT_MONO		BLACK
-#define DEF_GRID_HIGHLIGHT_WIDTH	"2"
-#define DEF_GRID_LEFT_MARGIN		"1"
-#define DEF_GRID_ITEM_TYPE		"text"
-#define DEF_GRID_RELIEF			"sunken"
-#define DEF_GRID_PADX			"2"
-#define DEF_GRID_PADY			"2"
-#define DEF_GRID_SELECT_BG_COLOR	ACTIVE_BG
-#define DEF_GRID_SELECT_FG_COLOR	BLACK
-#define DEF_GRID_SELECT_BG_MONO		BLACK
-#define DEF_GRID_SELECT_FG_MONO		WHITE
-#define DEF_GRID_SELECT_MODE		"single"
-#define DEF_GRID_SELECT_UNIT		"row"
-#define DEF_GRID_SELECT_BORDERWIDTH	"1"
-#define DEF_GRID_STATE			"normal"
-#define DEF_GRID_SIZE_COMMAND		""
-#define DEF_GRID_TAKE_FOCUS 		"1"
-#define DEF_GRID_TOP_MARGIN		"1"
-#define DEF_GRID_WIDTH			"4"
-#define DEF_GRID_Y_SCROLL_COMMAND	""
-#define DEF_GRID_X_SCROLL_COMMAND	""
-
 /*
  * common functions
  */
@@ -390,8 +347,8 @@ EXTERN void		Tix_GrAddChangedRect _ANSI_ARGS_((
 			    WidgetPtr wPtr, int changedRect[2][2],
 			    int isSite));
 EXTERN int		Tix_GrConfigSize _ANSI_ARGS_((Tcl_Interp *interp,
-			    WidgetPtr wPtr, int argc, char **argv,
-			    TixGridSize *sizePtr, char * argcErrorMsg,
+			    WidgetPtr wPtr, int argc, CONST84 char **argv,
+			    TixGridSize *sizePtr, CONST84 char * argcErrorMsg,
 			    int *changed_ret));
 EXTERN void		Tix_GrDoWhenIdle _ANSI_ARGS_((WidgetPtr wPtr,
 			    int type));
@@ -409,11 +366,11 @@ EXTERN void		Tix_GrScrollPage _ANSI_ARGS_((WidgetPtr wPtr,
 EXTERN int		TixGridDataConfigRowColSize _ANSI_ARGS_((
 			    Tcl_Interp * interp, WidgetPtr wPtr,
 			    TixGridDataSet * dataSet, int which, int index,
-			    int argc, char ** argv, char * argcErrorMsg,
+			    int argc, CONST84 char ** argv, CONST84 char * argcErrorMsg,
 			    int *changed_ret));
-EXTERN char *		TixGridDataCreateEntry _ANSI_ARGS_((
+EXTERN CONST84 char *	TixGridDataCreateEntry _ANSI_ARGS_((
 			    TixGridDataSet * dataSet, int x, int y,
-			    char * defaultEntry));
+			    CONST84 char * defaultEntry));
 EXTERN int		TixGridDataDeleteEntry _ANSI_ARGS_((
 			    TixGridDataSet * dataSet, int x, int y));
 EXTERN void		TixGridDataDeleteRange _ANSI_ARGS_((WidgetPtr wPtr,
@@ -438,7 +395,8 @@ EXTERN void		TixGridDataGetGridSize _ANSI_ARGS_((
 			    int *height_ret));
 EXTERN int		TixGridDataGetIndex _ANSI_ARGS_((
 			    Tcl_Interp * interp, WidgetPtr wPtr,
-			    char * xStr, char * yStr, int * xPtr, int * yPtr));
+			    CONST84 char * xStr, CONST84 char * yStr,
+			    int * xPtr, int * yPtr));
 EXTERN void 		TixGridDataInsert _ANSI_ARGS_((
 			    TixGridDataSet * dataSet,
 			    int x, int y, ClientData data));
@@ -455,8 +413,5 @@ EXTERN void		TixGridDataSetFree _ANSI_ARGS_((
 EXTERN int		TixGridDataUpdateSort _ANSI_ARGS_((
 			    TixGridDataSet * dataSet, int axis,
 			    int start, int end, Tix_GrSortItem *items));
-
-#undef TCL_STORAGE_CLASS
-#define TCL_STORAGE_CLASS DLLIMPORT
 
 #endif /*_TIX_GRID_H_*/

@@ -1,3 +1,6 @@
+
+/*	$Id: tixWinXpm.c,v 1.2 2004/03/28 02:44:57 hobbs Exp $	*/
+
 /*
  * tixWinImgXpm.c --
  *
@@ -11,7 +14,6 @@
  *
  */
 
-#include <tkInt.h>
 #include <tkWinInt.h>
 #include <tix.h>
 #include <tixImgXpm.h>
@@ -215,7 +217,6 @@ TixpXpmRealizePixmap(masterPtr, instancePtr, image, mask, isTransp)
 	BitBlt(bitmapDC, 0, 0, w, h, maskDC, 0, 0, SRCAND);
 	BitBlt(maskDC,   0, 0, w, h, maskDC, 0, 0, NOTSRCCOPY);
 
-	TkWinReleaseDrawableDC(instancePtr->pixmap, dc, &dcState);
 	dataPtr->maskDC = maskDC;
 	dataPtr->maskBm = maskBm;
 	dataPtr->maskBmOld = maskBmOld;
@@ -225,6 +226,7 @@ TixpXpmRealizePixmap(masterPtr, instancePtr, image, mask, isTransp)
     dataPtr->bitmapDC = bitmapDC;
     dataPtr->bitmap = bitmap;
     dataPtr->bitmapOld = bitmapOld;
+    TkWinReleaseDrawableDC(instancePtr->pixmap, dc, &dcState);
 }
 
 void

@@ -1,8 +1,13 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: SListBox.tcl,v 1.5 2004/03/28 02:44:57 hobbs Exp $
+#
 # SListBox.tcl --
 #
 #	This file implements Scrolled Listbox widgets
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -38,11 +43,7 @@ tixWidgetClass tixScrolledListBox {
 	{*listbox.relief		sunken}
 	{*listbox.background		#c3c3c3}
 	{*listbox.takeFocus		1}
-	{*Scrollbar.background		#d9d9d9}
-	{*Scrollbar.troughColor		#c3c3c3}
 	{*Scrollbar.takeFocus		0}
-	{*Scrollbar.relief		sunken}
-	{*Scrollbar.width		15}
     }
 }
 
@@ -59,7 +60,6 @@ proc tixScrolledListBox:InitWidgetRec {w} {
 
 proc tixScrolledListBox:ConstructWidget {w} {
     upvar #0 $w data
-    global tcl_platform
 
     tixChainMethod $w ConstructWidget
 
@@ -69,10 +69,6 @@ proc tixScrolledListBox:ConstructWidget {w} {
 	[scrollbar $w.hsb -orient horizontal]
     set data(w:vsb) \
 	[scrollbar $w.vsb -orient vertical ]
-
-    if {$data(-sizebox) && $tcl_platform(platform) == "windows"} {
-        set data(w:sizebox) [ide_sizebox $w.sizebox]
-    }
 
     set data(pw:client) $data(w:listbox)
 }
@@ -99,19 +95,19 @@ proc tixScrolledListBox:SetBindings {w} {
 
 proc tixScrolledListBoxBind {} {
     tixBind TixListboxState <1> {
-	if {[set [tixGetMegaWidget %W](-state)] == "disabled"} {
+	if {[set [tixGetMegaWidget %W](-state)] eq "disabled"} {
 	    break
 	}
     }
     tixBind TixListbox      <1> {
-	if [tixGetBoolean -nocomplain [%W cget -takefocus]] {
+	if {[string is true -strict [%W cget -takefocus]]} {
 	    focus %W
 	}
 	tixScrolledListBox:Browse [tixGetMegaWidget %W]
     }
 
     tixBind TixListboxState <B1-Motion> {
-	if {[set [tixGetMegaWidget %W](-state)] == "disabled"} {
+	if {[set [tixGetMegaWidget %W](-state)] eq "disabled"} {
 	    break
 	}
     }
@@ -120,7 +116,7 @@ proc tixScrolledListBoxBind {} {
     }
 
     tixBind TixListboxState <Up> {
-	if {[set [tixGetMegaWidget %W](-state)] == "disabled"} {
+	if {[set [tixGetMegaWidget %W](-state)] eq "disabled"} {
 	    break
 	}
     }
@@ -129,7 +125,7 @@ proc tixScrolledListBoxBind {} {
     }
 
     tixBind TixListboxState <Down> {
-	if {[set [tixGetMegaWidget %W](-state)] == "disabled"} {
+	if {[set [tixGetMegaWidget %W](-state)] eq "disabled"} {
 	    break
 	}
     }
@@ -138,7 +134,7 @@ proc tixScrolledListBoxBind {} {
     }
 
     tixBind TixListboxState <Return> {
-	if {[set [tixGetMegaWidget %W](-state)] == "disabled"} {
+	if {[set [tixGetMegaWidget %W](-state)] eq "disabled"} {
 	    break
 	}
     }
@@ -148,7 +144,7 @@ proc tixScrolledListBoxBind {} {
 
 
     tixBind TixListboxState <Double-1> {
-	if {[set [tixGetMegaWidget %W](-state)] == "disabled"} {
+	if {[set [tixGetMegaWidget %W](-state)] eq "disabled"} {
 	    break
 	}
     }
@@ -157,7 +153,7 @@ proc tixScrolledListBoxBind {} {
     }
 
     tixBind TixListboxState <ButtonRelease-1> {
-	if {[set [tixGetMegaWidget %W](-state)] == "disabled"} {
+	if {[set [tixGetMegaWidget %W](-state)] eq "disabled"} {
 	    break
 	}
     }
@@ -222,9 +218,8 @@ proc tixScrolledListBox:KeyInvoke {w} {
 #----------------------------------------------------------------------
 proc tixScrolledListBox:config-takefocus {w value} {
     upvar #0 $w data
-  
     $data(w:listbox) config -takefocus $value
-}	
+}
 
 
 #----------------------------------------------------------------------
@@ -280,7 +275,7 @@ proc tixScrolledListBox:Configure {w} {
 
     tixWidgetDoWhenIdle tixScrolledListBox:TrickScrollbar $w
 
-    if {$data(-anchor) == "e"} {
+    if {$data(-anchor) eq "e"} {
 	$data(w:listbox) xview 100000
     }
 }
@@ -291,11 +286,7 @@ proc tixScrolledListBox:Configure {w} {
 proc tixScrolledListBox:TrickScrollbar {w} {
     upvar #0 $w data
 
-    if [$data(w:listbox) select include 0] {
-	set inc 1
-    } else {
-	set inc 0
-    }
+    set inc [$data(w:listbox) select include 0]
 
     $data(w:listbox) select set 0
     if {!$inc} {

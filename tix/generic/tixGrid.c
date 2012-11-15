@@ -3,11 +3,13 @@
  *
  *	This module implements "tixGrid" widgets.
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000-2001 Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tixGrid.c,v 1.6 2008/02/28 04:10:43 hobbs Exp $
  */
 
 #include <tixPort.h>
@@ -186,13 +188,13 @@ static Tk_ConfigSpec entryConfigSpecs[] = {
 static void		WidgetCmdDeletedProc _ANSI_ARGS_((
 			    ClientData clientData));
 static int		WidgetConfigure _ANSI_ARGS_((Tcl_Interp *interp,
-			    WidgetPtr wPtr, int argc, char **argv,
+			    WidgetPtr wPtr, int argc, CONST84 char **argv,
 			    int flags));
 static void		WidgetDestroy _ANSI_ARGS_((ClientData clientData));
 static void		WidgetEventProc _ANSI_ARGS_((ClientData clientData,
 			    XEvent *eventPtr));
 static int		WidgetCommand _ANSI_ARGS_((ClientData clientData,
-			    Tcl_Interp *, int argc, char **argv));
+			    Tcl_Interp *, int argc, CONST84 char **argv));
 static void		WidgetDisplay _ANSI_ARGS_((ClientData clientData));
 static void		WidgetComputeGeometry _ANSI_ARGS_((
 			    ClientData clientData));
@@ -201,7 +203,7 @@ static void		IdleHandler _ANSI_ARGS_((
 	/* Extra procedures for this widget
 	 */
 static int		ConfigElement _ANSI_ARGS_((WidgetPtr wPtr,
-			    TixGrEntry *chPtr, int argc, char ** argv,
+			    TixGrEntry *chPtr, int argc, CONST84 char ** argv,
 			    int flags, int forced));
 static void		Tix_GrDisplayMainBody _ANSI_ARGS_((
 			    WidgetPtr wPtr, Drawable buffer,
@@ -239,7 +241,7 @@ static void		Tix_GrComputeSelection _ANSI_ARGS_((
 static int		Tix_GrBBox _ANSI_ARGS_((Tcl_Interp * interp,
 			    WidgetPtr wPtr, int x, int y));
 static int		TranslateFromTo _ANSI_ARGS_((Tcl_Interp * interp,
-			    WidgetPtr wPtr, int argc, char **argv, int *from,
+			    WidgetPtr wPtr, int argc, CONST84 char **argv, int *from,
 			    int * to, int *which));
 static void		Tix_GrComputeSubSelection _ANSI_ARGS_((
 			    WidgetPtr wPtr, int rect[2][2], int offs[2]));
@@ -249,11 +251,6 @@ static void		RecalScrollRegion _ANSI_ARGS_((WidgetPtr wPtr,
 			    int winW, int winH,
 			    Tix_GridScrollInfo *scrollInfo));
 static void		Tix_GrResetRenderBlocks _ANSI_ARGS_((WidgetPtr wPtr));
-
-#ifdef BUILD_tix
-# undef TCL_STORAGE_CLASS
-# define TCL_STORAGE_CLASS DLLEXPORT
-#endif
 
 static TIX_DECLARE_SUBCMD(Tix_GrBdType);
 static TIX_DECLARE_SUBCMD(Tix_GrCGet);
@@ -298,9 +295,9 @@ Tix_GridCmd(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
-    Tk_Window main = (Tk_Window) clientData;
+    Tk_Window mainwin = (Tk_Window) clientData;
     WidgetPtr wPtr;
     Tk_Window tkwin;
 
@@ -310,7 +307,7 @@ Tix_GridCmd(clientData, interp, argc, argv)
 	return TCL_ERROR;
     }
 
-    tkwin = Tk_CreateWindowFromPath(interp, main, argv[1], (char *) NULL);
+    tkwin = Tk_CreateWindowFromPath(interp, mainwin, argv[1], (char *) NULL);
     if (tkwin == NULL) {
 	return TCL_ERROR;
     }
@@ -418,7 +415,7 @@ Tix_GridCmd(clientData, interp, argc, argv)
 	return TCL_ERROR;
     }
 
-    interp->result = Tk_PathName(wPtr->dispData.tkwin);
+    Tcl_SetResult(interp, Tk_PathName(wPtr->dispData.tkwin), TCL_VOLATILE);
     return TCL_OK;
 }
 
@@ -433,7 +430,7 @@ Tix_GridCmd(clientData, interp, argc, argv)
  *
  * Results:
  *	The return value is a standard Tcl result.  If TCL_ERROR is
- *	returned, then interp->result contains an error message.
+ *	returned, then interp's result contains an error message.
  *
  * Side effects:
  *	Configuration information, such as colors, border width,
@@ -447,7 +444,7 @@ WidgetConfigure(interp, wPtr, argc, argv, flags)
     Tcl_Interp *interp;			/* Used for error reporting. */
     WidgetPtr wPtr;			/* Information about widget. */
     int argc;				/* Number of valid entries in argv. */
-    char **argv;			/* Arguments. */
+    CONST84 char **argv;		/* Arguments. */
     int flags;				/* Flags to pass to
 					 * Tk_ConfigureWidget. */
 {
@@ -614,7 +611,7 @@ WidgetCommand(clientData, interp, argc, argv)
     ClientData clientData;		/* Information about the widget. */
     Tcl_Interp *interp;			/* Current interpreter. */
     int argc;				/* Number of arguments. */
-    char **argv;			/* Argument strings. */
+    CONST84 char **argv;		/* Argument strings. */
 {
     int code;
 
@@ -661,7 +658,7 @@ WidgetCommand(clientData, interp, argc, argv)
 	   "x y ?option value ...?"},
 	{TIX_DEFAULT_LEN, "size", 1, TIX_VAR_ARGS, Tix_GrSetSize,
 	   "option ?args ...?"},
-#ifndef _WINDOWS
+#ifndef __WIN32__
 	{TIX_DEFAULT_LEN, "sort", 3, TIX_VAR_ARGS, Tix_GrSort,
 	   "dimension start end ?args ...?"},
 #endif
@@ -1206,10 +1203,11 @@ WidgetDisplay(clientData)
     if (buffer == Tk_WindowId(tkwin)) {
 	/* clear the window directly */
 	XFillRectangle(wPtr->dispData.display, buffer, wPtr->backgroundGC,
-	    wPtr->expArea.x1, wPtr->expArea.y1, expW, expH);
+		wPtr->expArea.x1, wPtr->expArea.y1,
+		(unsigned) expW, (unsigned) expH);
     } else {
 	XFillRectangle(wPtr->dispData.display, buffer, wPtr->backgroundGC,
-	    0, 0, expW, expH);
+		0, 0, (unsigned) expW, (unsigned) expH);
     }
 
     if (wPtr->mainRB) {
@@ -1218,7 +1216,7 @@ WidgetDisplay(clientData)
 
     if (buffer != Tk_WindowId(tkwin)) {
 	XCopyArea(wPtr->dispData.display, buffer, Tk_WindowId(tkwin),
-	    wPtr->backgroundGC, 0, 0, expW, expH,
+	    wPtr->backgroundGC, 0, 0, (unsigned) expW, (unsigned) expH,
 	    wPtr->expArea.x1, wPtr->expArea.y1);
 	Tk_FreePixmap(wPtr->dispData.display, buffer);
     }
@@ -1387,10 +1385,10 @@ static void Tix_GrDrawCells(wPtr, riPtr, drawable)
 	    chPtr = wPtr->mainRB->elms[i][j].chPtr;
 	    if (chPtr != NULL) {
 		if (Tix_DItemType(chPtr->iPtr) == TIX_DITEM_WINDOW) {
-		    Tix_DItemDisplay(Tk_WindowId(wPtr->dispData.tkwin), None,
+		    Tix_DItemDisplay(Tk_WindowId(wPtr->dispData.tkwin),
 			chPtr->iPtr, x1, y1, 
 			wPtr->mainRB->dispSize[0][i].size,
-	       		wPtr->mainRB->dispSize[1][j].size,
+	       		wPtr->mainRB->dispSize[1][j].size, 0, 0,
 		        TIX_DITEM_NORMAL_FG);
 		} else {
 		    int drawX, drawY;
@@ -1399,10 +1397,10 @@ static void Tix_GrDrawCells(wPtr, riPtr, drawable)
 		    drawY = y + riPtr->origin[1] +
 		        wPtr->mainRB->dispSize[1][j].preBorder;
 
-		    Tix_DItemDisplay(drawable, None, chPtr->iPtr,
+		    Tix_DItemDisplay(drawable, chPtr->iPtr,
 		    	drawX, drawY,
 			wPtr->mainRB->dispSize[0][i].size,
-			wPtr->mainRB->dispSize[1][j].size,
+			wPtr->mainRB->dispSize[1][j].size, 0, 0,
 			TIX_DITEM_NORMAL_FG);
 		}
 	    }
@@ -1503,6 +1501,7 @@ Tix_GrGetElementPosn(wPtr, x, y, rect, clipOK, isSite, isScr, nearest)
 	useAxis = 1;
     }
     else {
+	axis = 0; /* lint */
 	useAxis = 0;
     }
 
@@ -1574,7 +1573,7 @@ Tix_GrBdType(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     Tk_Window tkwin = wPtr->dispData.tkwin;
@@ -1703,13 +1702,13 @@ Tix_GrSet(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     TixGrEntry * chPtr = NULL;
     Tix_DItem * iPtr;
     int x, y;
-    char * ditemType;
+    CONST84 char * ditemType;
     int code = TCL_OK;
 
     /*------------------------------------------------------------
@@ -1725,7 +1724,7 @@ Tix_GrSet(clientData, interp, argc, argv)
      *------------------------------------------------------------
      */
     /* (1.0) Find out the -itemtype, if specified */
-    ditemType = wPtr->diTypePtr->name;   		 /* default value */
+    ditemType = wPtr->diTypePtr->name; 	 /* default value */
     if (argc > 2) {
 	size_t len;
 	int i;
@@ -1791,7 +1790,7 @@ Tix_GrUnset(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     TixGrEntry * chPtr;
@@ -1820,7 +1819,7 @@ Tix_GrCGet(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
 
@@ -1837,7 +1836,7 @@ Tix_GrConfig(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
 
@@ -1862,7 +1861,7 @@ Tix_GrDelete(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int from, to, which;
@@ -1884,13 +1883,14 @@ Tix_GrEdit(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int x, y;
     Tcl_DString dstring;
     char buff[20];
-    int len, code;
+    size_t len;
+    int code;
 
     len = strlen(argv[0]);
     if (strncmp(argv[0], "set", len) == 0) {
@@ -1940,7 +1940,7 @@ Tix_GrEntryCget(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int x, y;
@@ -1970,7 +1970,7 @@ Tix_GrEntryConfig(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int x, y;
@@ -2008,7 +2008,7 @@ Tix_GrGeometryInfo(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int qSize[2];
@@ -2054,7 +2054,7 @@ Tix_GrIndex(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int x, y;
@@ -2079,7 +2079,7 @@ Tix_GrInfo(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     size_t len = strlen(argv[0]);
@@ -2128,7 +2128,7 @@ Tix_GrMove(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int from, to, which, by;
@@ -2154,7 +2154,7 @@ Tix_GrNearest(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     Tk_Window tkwin = wPtr->dispData.tkwin;
@@ -2214,7 +2214,7 @@ Tix_GrSetSite(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     int changed = 0;
     WidgetPtr wPtr = (WidgetPtr) clientData;
@@ -2455,7 +2455,7 @@ Tix_GrView(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int axis, oldXOff, oldYOff;
@@ -2556,7 +2556,7 @@ ConfigElement(wPtr, chPtr, argc, argv, flags, forced)
     WidgetPtr wPtr;
     TixGrEntry *chPtr;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
     int flags;
     int forced;
 {
@@ -2580,7 +2580,7 @@ ConfigElement(wPtr, chPtr, argc, argv, flags, forced)
     return TCL_OK;
 }
 
-static char * areaNames[4] = {
+static CONST84 char * areaNames[4] = {
     "s-margin",
     "x-margin",
     "y-margin",
@@ -2592,25 +2592,24 @@ Tix_GrCallFormatCmd(wPtr, which)
     WidgetPtr wPtr;
     int which;
 {
-    int size;
+#define STATIC_SPACE_SIZE (128 + TCL_INTEGER_SPACE *4)
+    unsigned int size;
     int code;
-    char * p;
-    char preAlloc[1000];
+    char buff[STATIC_SPACE_SIZE];
+    char * cmd = buff;
 
-    size = strlen(wPtr->formatCmd) + 20*4;
-    if (size > 1000) {
-	p = (char*)ckalloc(size);
-    } else {
-	p = preAlloc;
+    size = strlen(wPtr->formatCmd) + 10 + (TCL_INTEGER_SPACE *4) + 10;
+    if (size > STATIC_SPACE_SIZE) {
+	cmd = (char*)ckalloc(size);
     }
 
     wPtr->renderInfo->fmt.whichArea = which;
-    sprintf(p, "%s %s %d %d %d %d", wPtr->formatCmd, areaNames[which],
+    sprintf(cmd, "%s %s %d %d %d %d", wPtr->formatCmd, areaNames[which],
 	wPtr->renderInfo->fmt.x1, 
 	wPtr->renderInfo->fmt.y1, 
 	wPtr->renderInfo->fmt.x2, 
 	wPtr->renderInfo->fmt.y2);
-    code = Tcl_GlobalEval(wPtr->dispData.interp, p);
+    code = Tcl_EvalEx(wPtr->dispData.interp, cmd, -1, TCL_GLOBAL_ONLY);
 
     if (code != TCL_OK) {
 	Tcl_AddErrorInfo(wPtr->dispData.interp,
@@ -2618,11 +2617,12 @@ Tix_GrCallFormatCmd(wPtr, which)
 	Tk_BackgroundError(wPtr->dispData.interp);
     }
 
-    if (p != preAlloc) {
-	ckfree((char*)p);
+    if (cmd != buff) {
+	ckfree((char*)cmd);
     }
 
     return code;
+#undef STATIC_SPACE_SIZE
 }
 
 
@@ -3268,7 +3268,7 @@ TranslateFromTo(interp, wPtr, argc, argv, from, to, which)
     Tcl_Interp * interp;
     WidgetPtr wPtr;
     int argc;
-    char **argv;
+    CONST84 char **argv;
     int *from;
     int *to;
     int * which;

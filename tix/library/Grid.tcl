@@ -1,15 +1,24 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: Grid.tcl,v 1.6 2004/03/28 02:44:57 hobbs Exp $
+#
 # Grid.tcl --
 #
 # 	This file defines the default bindings for Tix Grid widgets.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
 
 
-
+global tkPriv
+if {![llength [info globals tkPriv]]} {
+    tk::unsupported::ExposePrivateVariable tkPriv
+}
 #--------------------------------------------------------------------------
 # tkPriv elements used in this file:
 #
@@ -17,6 +26,13 @@
 # fakeRelease -		Cancel the ButtonRelease-1 after the user double click
 #--------------------------------------------------------------------------
 #
+foreach fun {tkCancelRepeat} {
+    if {![llength [info commands $fun]]} {
+	tk::unsupported::ExposePrivateCommand $fun
+    }
+}
+unset fun
+
 proc tixGridBind {} {
     tixBind TixGrid <ButtonPress-1> {
 	tixGrid:Button-1 %W %x %y
@@ -98,6 +114,12 @@ proc tixGridBind {} {
     tixBind TixGrid <space> {
 	tixGrid:Space %W 
     }
+    #
+    # Don't use tixBind because %A causes Tk 8.3.2 to crash
+    #
+    bind TixGrid <MouseWheel> {
+        %W yview scroll [expr {- (%D / 120) * 2}] units
+    }
 }
 
 #----------------------------------------------------------------------
@@ -109,30 +131,25 @@ proc tixGridBind {} {
 #----------------------------------------------------------------------
 
 proc tixGrid:Button-1 {w x y} {
-    if {[$w cget -state] == "disabled"} {
+    if {[$w cget -state] eq "disabled"} {
 	return
     }
     tixGrid:SetFocus $w
 
-    case [tixGrid:GetState $w] {
-	{0} {
-	    tixGrid:GoState 1 $w $x $y
-       	}
+    if {[tixGrid:GetState $w] == 0} {
+	tixGrid:GoState 1 $w $x $y
     }
 }
 
 proc tixGrid:Shift-Button-1 {w x y} {
-    if {[$w cget -state] == "disabled"} {
+    if {[$w cget -state] eq "disabled"} {
 	return
     }
     tixGrid:SetFocus $w
-
-    case [tixGrid:GetState $w] {
-    }
 }
 
 proc tixGrid:Control-Button-1 {w x y} {
-    if {[$w cget -state] == "disabled"} {
+    if {[$w cget -state] eq "disabled"} {
 	return
     }
     tixGrid:SetFocus $w
@@ -284,7 +301,7 @@ proc tixGrid:AutoScan {w} {
 #
 #----------------------------------------------------------------------
 proc tixGrid:DirKey {w key} {
-    if {[$w cget -state] == "disabled"} {
+    if {[$w cget -state] eq "disabled"} {
 	return
     }
     case [tixGrid:GetState $w] {
@@ -298,7 +315,7 @@ proc tixGrid:DirKey {w key} {
 }
 
 proc tixGrid:Return {w} {
-    if {[$w cget -state] == "disabled"} {
+    if {[$w cget -state] eq "disabled"} {
 	return
     }
     case [tixGrid:GetState $w] {
@@ -312,7 +329,7 @@ proc tixGrid:Return {w} {
 }
 
 proc tixGrid:Space {w} {
-    if {[$w cget -state] == "disabled"} {
+    if {[$w cget -state] eq "disabled"} {
 	return
     }
     case [tixGrid:GetState $w] {
@@ -369,11 +386,11 @@ proc tixGrid:GoState-0 {w} {
     set list $w:_list
     global $list
 
-    if [info exists $list] {
+    if {[info exists $list]} {
 	foreach cmd [set $list] {
 	    uplevel #0 $cmd
 	}
-	if [info exists $list] {
+	if {[info exists $list]} {
 	    unset $list
 	}
     }
@@ -387,7 +404,7 @@ proc tixGrid:GoState-1 {w x y} {
     tixGrid:CheckEdit $w
     $w selection clear 0 0 max max
 
-    if [string compare [$w cget -selectmode] single] {
+    if {[$w cget -selectmode] ne "single"} {
 	tixGrid:SelectSingle $w $ent
     }
     tixGrid:GoState 2 $w
@@ -795,7 +812,7 @@ proc tixGrid:GoState-e10 {w x y} {
 	if {[$w info anchor] == ""} {
 	    $w anchor set $ent
 	}
-	if [$w selection includes $ent] {
+	if {[$w selection includes $ent]} {
 	    $w selection clear $ent
 	} else {
 	    $w selection set $ent
@@ -835,7 +852,7 @@ proc tixGrid:GoState-13 {w ent oldEnt} {
 proc tixGrid:GoState-14 {w x y} {
     global tkPriv
 
-    if [tixGrid:InsideArmedIndicator $w $x $y] {
+    if {[tixGrid:InsideArmedIndicator $w $x $y]} {
 	$w anchor set $tkPriv(tix,indicator)
 	$w select clear
 	$w select set $tkPriv(tix,indicator)
@@ -852,7 +869,7 @@ proc tixGrid:GoState-16 {w ent} {
     if {$ent == ""} {
 	return
     }
-    if {[$w cget -selectmode] != "single"} {
+    if {[$w cget -selectmode] ne "single"} {
 	tixGrid:Select $w $ent
 	tixGrid:Browse $w $ent
     }
@@ -900,7 +917,7 @@ proc tixGrid:GoState-22 {w} {
 #			callback actions
 #----------------------------------------------------------------------
 proc tixGrid:SetAnchor {w ent} {
-    if [string compare $ent ""] {
+    if {$ent ne ""} {
 	$w anchor set [lindex $ent 0] [lindex $ent 1]
 #	$w see $ent
     }
@@ -935,7 +952,7 @@ proc tixGrid:DoScan {w} {
     if {$x >= [winfo width $w]} {
 	$w xview scroll 2 units
 	set out 1
-    } 
+    }
     if {$x < 0} {
 	$w xview scroll -2 units
 	set out 1
@@ -977,13 +994,10 @@ proc tixGrid:EditCell {w x y} {
     set list $w:_list
     global $list
 
-    case [tixGrid:GetState $w] {
-	{0} {
-	    tixGrid:SetEdit $w [list $x $y]
-       	}
-	default {
-	    lappend $list [list tixGrid:SetEdit $w [list $x $y]]
-	}
+    if {[tixGrid:GetState $w] == 0} {
+	tixGrid:SetEdit $w [list $x $y]
+    } else {
+	lappend $list [list tixGrid:SetEdit $w [list $x $y]]
     }
 }
 
@@ -996,13 +1010,10 @@ proc tixGrid:EditApply {w} {
     set list $w:_list
     global $list
 
-    case [tixGrid:GetState $w] {
-	{0} {
-	    tixGrid:CheckEdit $w
-       	}
-	default {
-	    lappend $list [list tixGrid:CheckEdit $w]
-	}
+    if {[tixGrid:GetState $w] == 0} {
+	tixGrid:CheckEdit $w
+    } else {
+	lappend $list [list tixGrid:CheckEdit $w]
     }
 }
 
@@ -1013,12 +1024,12 @@ proc tixGrid:EditApply {w} {
 #
 proc tixGrid:CheckEdit {w} {
     set edit $w.tixpriv__edit
-    if [winfo exists $edit] {
+    if {[winfo exists $edit]} {
 	#
 	# If it -command is not empty, it is being used for another cell.
 	# Invoke it so that the other cell can be updated.
 	#
-	if ![tixStrEq [$edit cget -command] ""] {
+	if {[$edit cget -command] ne ""} {
 	    $edit invoke
 	}
     }
@@ -1033,16 +1044,16 @@ proc tixGrid:SetEdit {w ent} {
     tixGrid:CheckEdit $w
 
     set editnotifycmd [$w cget -editnotifycmd]
-    if [tixStrEq $editnotifycmd ""] {
+    if {$editnotifycmd eq ""} {
 	return
     }
     set px [lindex $ent 0]
     set py [lindex $ent 1]
 
-    if ![uplevel #0 $editnotifycmd $px $py] {
+    if {![uplevel #0 $editnotifycmd $px $py]} {
 	return
     }
-    if [$w info exists $px $py] {
+    if {[$w info exists $px $py]} {
 	if [catch {
 	    set oldValue [$w entrycget $px $py -text]
 	}] {
@@ -1063,7 +1074,7 @@ proc tixGrid:SetEdit {w ent} {
     set W [lindex $bbox 2]
     set H [lindex $bbox 3]
 
-    if ![winfo exists $edit] {
+    if {![winfo exists $edit]} {
 	tixFloatEntry $edit
     }
 
@@ -1079,19 +1090,19 @@ proc tixGrid:DoneEdit {w x y args} {
     $edit unpost
 
     set value [tixEvent value]
-    if [$w info exists $x $y] {
+    if {[$w info exists $x $y]} {
 	if [catch {
 	    $w entryconfig $x $y -text $value
 	}] {
 	    return
 	}
-    } elseif ![tixStrEq $value ""] {	
-	if [catch {
+    } elseif {$value ne ""} {
+	if {[catch {
 	    # This needs to be catch'ed because the default itemtype may
 	    # not support the -text option
 	    #
 	    $w set $x $y -text $value
-	}] {
+	}]} {
 	    return
 	}
     } else {
@@ -1099,15 +1110,13 @@ proc tixGrid:DoneEdit {w x y args} {
     }
 
     set editDoneCmd [$w cget -editdonecmd]
-    if ![tixStrEq $editDoneCmd ""] {
+    if {$editDoneCmd ne ""} {
 	uplevel #0 $editDoneCmd $x $y
     }
 }
 
 proc tixGrid:SetFocus {w} {
-    if [$w cget -takefocus] {
-	if ![string match $w.* [focus -displayof $w]] {
-	    focus $w
-	}
+    if {[$w cget -takefocus] && ![string match $w.* [focus -displayof $w]]} {
+	focus $w
     }
 }

@@ -1,10 +1,15 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: HListDD.tcl,v 1.3 2001/12/09 05:04:02 idiscovery Exp $
+#
 # HListDD.tcl --
 #
 #	!!! PRE-ALPHA CODE, NOT USED, DON'T USE !!!
 #
 #	This file implements drag+drop for HList.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -75,7 +80,7 @@ proc tixHListSingle:Send:StartDrag {w x y} {
     if {$tixPriv(dd,$w:moved) == 0} {
 	$w dragsite set $tixPriv(dd,$w:entry)
 	set tixPriv(dd,$w:moved) 1
-	$dd config -source $w -command "tixHListSingle:Send:Cmd $w"
+	$dd config -source $w -command [list tixHListSingle:Send:Cmd $w]
 	$dd startdrag $X $Y
     } else {
 	$dd drag $X $Y

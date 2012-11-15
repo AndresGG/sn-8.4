@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: HLInd.tcl,v 1.2 2002/11/13 21:12:18 idiscovery Exp $
+#
 proc Test {} {
     set h [tixHList .h -indicator 1 -indent 20]
     pack $h -expand yes -fill both

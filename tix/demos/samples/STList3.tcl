@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: STList3.tcl,v 1.4 2004/03/28 02:44:56 hobbs Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -53,8 +57,8 @@ proc RunSample {w} {
     # setup the callbacks: when the user selects a directory, we'll display
     # its content in the tlist widget
     $p1.dirtree config \
-	-browsecmd "TList:listdir $tlist" \
-	-command "TList:listdir $tlist"
+	-browsecmd [list TList:listdir $tlist] \
+	-command [list TList:listdir $tlist]
 
     # List the directory now
     #
@@ -62,60 +66,47 @@ proc RunSample {w} {
 
     # Create the buttons
     #
-    $box add ok     -text Ok     -command "destroy $w" -width 6
-    $box add cancel -text Cancel -command "destroy $w" -width 6
+    $box add ok     -text Ok     -command [list destroy $w] -width 6
+    $box add cancel -text Cancel -command [list destroy $w] -width 6
 }
 
 proc TList:listdir {w dir} {
     $w delete 0 end
 
-    set appPWD [pwd]
-
-    if [catch {cd $dir} err] {
+    if {[catch {glob -nocomplain -directory $dir *} entries]} {
 	# The user has entered an invalid directory
 	# %% todo: prompt error, go back to last succeed directory
-	cd $appPWD
 	return
     }
 
-    foreach fname [lsort [glob -nocomplain *]] {
-	if [file isdirectory $fname] {
+    set files ""
+    foreach fname [lsort -dictionary $entries] {
+	if {[file isdirectory $fname]} {
 	    set image [tix getimage folder]
 	} else {
+	    lappend files [file tail $fname]
 	    continue
 	}
-
 	$w insert end -itemtype imagetext \
-	    -text $fname -image $image
+	    -text [file tail $fname] -image $image
     }
 
-    foreach fname [lsort [glob -nocomplain *]] {
-	if [file isdirectory $fname] {
-	    continue
-	} elseif [string match *.c $fname] {
-	    set image [tix getimage srcfile]
-	} elseif [string match *.h $fname] {
-	    set image [tix getimage srcfile]
-	} elseif [string match *.tcl $fname] {
-	    set image [tix getimage file]
-	} elseif [string match *.o $fname] {
-	    set image [tix getimage file]
-	} else {
-	    set image [tix getimage textfile]
+    foreach fname $files {
+	switch -glob -- $fname {
+	    {*.[ch]} { set image [tix getimage srcfile] }
+	    *.tcl -
+	    *.o      { set image [tix getimage file] }
+	    default  { set image [tix getimage textfile] }
 	}
-
-	$w insert end -itemtype imagetext \
-	    -text $fname -image $image
+	$w insert end -itemtype imagetext -text $fname -image $image
     }
-
-    cd $appPWD
 }
 
 
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
     bind $w <Destroy> exit
 }

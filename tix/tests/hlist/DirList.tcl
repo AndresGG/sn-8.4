@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: DirList.tcl,v 1.3 2004/03/28 02:44:57 hobbs Exp $
+#
 # This file tests the pixmap image reader
 #
 
@@ -15,28 +19,22 @@ proc Test {} {
 
     # If we didn't specifi -value, the DirList should display the
     # current directory
-    Assert {[tixStrEq [$w cget -value] [tixFSPWD]]}
+    Assert {[string equal [$w cget -value] [pwd]]}
 
     # After changing the directory, the selection and anchor should change as
     # well
     set root [$h info children ""]
     ClickHListEntry $h $root single
-    Assert {[tixStrEq [$w cget -value] [$h info data $root]]}
-    Assert {[tixStrEq [$h info selection] $root]}
-    Assert {[tixStrEq [$h info anchor]    $root]}
+    Assert {[string equal [$w cget -value] [$h info data $root]]}
+    Assert {[string equal [$h info selection] $root]}
+    Assert {[string equal [$h info anchor]    $root]}
 
-    case [tix platform] {
-	unix {
-	    set dir1 /etc
-	    set dir2 /etc
-	}
-	windows {
-	    set dir1 C:\\Windows
-	    set dir2 C:\\Backup
-	}
-	default {
-	    return
-	}
+    if {$::tcl_platform(platform) eq "windows"} {
+	set dir1 C:\\Windows
+	set dir2 C:\\Backup
+    } else {
+	set dir1 /etc
+	set dir2 /etc
     }
 
     foreach dir [list $dir1 $dir2] {
@@ -45,7 +43,7 @@ proc Test {} {
 	}
 
 	$w config -value $dir
-	Assert {[tixStrEq [$w cget -value] $dir]}
-	Assert {[tixStrEq [$h info data [$h info anchor]] $dir]}
+	Assert {[string equal [$w cget -value] $dir]}
+	Assert {[string equal [$h info data [$h info anchor]] $dir]}
     }
 }

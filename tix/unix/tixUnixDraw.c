@@ -3,11 +3,13 @@
  *
  *	Implement the Unix specific function calls for drawing.
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000      Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tixUnixDraw.c,v 1.6 2005/03/25 20:15:53 hobbs Exp $
  */
 
 #include <tixPort.h>
@@ -16,18 +18,21 @@
 
 /*
  *----------------------------------------------------------------------
+ *
  * TixpDrawTmpLine --
  *
  *	Draws a "temporary" line between the two points. The line can be
  *	removed by calling the function again with the same parameters.
  *
  * Results:
- *	Standard Tcl result.
+ *	None.
  *
  * Side effects:
- *	A line is XOR'ed onto the screen.
+ *	None.
+ *
  *----------------------------------------------------------------------
  */
+
 void
 TixpDrawTmpLine(x1, y1, x2, y2, tkwin)
     int x1;
@@ -78,14 +83,24 @@ TixpDrawTmpLine(x1, y1, x2, y2, tkwin)
     XFreeGC(Tk_Display(tkwin), gc);
 }
 
-/*----------------------------------------------------------------------
+/*
+ *----------------------------------------------------------------------
+ *
  * TixpDrawAnchorLines --
  *
  *	See comments near Tix_DrawAnchorLines.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None
+ *
  *----------------------------------------------------------------------
  */
 
-void TixpDrawAnchorLines(display, drawable, gc, x, y, w, h)
+void
+TixpDrawAnchorLines(display, drawable, gc, x, y, w, h)
     Display *display;
     Drawable drawable;
     GC gc;
@@ -94,41 +109,65 @@ void TixpDrawAnchorLines(display, drawable, gc, x, y, w, h)
     int w;
     int h;
 {
-    XPoint points[4];
-
-    if (w < 1) {
-	w = 1;
-    }
-    if (h < 1) {
-	h = 1;
-    }
-
-    XDrawRectangle(display, drawable, gc, x, y, w-1, h-1);
+    int n;
+    int draw = 1;
 
     /*
-     * Draw these points so that the corners will not be rounded
+     * TODO: (perf) use XDrawPoints to reduce the number of X calls.
      */
-    points[0].x = x;
-    points[0].y = y;
-    points[1].x = x + w - 1;
-    points[1].y = y;
-    points[2].x = x;
-    points[2].y = y + h - 1;
-    points[3].x = x + w - 1;
-    points[3].y = y + h - 1;
+    if (w < 2 || h < 2) {
+        /*
+         * Area too small to show effect. Don't bother
+         */
+	return;
+    }
 
-    XDrawPoints(display, drawable, gc, points, 4, CoordModeOrigin);
+    for (n=0; n<w; n++, draw = !draw) {
+        if (draw) {
+            XDrawPoint(display, drawable, gc, x+n, y);
+        }
+    }
+
+    for (n=1; n<h; n++, draw = !draw) {
+        if (draw) {
+            XDrawPoint(display, drawable, gc, x+w-1, y+n);
+        }
+    }
+
+    for (n=1; n<w; n++, draw = !draw) {
+        if (draw) {
+            XDrawPoint(display, drawable, gc, x+w-n-1, y+h-1);
+        }
+    }
+
+    for (n=1; n<h-1; n++, draw = !draw) {
+        if (draw) {
+            XDrawPoint(display, drawable, gc, x, y+h-n-1);
+        }
+    }
 }
 
-/*----------------------------------------------------------------------
+/*
+ *----------------------------------------------------------------------
+ *
  * TixpStartSubRegionDraw --
  *
- *	Limits the subsequent drawing operations into the prescribed
- *	rectangle region. This takes effect up to a matching
- *	TixEndSubRegionDraw() call.
+ *      This function is used by the Tix DItem code to implement
+ *      clipped rendering -- if a DItem is larger than the region
+ *      where the DItem is displayed (with the Tix_DItemDisplay
+ *      function), we clip the DItem so that all the rendering
+ *      happens inside the region.
  *
- * Return value:
- *	none.
+ *      If you're wondering why the SubReg API is necessary at all,
+ *      please consult the file tixWinDraw.c.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Some infomation is saved in subRegPtr for use by the
+ *      TixpSubRegDrawXXX functions.
+ *
  *----------------------------------------------------------------------
  */
 
@@ -150,24 +189,74 @@ TixpStartSubRegionDraw(display, drawable, gc, subRegPtr, origX, origY,
 {
     if ((width < needWidth) || (height < needHeight)) {
 	subRegPtr->rectUsed    = 1;
+        subRegPtr->origX       = origX;
+        subRegPtr->origY       = origY;
 	subRegPtr->rect.x      = (short)x;
 	subRegPtr->rect.y      = (short)y;
 	subRegPtr->rect.width  = (short)width;
 	subRegPtr->rect.height = (short)height;
-
+#ifndef MAC_OSX_TK
 	XSetClipRectangles(display, gc, origX, origY, &subRegPtr->rect,
 		1, Unsorted);
+#else
+	subRegPtr->pixmap = Tk_GetPixmap(display, drawable, width, height,
+		32);
+
+	if (subRegPtr->pixmap != None) {
+	    XCopyArea(display, drawable, subRegPtr->pixmap, gc, x, y,
+		    width, height, 0, 0);
+	}
+#endif
     } else {
 	subRegPtr->rectUsed    = 0;
+#ifdef MAC_OSX_TK
+	subRegPtr->pixmap = None;
+#endif
     }
 }
+
+void
+TixpSubRegSetClip(display, subRegPtr, gc)
+    Display *display;
+    TixpSubRegion * subRegPtr;
+    GC gc;
+{
+#ifndef MAC_OSX_TK
+    if (subRegPtr->rectUsed) {
+	XSetClipRectangles(display, gc, subRegPtr->origX, subRegPtr->origY,
+                &subRegPtr->rect, 1, Unsorted);
+    }
+
+#endif
+}
+
+void
+TixpSubRegUnsetClip(display, subRegPtr, gc)
+    Display *display;
+    TixpSubRegion * subRegPtr;
+    GC gc;
+{
+#ifndef MAC_OSX_TK
+    XRectangle rect;
+
+    if (subRegPtr->rectUsed) {
+	rect.x      = 0;
+	rect.y      = 0;
+	rect.width  = 20000;
+	rect.height = 20000;
+	XSetClipRectangles(display, gc, 0, 0, &rect, 1, Unsorted);
+    }
+#endif
+}
 
-/*----------------------------------------------------------------------
+/*
+ *----------------------------------------------------------------------
  * TixpEndSubRegionDraw --
  *
  *
  *----------------------------------------------------------------------
  */
+
 void
 TixpEndSubRegionDraw(display, drawable, gc, subRegPtr)
     Display *display;
@@ -175,13 +264,17 @@ TixpEndSubRegionDraw(display, drawable, gc, subRegPtr)
     GC gc;
     TixpSubRegion * subRegPtr;
 {
-    if (subRegPtr->rectUsed) {
-	subRegPtr->rect.x      = (short)0;
-	subRegPtr->rect.y      = (short)0;
-	subRegPtr->rect.width  = (short)20000;
-	subRegPtr->rect.height = (short)20000;
-	XSetClipRectangles(display, gc, 0, 0, &subRegPtr->rect, 1, Unsorted);
+#ifndef MAC_OSX_TK
+    TixpSubRegUnsetClip(display, subRegPtr, gc);
+#else
+    if (subRegPtr->pixmap != None) {
+	XCopyArea(display, subRegPtr->pixmap, drawable, gc, 0, 0,
+		subRegPtr->rect.width, subRegPtr->rect.height,
+		subRegPtr->rect.x, subRegPtr->rect.y);
+	Tk_FreePixmap(display, subRegPtr->pixmap);
+	subRegPtr->pixmap = None;
     }
+#endif
 }
 
 /*
@@ -210,7 +303,7 @@ TixpSubRegDisplayText(display, drawable, gc, subRegPtr, font, string,
     TixpSubRegion * subRegPtr;	/* Information about the subregion */
     TixFont font;		/* Font that determines geometry of text
 				 * (should be same as font in gc). */
-    char *string;		/* String to display;  may contain embedded
+    CONST84 char *string;	/* String to display;  may contain embedded
 				 * newlines. */
     int numChars;		/* Number of characters to use from string. */
     int x, y;			/* Pixel coordinates within drawable of
@@ -222,8 +315,17 @@ TixpSubRegDisplayText(display, drawable, gc, subRegPtr, font, string,
     int underline;		/* Index of character to underline, or < 0
 				 * for no underlining. */
 {
+#ifdef MAC_OSX_TK
+    if (subRegPtr->pixmap != None) {
+	TixDisplayText(display, subRegPtr->pixmap, font, string,
+		numChars, x - subRegPtr->x, y - subRegPtr->y,
+		length, justify, underline, gc);
+    } else 
+#endif	
+    {
     TixDisplayText(display, drawable, font, string,
 	numChars, x, y,	length, justify, underline, gc);
+    }
 }
 
 /*----------------------------------------------------------------------
@@ -243,7 +345,16 @@ TixpSubRegFillRectangle(display, drawable, gc, subRegPtr, x, y, width, height)
 				 * upper left corner of display area. */
     int width, height;		/* Size of the rectangle. */
 {
-    XFillRectangle(display, drawable, gc, x, y, width, height);
+#ifdef MAC_OSX_TK
+    if (subRegPtr->pixmap != None) {
+	XFillRectangle(display, subRegPtr->pixmap, gc,
+		x - subRegPtr->x, y - subRegPtr->y, width, height);
+    } else
+#endif	
+    {
+    XFillRectangle(display, drawable, gc, x, y,
+	    (unsigned) width, (unsigned) height);
+    }
 }
 
 /*----------------------------------------------------------------------
@@ -265,7 +376,21 @@ TixpSubRegDrawImage(subRegPtr, image, imageX, imageY, width, height,
     int drawableX;
     int drawableY;
 {
+#ifdef MAC_OSX_TK
+    if (subRegPtr->pixmap != None) {
+        drawableX -= subRegPtr->x;
+        drawableY -= subRegPtr->y;
+        Tk_RedrawImage(image, imageX, imageY, width, height, subRegPtr->pixmap,
+	        drawableX, drawableY);
+    } else
+#endif	
+    {
     if (subRegPtr->rectUsed) {
+        /*
+         * We need to do the clipping by hand because Tk_RedrawImage()
+         * Does not take in a GC so we can't set its clip region.
+         */
+
 	if (drawableX < subRegPtr->rect.x) {
 	    width  -= subRegPtr->rect.x - drawableX;
 	    imageX += subRegPtr->rect.x - drawableX;
@@ -287,6 +412,7 @@ TixpSubRegDrawImage(subRegPtr, image, imageX, imageY, width, height,
 
     Tk_RedrawImage(image, imageX, imageY, width, height, drawable,
 	    drawableX, drawableY);
+    }
 }
 
 void
@@ -302,6 +428,57 @@ TixpSubRegDrawBitmap(display, drawable, gc, subRegPtr, bitmap, src_x, src_y,
     int dest_x, dest_y;
     unsigned long plane;
 {
-    XCopyPlane(display, bitmap, drawable, gc, src_x, src_y, width, height,
-	    dest_x, dest_y, plane);
+#ifdef MAC_OSX_TK
+    XSetClipOrigin(display, gc, dest_x, dest_y);
+    if (subRegPtr->pixmap != None) {
+	XCopyPlane(display, bitmap, subRegPtr->pixmap, gc, src_x, src_y,
+		width, height, dest_x - subRegPtr->x, dest_y - subRegPtr->y,
+		plane);
+    } else {
+#endif	
+    XCopyPlane(display, bitmap, drawable, gc, src_x, src_y,
+	    (unsigned) width, (unsigned) height, dest_x, dest_y, plane);
+#ifdef MAC_OSX_TK
+    }
+    XSetClipOrigin(display, gc, 0, 0);
+#endif	
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TixpSubRegDrawAnchorLines --
+ *
+ *	Draw anchor lines inside the given sub region.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+TixpSubRegDrawAnchorLines(display, drawable, gc, subRegPtr, x, y, w, h)
+    Display *display;           /* Display to draw on. */
+    Drawable drawable;          /* Drawable to draw on. */
+    GC gc;                      /* Use the foreground color of this GC. */
+    TixpSubRegion * subRegPtr;  /* Describes the subregion. */
+    int x;                      /* x pos of top-left corner of anchor rect */
+    int y;                      /* y pos of top-left corner of anchor rect */
+    int w;                      /* width of anchor rect */
+    int h;                      /* height of anchor rect */
+{
+#ifdef MAC_OSX_TK
+    if (subRegPtr->pixmap != None) {
+        x -= subRegPtr->x;
+        y -= subRegPtr->y;
+        TixpDrawAnchorLines(display, subRegPtr->pixmap, gc, x, y, w, h);
+    } else
+#endif	
+    {
+    TixpDrawAnchorLines(display, drawable, gc, x, y, w, h);
+    }
 }

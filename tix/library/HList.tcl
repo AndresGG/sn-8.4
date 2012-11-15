@@ -1,16 +1,24 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: HList.tcl,v 1.6 2004/03/28 02:44:57 hobbs Exp $
+#
 # HList.tcl --
 #
 #	This file defines the default bindings for Tix Hierarchical Listbox
 #	widgets.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
 
-
-
+global tkPriv
+if {![llength [info globals tkPriv]]} {
+    tk::unsupported::ExposePrivateVariable tkPriv
+}
 #--------------------------------------------------------------------------
 # tkPriv elements used in this file:
 #
@@ -18,6 +26,13 @@
 # fakeRelease -		Cancel the ButtonRelease-1 after the user double click
 #--------------------------------------------------------------------------
 #
+foreach fun {tkCancelRepeat} {
+    if {![llength [info commands $fun]]} {
+	tk::unsupported::ExposePrivateCommand $fun
+    }
+}
+unset fun
+
 proc tixHListBind {} {
     tixBind TixHList <ButtonPress-1> {
 	tixHList:Button-1 %W %x %y ""
@@ -35,7 +50,7 @@ proc tixHListBind {} {
 	tixHList:Double-1 %W  %x %y
     }
     tixBind TixHList <B1-Motion> {
-	set tkPriv(x) %x 
+	set tkPriv(x) %x
 	set tkPriv(y) %y
 	set tkPriv(X) %X
 	set tkPriv(Y) %Y
@@ -43,7 +58,7 @@ proc tixHListBind {} {
 	tixHList:B1-Motion %W %x %y
     }
     tixBind TixHList <B1-Leave> {
-	set tkPriv(x) %x 
+	set tkPriv(x) %x
 	set tkPriv(y) %y
 	set tkPriv(X) %X
 	set tkPriv(Y) %Y
@@ -86,6 +101,57 @@ proc tixHListBind {} {
     tixBind TixHList <space> {
 	tixHList:Keyboard-Browse %W 
     }
+
+    # Under Windows <Home> moves up, clears the sel and sets the selection
+    # Under Windows <Control-Home> moves up, leaves the selection, and sets the anchor
+    tixBind TixHList <Home> {
+	set w %W
+	$w yview moveto 0; # $w xview moveto 0
+	set sel [lindex [$w info children] 0]
+	# should be first not disabled
+	$w anchor set $sel
+	tixHList:Keyboard-Browse $w
+    }
+    tixBind TixHList <End>  {
+	set w %W
+	$w yview moveto 1; #	$w xview moveto 0
+	$w select clear
+	# should be last not disabled
+	set sel [lindex [$w info children .] end]
+	while {[set next [$w info next $sel]] ne "" && \
+		![$w info hidden $next] && \
+		[llength [set kids [$w info child $sel]]]} {
+	    set sel [lindex $kids end]
+	}
+	$w anchor set $sel
+	tixHList:Keyboard-Browse $w
+    }
+    tixBind TixHList <Control-Home> {
+	set w %W
+	$w yview moveto 0; # $w xview moveto 0
+	set sel [lindex [$w info children] 0]
+	# should be first not disabled
+	$w anchor set $sel
+    }
+    tixBind TixHList <Control-End>  {
+	set w %W
+	$w yview moveto 1; #	$w xview moveto 0
+	# should be last not disabled
+	set sel [lindex [$w info children .] end]
+	while {[set next [$w info next $sel]] ne "" && \
+		![$w info hidden $next] && \
+		[llength [set kids [$w info child $sel]]]} {
+	    set sel [lindex $kids end]
+	}
+	$w anchor set $sel
+    }
+    #
+    # Don't use tixBind because %A causes Tk 8.3.2 to crash
+    #
+    bind TixHList <MouseWheel> {
+        %W yview scroll [expr {- (%D / 120) * 2}] units
+    }
+
 }
 
 #----------------------------------------------------------------------
@@ -101,17 +167,17 @@ proc tixHList:Keyboard-Activate {w} {
     }
     set ent [$w info anchor]
 
-    if {$ent == ""} {
+    if {$ent eq ""} {
 	return
     }
 
-    if {[$w cget -selectmode] == "single"} {
+    if {[$w cget -selectmode] eq "single"} {
 	$w select clear
-	$w select set $ent
     }
+    $w select set $ent
 
     set command [$w cget -command]
-    if {$command != ""} {
+    if {$command ne ""} {
 	set bind(specs) {%V}
 	set bind(%V)    $ent
 
@@ -125,14 +191,14 @@ proc tixHList:Keyboard-Browse {w} {
     }
     set ent [$w info anchor]
 
-    if {$ent == ""} {
+    if {$ent eq ""} {
 	return
     }
 
-    if {[$w cget -selectmode] == "single"} {
+    if {[$w cget -selectmode] eq "single"} {
 	$w select clear
-	$w select set $ent
     }
+    $w select set $ent
 
     tixHList:Browse $w $ent
 }
@@ -146,50 +212,50 @@ proc tixHList:LeftRight {w spec} {
     }
 
     set anchor [$w info anchor]
-    if {$anchor == ""} {
+    if {$anchor eq ""} {
 	set anchor [lindex [$w info children] 0]
     }
-    if {$anchor == ""} {
+    if {$anchor eq ""} {
 	return
     }
 
     set ent $anchor
     while {1} {
 	set e $ent
-	if {$spec == "left"} {
+	if {$spec eq "left"} {
 	    set ent [$w info parent $e]
 
-	    if {$ent == "" || [$w entrycget $ent -state] == "disabled"} {
+	    if {$ent eq "" || [$w entrycget $ent -state] eq "disabled"} {
 		set ent [$w info prev $e]
 	    }
 	} else {
 	    set ent [lindex [$w info children $e] 0]
 
-	    if {$ent == "" || [$w entrycget $ent -state] == "disabled"} {
+	    if {$ent eq "" || [$w entrycget $ent -state] eq "disabled"} {
 		set ent [$w info next $e]
 	    }
 	}
 
-	if {$ent == ""} {
+	if {$ent eq ""} {
 	    break
 	}
- 	if {[$w entrycget $ent -state] == "disabled"} {
+ 	if {[$w entrycget $ent -state] eq "disabled"} {
 	    continue
 	}
- 	if [$w info hidden $ent] {
+ 	if {[$w info hidden $ent]} {
 	    continue
 	}
 	break
     }
 
-    if {$ent == ""} {
+    if {$ent eq ""} {
        return
     }
 
     $w anchor set $ent
     $w see $ent
 
-    if {[$w cget -selectmode] != "single"} {
+    if {[$w cget -selectmode] ne "single"} {
 	$w select clear
 	$w selection set $ent
 
@@ -198,20 +264,20 @@ proc tixHList:LeftRight {w spec} {
 }
 
 proc tixHList:UpDown {w spec mod} {
-    if {[tixHList:GetState $w] != 0} {
+    if {[tixHList:GetState $w] ne 0} {
 	return
     }
     set anchor [$w info anchor]
     set done 0
 
-    if {$anchor == ""} {
+    if {$anchor eq ""} {
 	set anchor [lindex [$w info children] 0]
 
-	if {$anchor == ""} {
+	if {$anchor eq ""} {
 	    return
 	}
 
-	if {[$w entrycget $anchor -state] != "disabled"} {
+	if {[$w entrycget $anchor -state] ne "disabled"} {
 	    # That's a good anchor
 	    set done 1
 	} else {
@@ -221,46 +287,49 @@ proc tixHList:UpDown {w spec mod} {
     }
 
     set ent $anchor
+    # mike - bulletproofing
+    if {![$w info exists $ent]} {return}
     # Find the prev/next non-disabled entry
     #
     while {!$done} {
 	set ent [$w info $spec $ent]
-	if {$ent == ""} {
+	if {$ent eq ""} {
 	    break
 	}
-	if {[$w entrycget $ent -state] == "disabled"} {
+	if {[$w entrycget $ent -state] eq "disabled"} {
 	    continue
 	}
-	if [$w info hidden $ent] {
+	if {[$w info hidden $ent]} {
 	    continue
 	}
 	break
     }
 
-    if {$ent == ""} {
+    if {$ent eq ""} {
 	return
     } else {
 	$w see $ent
 	$w anchor set $ent
 
 	set selMode [$w cget -selectmode]
-       if {$mod == "s" && ($selMode == "extended" || $selMode == "multiple")} {
+	if {$mod eq "s" && ($selMode eq "extended" || $selMode eq "multiple")} {
 	    global $w:priv:shiftanchor
 
-	    if ![info exists $w:priv:shiftanchor] {
+	   if {![info exists $w:priv:shiftanchor]} {
 		set $w:priv:shiftanchor $anchor
 	    }
 
 	    $w selection clear
-	    $w selection set $ent [set $w:priv:shiftanchor]
-    
-	    tixHList:Browse $w $ent
+	    # mike - bulletproofing
+	    if {![catch {$w selection set $ent [set $w:priv:shiftanchor]}]} {
+		tixHList:Browse $w $ent
+	    }
 	} else {
 	    catch {
 		uplevel #0 unset $w:priv:shiftanchor
 	    }
 
-	    if {[$w cget -selectmode] != "single"} {
+	    if {[$w cget -selectmode] ne "single"} {
 		$w select clear
 		$w selection set $ent
 
@@ -279,11 +348,11 @@ proc tixHList:UpDown {w spec mod} {
 #----------------------------------------------------------------------
 
 proc tixHList:Button-1 {w x y mod} {
-#    if {[$w cget -state] == "disabled"} {
+#    if {[$w cget -state] eq "disabled"} {
 #	return
 #    }
 
-    if [$w cget -takefocus] {
+    if {[$w cget -takefocus]} {
 	focus $w
     }
 
@@ -291,15 +360,15 @@ proc tixHList:Button-1 {w x y mod} {
 
     case [tixHList:GetState $w] {
 	{0} {
-	    if {$mod == "s" && $selMode == "multiple"} {
+	    if {$mod eq "s" && $selMode eq "multiple"} {
 		tixHList:GoState 28 $w $x $y
 		return
 	    }
-	    if {$mod == "s" && $selMode == "extended"} {
+	    if {$mod eq "s" && $selMode eq "extended"} {
 		tixHList:GoState 28 $w $x $y
 		return
 	    }
-	    if {$mod == "c" && $selMode == "extended"} {
+	    if {$mod eq "c" && $selMode eq "extended"} {
 		tixHList:GoState 33 $w $x $y
 		return
 	    }
@@ -432,16 +501,16 @@ proc tixHList:GoState-1 {w x y} {
     set oldEnt [$w info anchor]
     set ent [tixHList:SetAnchor $w $x $y 1]
 
-    if {$ent == ""} {
+    if {$ent eq ""} {
 	tixHList:GoState 0 $w
 	return
     }
 
     set info [$w info item $x $y]
-    if {[lindex $info 1] == "indicator"} {
+    if {[lindex $info 1] eq "indicator"} {
 	tixHList:GoState 13 $w $ent $oldEnt
     } else {
-	if {[$w entrycget $ent -state] == "disabled"} {
+	if {[$w entrycget $ent -state] eq "disabled"} {
 	    tixHList:GoState 0 $w
 	} else {
 	    case [$w cget -selectmode] {
@@ -461,11 +530,11 @@ proc tixHList:GoState-5 {w x y} {
 
     set ent [tixHList:SetAnchor $w $x $y]
 
-    if {$ent == "" || $oldEnt == $ent} {
+    if {$ent eq "" || $oldEnt eq $ent} {
 	return
     }
 
-    if {[$w cget -selectmode] != "single"} {
+    if {[$w cget -selectmode] ne "single"} {
 	tixHList:Select $w $ent
 	tixHList:Browse $w $ent
     }
@@ -474,7 +543,7 @@ proc tixHList:GoState-5 {w x y} {
 proc tixHList:GoState-6 {w x y} {
     set ent [tixHList:SetAnchor $w $x $y]
 
-    if {$ent == ""} {
+    if {$ent eq ""} {
 	tixHList:GoState 0 $w
 	return
     }
@@ -496,11 +565,11 @@ proc tixHList:GoState-11 {w} {
     set oldEnt [$w info anchor]
     set ent [tixHList:SetAnchor $w $tkPriv(x) $tkPriv(y)]
 
-    if {$ent == "" || $oldEnt == $ent} {
+    if {$ent eq "" || $oldEnt eq $ent} {
 	return
     }
 
-    if {[$w cget -selectmode] != "single"} {
+    if {[$w cget -selectmode] ne "single"} {
 	tixHList:Select $w $ent
 	tixHList:Browse $w $ent
     }
@@ -521,7 +590,7 @@ proc tixHList:GoState-13 {w ent oldEnt} {
 proc tixHList:GoState-14 {w x y} {
     global tkPriv
 
-    if [tixHList:InsideArmedIndicator $w $x $y] {
+    if {[tixHList:InsideArmedIndicator $w $x $y]} {
 	$w anchor set $tkPriv(tix,indicator)
 	$w select clear
 	$w select set $tkPriv(tix,indicator)
@@ -535,7 +604,7 @@ proc tixHList:GoState-14 {w x y} {
 }
 
 proc tixHList:GoState-16 {w ent} {
-    if {$ent != "" && [$w cget -selectmode] != "single"} {
+    if {$ent ne "" && [$w cget -selectmode] ne "single"} {
 	tixHList:Select $w $ent
 	tixHList:Browse $w $ent
     }
@@ -570,7 +639,7 @@ proc tixHList:GoState-21 {w x y} {
 proc tixHList:GoState-22 {w} {
     global tkPriv
 
-    if {$tkPriv(tix,oldEnt) != ""} {
+    if {$tkPriv(tix,oldEnt) ne ""} {
 	$w anchor set $tkPriv(tix,oldEnt)
     } else {
 	$w anchor clear
@@ -581,15 +650,15 @@ proc tixHList:GoState-22 {w} {
 proc tixHList:GoState-23 {w x y} {
     set ent [tixHList:GetNearest $w $y]
 
-    if {$ent != ""} {
+    if {$ent ne ""} {
 	set info [$w info item $x $y]
 
-	if {[lindex $info 1] == "indicator"} {
+	if {[lindex $info 1] eq "indicator"} {
 	    tixHList:CallIndicatorCmd $w <Activate> $ent
 	} else {
 	    $w select set $ent
 	    set command [$w cget -command]
-	    if {$command != ""} {
+	    if {$command ne ""} {
 		set bind(specs) {%V}
 		set bind(%V)    $ent
 
@@ -601,7 +670,7 @@ proc tixHList:GoState-23 {w x y} {
 }
 
 proc tixHList:GoState-24 {w ent} {
-    if {$ent != ""} {
+    if {$ent ne ""} {
 	tixHList:Select $w $ent
 	tixHList:Browse $w $ent
     }
@@ -610,7 +679,7 @@ proc tixHList:GoState-24 {w ent} {
 proc tixHList:GoState-25 {w} {
     set ent [$w info anchor]
 
-    if {$ent != ""} {
+    if {$ent ne ""} {
 	tixHList:Select $w $ent
 	tixHList:Browse $w $ent
     }
@@ -621,9 +690,9 @@ proc tixHList:GoState-25 {w} {
 
 proc tixHList:GoState-26 {w x y} {
     set anchor [$w info anchor]
-    if {$anchor == ""} {
+    if {$anchor eq ""} {
 	set first [lindex [$w info children ""] 0]
-	if {$first != ""} {
+	if {$first ne ""} {
 	    $w anchor set $first
 	    set anchor $first
 	} else {
@@ -633,7 +702,7 @@ proc tixHList:GoState-26 {w x y} {
 
     set ent [tixHList:GetNearest $w $y 1]
 
-    if {$ent != ""} {
+    if {$ent ne ""} {
 	$w selection clear
 	$w selection set $anchor $ent
 
@@ -644,7 +713,7 @@ proc tixHList:GoState-26 {w x y} {
 proc tixHList:GoState-27 {w} {
     set ent [$w info anchor]
 
-    if {$ent != ""} {
+    if {$ent ne ""} {
 	tixHList:Browse $w $ent
     }
 
@@ -653,9 +722,9 @@ proc tixHList:GoState-27 {w} {
 
 proc tixHList:GoState-28 {w x y} {
     set anchor [$w info anchor]
-    if {$anchor == ""} {
+    if {$anchor eq ""} {
 	set first [lindex [$w info children ""] 0]
-	if {$first != ""} {
+	if {$first ne ""} {
 	    $w anchor set $first
 	    set anchor $first
 	} else {
@@ -664,7 +733,7 @@ proc tixHList:GoState-28 {w x y} {
     }
 
     set ent [tixHList:GetNearest $w $y 1]
-    if {$ent != ""} {
+    if {$ent ne ""} {
 	$w selection clear
 	$w selection set $anchor $ent
 
@@ -682,9 +751,9 @@ proc tixHList:GoState-30 {w} {
     tixHList:DoScan $w
 
     set anchor [$w info anchor]
-    if {$anchor == ""} {
+    if {$anchor eq ""} {
 	set first [lindex [$w info children ""] 0]
-	if {$first != ""} {
+	if {$first ne ""} {
 	    $w anchor set $first
 	    set anchor $first
 	} else {
@@ -693,7 +762,7 @@ proc tixHList:GoState-30 {w} {
     }
 
     set ent [tixHList:GetNearest $w $tkPriv(y) 1]
-    if {$ent != ""} {
+    if {$ent ne ""} {
 	$w selection clear
 	$w selection set $anchor $ent
 
@@ -713,12 +782,18 @@ proc tixHList:GoState-32 {w} {
 
 proc tixHList:GoState-33 {w x y} {
     set ent [tixHList:GetNearest $w $y]
-    if {$ent != ""} {
+    if {$ent ne ""} {
 	$w anchor set $ent
-	$w selection set $ent
+	if {[lsearch [$w selection get] $ent] > -1} {
+	    # This was missing - mike
+	    $w selection clear $ent
+	} else {
+	    $w selection set $ent
+	}
 	tixHList:Browse $w $ent
     }
 }
+
 
 
 #----------------------------------------------------------------------
@@ -729,8 +804,8 @@ proc tixHList:GoState-33 {w x y} {
 proc tixHList:GetNearest {w y {disableOK 0}} {
     set ent [$w nearest $y]
 
-    if {$ent != ""} {
-	if {!$disableOK && [$w entrycget $ent -state] == "disabled"} {
+    if {$ent ne ""} {
+	if {!$disableOK && [$w entrycget $ent -state] eq "disabled"} {
 	    return ""
 	}
     }
@@ -741,10 +816,11 @@ proc tixHList:GetNearest {w y {disableOK 0}} {
 proc tixHList:SetAnchor {w x y {disableOK 0}} {
     set ent [tixHList:GetNearest $w $y $disableOK]
 
-    if {$ent != ""} {
-	if {[$w entrycget $ent -state] != "disabled"} {
+    if {$ent ne ""} {
+	if {[$w entrycget $ent -state] ne "disabled"} {
 	    $w anchor set $ent
-	    $w see $ent
+	    # mike This is non-standard and has a wierd effect: too much motion
+	    # $w see $ent
 	    return $ent
 	} elseif $disableOK {
 	    return $ent
@@ -755,7 +831,7 @@ proc tixHList:SetAnchor {w x y {disableOK 0}} {
 }
 
 proc tixHList:Select {w ent} {
-    if {"x[$w info selection]" != "x$ent"} {
+    if {[$w info selection] ne $ent} {
 	$w selection clear
 	$w select set $ent
     }
@@ -803,7 +879,7 @@ proc tixHList:DoScan {w} {
 proc tixHList:CallIndicatorCmd {w event ent} {
     set cmd [$w cget -indicatorcmd]
 
-    if {$cmd != ""} {
+    if {$cmd ne ""} {
 	set bind(type)  $event
 	set bind(specs) {%V}
 	set bind(%V)    $ent
@@ -816,12 +892,12 @@ proc tixHList:InsideArmedIndicator {w x y} {
     global tkPriv
 
     set ent [tixHList:GetNearest $w $y 1]
-    if {$ent == "" || $ent != $tkPriv(tix,indicator)} {
+    if {$ent eq "" || $ent ne $tkPriv(tix,indicator)} {
 	return 0
     }
 
     set info [$w info item $x $y]
-    if {[lindex $info 1] == "indicator"} {
+    if {[lindex $info 1] eq "indicator"} {
 	return 1
     } else {
 	return 0
@@ -830,7 +906,7 @@ proc tixHList:InsideArmedIndicator {w x y} {
 
 proc tixHList:Browse {w ent} {
     set browsecmd [$w cget -browsecmd]
-    if {$browsecmd != ""} {
+    if {$browsecmd ne ""} {
 	set bind(specs) {%V}
 	set bind(%V)    $ent
 

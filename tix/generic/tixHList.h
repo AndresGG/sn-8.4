@@ -1,3 +1,6 @@
+
+/*	$Id: tixHList.h,v 1.2 2004/03/28 02:44:56 hobbs Exp $	*/
+
 /*
  * tixHList.h --
  *
@@ -16,11 +19,6 @@
 
 #ifndef  _TIX_INT_H_
 #include <tixInt.h>
-#endif
-
-#ifdef BUILD_tix
-# undef TCL_STORAGE_CLASS
-# define TCL_STORAGE_CLASS DLLEXPORT
 #endif
 
 #define HLTYPE_COLUMN 1
@@ -277,7 +275,7 @@ EXTERN void		Tix_HLCancelResizeWhenIdle _ANSI_ARGS_((
 EXTERN void		Tix_HLComputeGeometry _ANSI_ARGS_((
 			    ClientData clientData));
 EXTERN HListElement * 	Tix_HLFindElement _ANSI_ARGS_((Tcl_Interp *interp,
-			    WidgetPtr wPtr, char * pathName));
+			    WidgetPtr wPtr, CONST84 char * pathName));
 EXTERN void 		Tix_HLFreeMappedWindow _ANSI_ARGS_((WidgetPtr wPtr,
 			    HListElement * chPtr));
 EXTERN int	 	Tix_HLElementTopOffset _ANSI_ARGS_((
@@ -285,9 +283,9 @@ EXTERN int	 	Tix_HLElementTopOffset _ANSI_ARGS_((
 EXTERN int	 	Tix_HLElementLeftOffset _ANSI_ARGS_((
 			    WidgetPtr wPtr, HListElement *chPtr));
 EXTERN int 		Tix_HLItemInfo _ANSI_ARGS_((Tcl_Interp *interp,
-			    WidgetPtr wPtr, int argc, char** argv));
+			    WidgetPtr wPtr, int argc, CONST84 char** argv));
 EXTERN int		Tix_HLHeader _ANSI_ARGS_((ClientData clientData,
-			    Tcl_Interp *interp, int argc, char **argv));
+			    Tcl_Interp *interp, int argc, CONST84 char **argv));
 EXTERN int		Tix_HLCreateHeaders _ANSI_ARGS_((
 			    Tcl_Interp *interp, WidgetPtr wPtr));
 EXTERN void		Tix_HLFreeHeaders _ANSI_ARGS_((
@@ -316,8 +314,6 @@ EXTERN TIX_DECLARE_SUBCMD(Tix_HLItem);
 /* in tixHLInd.c */
 EXTERN TIX_DECLARE_SUBCMD(Tix_HLIndicator);
 
-#undef TCL_STORAGE_CLASS
-#define TCL_STORAGE_CLASS DLLIMPORT
 
 #endif /*_TIX_HLIST_H_ */
 

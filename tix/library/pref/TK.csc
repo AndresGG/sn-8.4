@@ -1,3 +1,6 @@
+#
+# $Id: TK.csc,v 1.1.1.1 2000/05/17 11:08:47 idiscovery Exp $
+#
 proc tixPref:SetScheme-Color:TK {} {
 
     global tixOption

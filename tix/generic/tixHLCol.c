@@ -1,3 +1,6 @@
+
+/*	$Id: tixHLCol.c,v 1.2 2004/03/28 02:44:56 hobbs Exp $	*/
+
 /*
  *  tixHLCol.c ---
  *
@@ -23,9 +26,8 @@ static TIX_DECLARE_SUBCMD(Tix_HLItemExists);
 
 static TIX_DECLARE_SUBCMD(Tix_HLColWidth);
 
-static HListElement *	Tix_HLGetColumn _ANSI_ARGS_((Tcl_Interp *interp,
-			    WidgetPtr wPtr, char ** argv, int * column_ret,
-			    int mustExist));
+static HListElement *	Tix_HLGetColumn(Tcl_Interp *interp, WidgetPtr wPtr,
+	CONST84 char ** argv, int * column_ret, int mustExist);
 
 HListColumn *
 Tix_HLAllocColumn(wPtr, chPtr)
@@ -52,7 +54,7 @@ static HListElement *
 Tix_HLGetColumn(interp, wPtr, argv, column_ret, mustExist)
     Tcl_Interp *interp;
     WidgetPtr wPtr;
-    char ** argv;
+    CONST84 char ** argv;
     int * column_ret;
     int mustExist;
 {
@@ -89,7 +91,7 @@ Tix_HLItem(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     static Tix_SubCmdInfo subCmdInfo[] = {
 	{TIX_DEFAULT_LEN, "cget", 3, 3, Tix_HLItemCGet,
@@ -120,7 +122,7 @@ Tix_HLItemCGet(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -144,7 +146,7 @@ Tix_HLItemConfig(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -180,14 +182,14 @@ Tix_HLItemCreate(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
     int column, i;
     size_t len;
     Tix_DItem * iPtr;
-    char * ditemType = NULL;
+    CONST84 char * ditemType = NULL;
 
     if ((chPtr=Tix_HLGetColumn(interp, wPtr, argv, &column, 0)) == NULL) {
 	return TCL_ERROR;
@@ -240,7 +242,7 @@ Tix_HLItemDelete(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -279,7 +281,7 @@ Tix_HLItemExists(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -306,7 +308,7 @@ Tix_HLColumn(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     static Tix_SubCmdInfo subCmdInfo[] = {
 	{TIX_DEFAULT_LEN, "width", 1, 3, Tix_HLColWidth,
@@ -329,7 +331,7 @@ Tix_HLColWidth(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int column;

@@ -29,27 +29,25 @@ proc option {classes specs {level \$tixOption(prioLevel)}} {
     tixDefOption $classes $specs $level
 }
 
-proc tixInitOptionDatabase {isWin} {
+proc tixInitOptionDatabase {strictTK} {
     global tixOption isFont
 
     # general stuff, everything gets these defaults unless otherwise specified
     #-------------------------------------------------------------------------
-    if {! $isWin} then {
-	tixDefOption {""} {{Font			$tixOption(font)}}
-	tixDefOption {""} {{font			$tixOption(font)}}
+    tixDefOption {""} {{Font			$tixOption(font)}}
+    tixDefOption {""} {{font			$tixOption(font)}}
 
-	tixDefOption {""} {{background 		$tixOption(bg)}}	10
-	tixDefOption {""} {{Background		$tixOption(bg)}}
-	tixDefOption {""} {{background		$tixOption(bg)}}
-	tixDefOption {""} {{Foreground		$tixOption(fg)}}
-	tixDefOption {""} {{foreground		$tixOption(fg)}}
-	tixDefOption {""} {{activeBackground	$tixOption(active_bg)}}
-	tixDefOption {""} {{activeForeground	$tixOption(active_fg)}}
-	tixDefOption {""} {{HighlightBackground	$tixOption(bg)}}
-	tixDefOption {""} {{selectBackground	$tixOption(select_bg)}}
-	tixDefOption {""} {{selectForeground	$tixOption(select_fg)}}
-	tixDefOption {""} {{selectBorderWidth	0}}
-    }
+    tixDefOption {""} {{background 		$tixOption(bg)}}	10
+    tixDefOption {""} {{Background		$tixOption(bg)}}
+    tixDefOption {""} {{background		$tixOption(bg)}}
+    tixDefOption {""} {{Foreground		$tixOption(fg)}}
+    tixDefOption {""} {{foreground		$tixOption(fg)}}
+    tixDefOption {""} {{activeBackground	$tixOption(active_bg)}}
+    tixDefOption {""} {{activeForeground	$tixOption(active_fg)}}
+    tixDefOption {""} {{HighlightBackground	$tixOption(bg)}}
+    tixDefOption {""} {{selectBackground	$tixOption(select_bg)}}
+    tixDefOption {""} {{selectForeground	$tixOption(select_fg)}}
+    tixDefOption {""} {{selectBorderWidth	0}}
 
     #----------------------------------------
     # Standard TK Widget Options
@@ -58,15 +56,9 @@ proc tixInitOptionDatabase {isWin} {
     # the strictTK option is not selected.
     #----------------------------------------
 
-    if {$isWin} then {
-	tixDefOption {Menu TixMenu} {
-	    {.font			$tixOption(menu_font)}
-	}
-    } else {
-	tixDefOption {Menu TixMenu} {
-	    {.font			$tixOption(menu_font)}
-	    {.selectColor		$tixOption(selector)}
-	}
+    tixDefOption {Menu TixMenu} {
+	{.font			$tixOption(menu_font)}
+	{.selectColor		$tixOption(selector)}
     }
 
     tixDefOption {Menubutton} {
@@ -79,10 +71,8 @@ proc tixInitOptionDatabase {isWin} {
 	{.anchor		c}
     }
 
-    if {! $isWin} then {
-	tixDefOption {Checkbutton Radiobutton} {
-	    {.selectColor		$tixOption(selector)}
-	}
+    tixDefOption {Checkbutton Radiobutton} {
+	{.selectColor		$tixOption(selector)}
     }
 
     tixDefOption {Entry} {
@@ -131,7 +121,7 @@ proc tixInitOptionDatabase {isWin} {
     #----------------------------------------------------------------------
 
     tixDefOption {TixBalloon} {
-	{*background 			"#ffff60"}
+	{*background 			#ffff60}
 	{*foreground 			black}
 	{.background 			black}
 	{*Label.font 			$tixOption(font)}
@@ -161,9 +151,9 @@ proc tixInitOptionDatabase {isWin} {
 	{*Scrollbar.background		$tixOption(bg)}
 	{*Scrollbar.troughColor		$tixOption(light1_bg)}
 	{*hlist.highlightBackground	$tixOption(bg)}
-	{*hlist.background		$tixOption(input1_bg)}
-	{*hlist.activeBackground	$tixOption(input1_bg)}
-	{*hlist.disabledBackground	$tixOption(input1_bg)}
+	{*hlist.background		$tixOption(light1_bg)}
+	{*hlist.activeBackground	$tixOption(light1_bg)}
+	{*hlist.disabledBackground	$tixOption(light1_bg)}
 	{*f1.borderWidth		1}
 	{*f1.relief			sunken}
     }
@@ -234,8 +224,8 @@ proc tixInitOptionDatabase {isWin} {
     #
     tixDefOption {TixPanedWindow} {
 	{.handleActiveBg 		$tixOption(active_bg)}
-	{.separatorBg    		$tixOption(bg)}
-	{.handleBg       		$tixOption(bg)}
+	{.seperatorBg    		$tixOption(bg)}
+	{.handleBg       		$tixOption(dark1_bg)}
     }
 
     # POPUP MENU
@@ -263,7 +253,6 @@ proc tixInitOptionDatabase {isWin} {
     # SCROLLED_LISTBOX, .. ETC
     #
     tixDefOption {TixScrolledListBox} {
-        {.background			$tixOption(bg)}
 	{*Scrollbar.background		$tixOption(bg)}
 	{*Scrollbar.troughColor		$tixOption(light1_bg)}
 	{*listbox.highlightBackground	$tixOption(bg)}
@@ -271,7 +260,6 @@ proc tixInitOptionDatabase {isWin} {
     }
 
     tixDefOption {TixScrolledText} {
-        {.background			$tixOption(bg)}
 	{*Scrollbar.background		$tixOption(bg)}
 	{*Scrollbar.troughColor		$tixOption(light1_bg)}
     }
@@ -280,7 +268,6 @@ proc tixInitOptionDatabase {isWin} {
     # SCROLLED_WINDOW
     #
     tixDefOption {TixScrolledWindow} {
-        {.background			$tixOption(bg)}
 	{*Scrollbar.background		$tixOption(bg)}
 	{*Scrollbar.troughColor		$tixOption(light1_bg)}
 	{.frame.background		$tixOption(light1_bg)}
@@ -293,7 +280,6 @@ proc tixInitOptionDatabase {isWin} {
     }
 
     tixDefOption {TixTree} {
-        {.background			$tixOption(bg)}
 	{*Scrollbar.background		$tixOption(bg)}
 	{*Scrollbar.troughColor		$tixOption(light1_bg)}
 	{*hlist.highlightBackground	$tixOption(bg)}
@@ -307,26 +293,12 @@ proc tixInitOptionDatabase {isWin} {
     # the options of the widget above, so their options must be defined here
 
     # COMBOBOX
-    if {! $isWin} then {
-	tixDefOption {TixComboBox} {
-	    {*Entry.font				$tixOption(font)}
-	    {*Entry.highlightBackground		$tixOption(bg)}
-	    {*Entry.background			$tixOption(input1_bg)}
-	    {*Entry.foreground			black}
-	    {*Entry.insertBackground		black}
-	}
-    } else {
-	tixDefOption {TixComboBox} {
-	    {*Entry.font				$tixOption(font)}
-	    {*Entry.highlightBackground		$tixOption(input1_bg)}
-	    {*Entry.background			$tixOption(input1_bg)}
-	    {*Entry.foreground			SystemWindowText}
-	    {*Entry.insertBackground		SystemWindowText}
-	    {*Entry.selectBackground	$tixOption(select_bg)}
-	    {*Entry.selectForeground	$tixOption(select_fg)}
-	    {*TixScrolledListBox.selectBackground	$tixOption(select_bg)}
-	    {*TixScrolledListBox.selectForeground	$tixOption(select_fg)}
-	}
+    tixDefOption {TixComboBox} {
+	{*Entry.font				$tixOption(font)}
+	{*Entry.highlightBackground		$tixOption(bg)}
+	{*Entry.background			$tixOption(input1_bg)}
+	{*Entry.foreground			black}
+	{*Entry.insertBackground		black}
     }
 
     # FILE_SELECT_BOX
@@ -354,12 +326,8 @@ rename tixSetDefaultScheme-Mono 	tixSetScheme-Mono
 #----------------------------------------------------------------------
 if [string match TK* [lindex $argv 1]] {
     set isTK 1
-} elseif {[string match TkWin* [lindex $argv 1]]} {
-    set isTK 0
-    set isWin 1
 } else {
     set isTK 0
-    set isWin 0
 }
 set schemeName [lindex [split [lindex $argv 1] "."] 0]
 source [lindex $argv 1]
@@ -383,7 +351,7 @@ if {[lindex $argv 0] == "-font"} {
     puts "proc tixPref:SetFontSet:$schemeName {} { "
     puts "global tixOption"
     if {! $isTK} {
-	tixInitOptionDatabase $isWin
+	tixInitOptionDatabase 0
     }
     puts "}"
 
@@ -397,7 +365,7 @@ if {[lindex $argv 0] == "-font"} {
     puts [info body tixSetScheme-Color]
     if {! $isTK} {
 	tixSetScheme-Color
-	tixInitOptionDatabase $isWin
+	tixInitOptionDatabase 0
     }
     puts "}"
 
@@ -407,7 +375,7 @@ if {[lindex $argv 0] == "-font"} {
     puts [info body tixSetScheme-Mono]
     if {! $isTK} {
 	tixSetScheme-Mono
-	tixInitOptionDatabase $isWin
+	tixInitOptionDatabase 0
     }
     puts "}"
 }

@@ -1,9 +1,14 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: WInfo.tcl,v 1.2 2001/12/09 05:04:02 idiscovery Exp $
+#
 # WInfo.tcl --
 #
 #	This file implements the command tixWInfo, which return various
 #	information about a Tix widget.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.

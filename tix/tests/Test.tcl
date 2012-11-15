@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: Test.tcl,v 1.2 2002/11/13 21:12:17 idiscovery Exp $
+#
 #! /bin/sh
 # the next line restarts using tclsh \
 exec tclsh "$0" "$@"

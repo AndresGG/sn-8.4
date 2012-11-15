@@ -1,3 +1,6 @@
+
+/*	$Id: tixFormMisc.c,v 1.2 2004/03/28 02:44:56 hobbs Exp $	*/
+
 /*
  * tixFormMisc.c --
  *
@@ -25,17 +28,17 @@ static void 		AttachInfo _ANSI_ARGS_((Tcl_Interp * interp,
 			    FormInfo * clientPtr, int axis, int which));
 static int		ConfigureAttachment _ANSI_ARGS_((FormInfo *clientPtr,
 			    Tk_Window topLevel, Tcl_Interp* interp,
-			    int axis, int which, char *value));
+			    int axis, int which, CONST84 char *value));
 static int		ConfigureFill _ANSI_ARGS_((
 			    FormInfo *clientPtr, Tk_Window tkwin,
-			    Tcl_Interp* interp, char *value));
+			    Tcl_Interp* interp, CONST84 char *value));
 static int		ConfigurePadding _ANSI_ARGS_((
 			    FormInfo *clientPtr, Tk_Window tkwin,
 			    Tcl_Interp* interp, int axis, int which,
-			    char *value));
+			    CONST84 char *value));
 static int		ConfigureSpring _ANSI_ARGS_((FormInfo *clientPtr,
 			    Tk_Window topLevel, Tcl_Interp* interp,
-			    int axis, int which, char *value));
+			    int axis, int which, CONST84 char *value));
 
 
 /*----------------------------------------------------------------------
@@ -49,17 +52,17 @@ int TixFm_Info(clientData, interp, argc, argv)
 				 * interpreter. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     Tk_Window topLevel = (Tk_Window) clientData;
     FormInfo * clientPtr;
     char buff[256];
     int i,j;
-    static char *sideNames[2][2] = {
+    static CONST84 char *sideNames[2][2] = {
 	{"-left", "-right"},
 	{"-top", "-bottom"}
     };
-    static char *padNames[2][2] = {
+    static CONST84 char *padNames[2][2] = {
 	{"-padleft", "-padright"},
 	{"-padtop", "-padbottom"}
     };
@@ -155,7 +158,7 @@ static int ConfigureAttachment(clientPtr, topLevel, interp, axis, which, value)
     Tk_Window topLevel;
     Tcl_Interp* interp;
     int axis, which;
-    char *value;
+    CONST84 char *value;
 {
     Tk_Window tkwin;
     FormInfo * attWidget;
@@ -163,7 +166,7 @@ static int ConfigureAttachment(clientPtr, topLevel, interp, axis, which, value)
     int offset;
     int grid;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
 
     if (Tcl_SplitList(interp, value, &argc, &argv) != TCL_OK) {
 	return TCL_ERROR;
@@ -300,7 +303,7 @@ static int ConfigurePadding(clientPtr, tkwin, interp, axis, which, value)
     Tk_Window tkwin;
     Tcl_Interp* interp;
     int axis, which;
-    char *value;
+    CONST84 char *value;
 {
     int p_value;
 
@@ -317,7 +320,7 @@ static int ConfigureFill(clientPtr, tkwin, interp, value)
     FormInfo *clientPtr;
     Tk_Window tkwin;
     Tcl_Interp* interp;
-    char *value;
+    CONST84 char *value;
 {
     size_t len = strlen(value);
 
@@ -351,7 +354,7 @@ static int ConfigureSpring(clientPtr, topLevel, interp, axis, which, value)
     Tk_Window topLevel;
     Tcl_Interp* interp;
     int axis, which;
-    char *value;
+    CONST84 char *value;
 {
     int         strength;
     int		i = axis, j = which;
@@ -389,7 +392,7 @@ int TixFm_Configure(clientPtr, topLevel, interp, argc, argv)
     Tk_Window topLevel;
     Tcl_Interp* interp;
     int argc;
-    char **argv;
+    CONST84 char **argv;
 {
     int i, flag, value;
 

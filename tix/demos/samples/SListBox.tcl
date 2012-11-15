@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: SListBox.tcl,v 1.4 2008/02/27 22:17:27 hobbs Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -48,7 +52,6 @@ proc RunSample {w} {
 	Tennessee Texas Utah Vermont Virginia Washington \
 	"West Virginia" Wisconsin Wyoming
 
-    $w.top.a subwidget listbox config -cursor left_ptr
     raise [$w.top.a subwidget listbox ]
     $w.top.b subwidget listbox insert 0 \
 	Alabama Alaska Arizona Arkansas California \
@@ -74,8 +77,8 @@ proc RunSample {w} {
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
-	bind $w <Destroy> exit
+    bind $w <Destroy> exit
 }
 

@@ -1,3 +1,6 @@
+
+/*	$Id: tixTList.h,v 1.2 2000/12/24 07:06:22 ioilam Exp $	*/
+
 /*
  * tixTList.h --
  *
@@ -63,7 +66,10 @@ typedef struct ListStruct {
        /* GC and stuff */
     GC backgroundGC;		/* GC for drawing background. */
     GC selectGC;		/* GC for drawing selected background. */
-    GC anchorGC;		/* GC for drawing dotted anchor highlight. */
+    GC anchorGC;		/* GC for drawing dotted anchor highlight
+                                 * around a selected item */
+    GC anchorGC2;		/* GC for drawing dotted anchor highlight
+                                 * around an unselected item */
     TixFont font;		/* Default font used by the DItems. */
 
     /* Text drawing */

@@ -1,8 +1,14 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: FileBox.tcl,v 1.5 2004/03/28 02:44:57 hobbs Exp $
+#
 # FileBox.tcl --
 #
 #	Implements the File Selection Box widget.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -45,7 +51,6 @@ tixWidgetClass tixFileSelectBox {
 	{.borderWidth 			1}
 	{*Label.anchor			w}
 	{*Label.borderWidth		0}
-	{*Label.font                   -Adobe-Helvetica-Bold-R-Normal--*-120-*}
 	{*TixComboBox*scrollbar		auto}
 	{*TixComboBox*Label.anchor	w}
 	{*TixScrolledListBox.scrollbar	auto}
@@ -70,15 +75,15 @@ proc tixFileSelectBox:InitWidgetRec {w} {
 
     tixChainMethod $w InitWidgetRec
 
-    if {$data(-directory) == ""} {
+    if {$data(-directory) eq ""} {
 	set data(-directory) [pwd]
     }
-    if {$data(-pattern) == ""} {
-	set data(-pattern) [tixFilePattern allFiles]
+    if {$data(-pattern) eq ""} {
+	set data(-pattern) "*"
     }
 
-    tixFileSelectBox:SetPat $w [tixFileIntName $data(-pattern)]
-    tixFileSelectBox:SetDir $w [tixFileIntName $data(-directory)]
+    tixFileSelectBox:SetPat $w $data(-pattern)
+    tixFileSelectBox:SetDir $w [tixFSNormalize $data(-directory)]
 
     set data(flag)      0
     set data(fakeDir)   0
@@ -106,7 +111,7 @@ proc tixFileSelectBox:CreateFrame1 {w} {
 
     frame $w.f1 -border 10
     tixComboBox $w.f1.filter -editable 1\
-	-command "$w filter" -anchor e \
+	-command [list $w filter] -anchor e \
 	-options {
 	    slistbox.scrollbar auto
 	    listbox.height 5
@@ -128,8 +133,8 @@ proc tixFileSelectBox:CreateFrame2 {w} {
     $dir config -relief flat
     label $dir.lab
     set data(w:dirlist) [tixScrolledListBox $dir.dirlist\
-		       -scrollbar auto\
-		       -options {listbox.width 4 listbox.height 6}]
+			     -scrollbar auto\
+			     -options {listbox.width 4 listbox.height 6}]
 
     pack $dir.lab -side top -fill x -padx 10
     pack $data(w:dirlist) -side bottom -expand yes -fill both -padx 10
@@ -140,8 +145,8 @@ proc tixFileSelectBox:CreateFrame2 {w} {
     $file config -relief flat
     label $file.lab
     set data(w:filelist) [tixScrolledListBox $file.filelist \
-		       -scrollbar auto\
-		       -options {listbox.width 4 listbox.height 6}]
+			      -scrollbar auto\
+			      -options {listbox.width 4 listbox.height 6}]
 
     pack $file.lab -side top -fill x -padx 10
     pack $data(w:filelist) -side bottom -expand yes -fill both -padx 10
@@ -154,7 +159,7 @@ proc tixFileSelectBox:CreateFrame3 {w} {
 
     frame $w.f3 -border 10
     tixComboBox $w.f3.selection -editable 1\
-	-command "tixFileSelectBox:SelInvoke $w" \
+	-command [list tixFileSelectBox:SelInvoke $w] \
 	-anchor e \
 	-options {
 	    slistbox.scrollbar auto
@@ -174,7 +179,7 @@ proc tixFileSelectBox:SelInvoke {w args} {
 
     set event [tixEvent type]
 
-    if {$event != "<FocusOut>" && $event != "<Tab>"} {
+    if {$event ne "<FocusOut>" && $event ne "<Tab>"} {
 	$w invoke
     }
 }
@@ -183,21 +188,21 @@ proc tixFileSelectBox:SetValue {w value} {
     upvar #0 $w data
 
     set data(i-value) $value
-    set data(-value)  [tixNativeName $value 0]
+    set data(-value)  [tixFSNative $value]
 }
 
 proc tixFileSelectBox:SetDir {w value} {
     upvar #0 $w data
 
     set data(i-directory) $value
-    set data(-directory)  [tixNativeName $value]
+    set data(-directory)  [tixFSNative $value]
 }
 
 proc tixFileSelectBox:SetPat {w value} {
     upvar #0 $w data
 
     set data(i-pattern) $value
-    set data(-pattern)  [tixNativeName $value 0]
+    set data(-pattern)  [tixFSNative $value]
 }
 
 
@@ -210,15 +215,15 @@ proc tixFileSelectBox:SetBindings {w} {
 
     tixChainMethod $w SetBindings
 
-    tixDoWhenMapped $w "tixFileSelectBox:FirstMapped $w"
+    tixDoWhenMapped $w [list tixFileSelectBox:FirstMapped $w]
 
     $data(w:dirlist) config \
-	-browsecmd "tixFileSelectBox:SelectDir $w" \
-	-command   "tixFileSelectBox:InvokeDir $w"
+	-browsecmd [list tixFileSelectBox:SelectDir $w] \
+	-command   [list tixFileSelectBox:InvokeDir $w]
 
     $data(w:filelist) config \
-	-browsecmd "tixFileSelectBox:SelectFile $w" \
-	-command   "tixFileSelectBox:InvokeFile $w"
+	-browsecmd [list tixFileSelectBox:SelectFile $w] \
+	-command   [list tixFileSelectBox:InvokeFile $w]
 }
 
 #----------------------------------------------------------------------
@@ -227,10 +232,10 @@ proc tixFileSelectBox:SetBindings {w} {
 proc tixFileSelectBox:config-directory {w value} {
     upvar #0 $w data
 
-    if {$value == ""} {
+    if {$value eq ""} {
 	set value [pwd]
     }
-    tixFileSelectBox:SetDir $w [tixFileIntName $value]
+    tixFileSelectBox:SetDir $w [tixFSNormalize $value]
     tixFileSelectBox:SetFilter $w $data(i-directory) $data(i-pattern)
     $w filter
 
@@ -240,11 +245,11 @@ proc tixFileSelectBox:config-directory {w value} {
 proc tixFileSelectBox:config-pattern {w value} {
     upvar #0 $w data
 
-    if {$value == ""} {
-	set value [tixFilePattern allFiles]
+    if {$value eq ""} {
+	set value "*"
     }
 
-    tixFileSelectBox:SetPat $w [tixFileIntName $value]
+    tixFileSelectBox:SetPat $w $value
     tixFileSelectBox:SetFilter $w $data(i-directory) $data(i-pattern)
 
     # Returning a value means we have overridden the value and updated
@@ -256,7 +261,7 @@ proc tixFileSelectBox:config-pattern {w value} {
 proc tixFileSelectBox:config-value {w value} {
     upvar #0 $w data
 
-    tixFileSelectBox:SetValue $w [tixFileIntName $value]
+    tixFileSelectBox:SetValue $w [tixFSNormalize $value]
     tixSetSilent $data(w:selection) $value
 
     return $data(-value)
@@ -276,14 +281,14 @@ proc tixFileSelectBox:filter {w args} {
 proc tixFileSelectBox:invoke {w args} {
     upvar #0 $w data
 
-    if {[$data(w:selection) cget -value] !=
+    if {[$data(w:selection) cget -value] ne
 	[$data(w:selection) cget -selection]} {
-	    # this will in turn call "invoke" again ...
-	    #
-	    $data(w:selection) invoke
-	    return
+	# this will in turn call "invoke" again ...
+	#
+	$data(w:selection) invoke
+	return
     }
-    
+
     # record the filter
     #
     set filter [tixFileSelectBox:InterpFilter $w]
@@ -293,13 +298,13 @@ proc tixFileSelectBox:invoke {w args} {
     #
     set userInput [string trim [$data(w:selection) cget -value]]
     tixFileSelectBox:SetValue $w \
-	[tixFileIntName $userInput $data(i-directory)]
+	[tixFSNormalize [file join $data(i-directory) $userInput]]
     $data(w:selection) addhistory $data(-value)
 
     $data(w:filter) align
     $data(w:selection)  align
 
-    if {$data(-command) != "" && !$data(-disablecallback)} {
+    if {[llength $data(-command)] && !$data(-disablecallback)} {
 	set bind(specs) "%V"
 	set bind(%V) $data(-value)
 	tixEvalCmdBinding $w $data(-command) bind $data(-value)
@@ -325,19 +330,19 @@ proc tixFileSelectBox:InterpFilter {w {filter ""}} {
 	}
     }
 
-    set i_filter [tixFileIntName $filter]
+    set i_filter [tixFSNormalize $filter]
 
-    if [file isdir $filter] {
+    if {[file isdirectory $filter]} {
 	tixFileSelectBox:SetDir $w $i_filter
-	tixFileSelectBox:SetPat $w [tixFilePattern allFiles]
+	tixFileSelectBox:SetPat $w "*"
     } else {
-	set nDir [file dir $filter]
-	if {$nDir == "" || $nDir == "."} {
-	    tixFileSelectBox:SetDir $w [tixFileIntName $data(i-directory)]
+	set nDir [file dirname $filter]
+	if {$nDir eq "" || $nDir eq "."} {
+	    tixFileSelectBox:SetDir $w [tixFSNormalize $data(i-directory)]
 	} else {
-	    tixFileSelectBox:SetDir $w [tixFileIntName $nDir]
+	    tixFileSelectBox:SetDir $w [tixFSNormalize $nDir]
 	}
-	tixFileSelectBox:SetPat $w [tixFileIntName [file tail $filter]]
+	tixFileSelectBox:SetPat $w [file tail $filter]
     }
 
     tixFileSelectBox:SetFilter $w $data(i-directory) $data(i-pattern)
@@ -348,8 +353,8 @@ proc tixFileSelectBox:InterpFilter {w {filter ""}} {
 proc tixFileSelectBox:SetFilter {w dir pattern} {
     upvar #0 $w data
 
-    set data(filter) [tixSubFolder $dir $pattern]
-    tixSetSilent $data(w:filter) [tixNativeName $data(filter)]
+    set data(filter) [file join $dir $pattern]
+    tixSetSilent $data(w:filter) $data(filter)
 }
 
 proc tixFileSelectBox:LoadDirIntoLists {w} {
@@ -362,19 +367,9 @@ proc tixFileSelectBox:LoadDirIntoLists {w} {
 
     # (1) List the directories
     #
-    set isDrive 0
-    catch {
-	set nDir [tixNativeName $dir]
-	if {[llength [file split $nDir]] == 1} {
-	    set isDrive 1
-	}
-    }
-    foreach name [tixListDir $dir 1 0 1 1] {
-	if ![string compare ".." $name] {
-	    if $isDrive {
-		continue
-	    }
-	}
+    set isDrive [expr {[llength [file split $dir]] == 1}]
+    foreach name [tixFSListDir $dir 1 0 1 1] {
+	if {".." eq $name && $isDrive} { continue }
 	$data(w:dirlist) subwidget listbox insert end $name
     }
 
@@ -387,19 +382,19 @@ proc tixFileSelectBox:LoadDirIntoLists {w} {
     # are seen first
     #
     # NOTE: if we pass $pat == "" but with $showHidden set to true,
-    #       tixListDir will list "* .*" in Unix. See the comment on top of
-    #	    the tixListDir code.
+    #       tixFSListDir will list "* .*" in Unix. See the comment on top of
+    #	    the tixFSListDir code.
     #
-    if {[string compare $data(i-pattern) *] == 0} {
+    if {$data(i-pattern) eq "*"} {
 	set pat ""
     } else {
 	set pat $data(i-pattern)
     }
 
     set top 0
-    foreach name [tixListDir $dir 0 1 0 0 $pat] {
+    foreach name [tixFSListDir $dir 0 1 0 0 $pat] {
 	$data(w:filelist) subwidget listbox insert end $name
-	if [string match .* $name] {
+	if {[string match .* $name]} {
 	    incr top
 	}
     }
@@ -413,7 +408,6 @@ proc tixFileSelectBox:LoadDir {w} {
     tixBusy $w on [$data(w:dirlist) subwidget listbox]
 
     tixFileSelectBox:LoadDirIntoLists $w
-    tixFileSelectBox:MkDirMenu $w
 
     if {[$data(w:dirlist) subwidget listbox size] == 0} {
 	# fail safe, just in case the user has inputed an errnoeuos
@@ -422,12 +416,6 @@ proc tixFileSelectBox:LoadDir {w} {
     }
 
     tixWidgetDoWhenIdle tixBusy $w off [$data(w:dirlist) subwidget listbox]
-}
-
-# %% unimplemented
-#
-proc tixFileSelectBox:MkDirMenu {w} {
-    upvar #0 $w data
 }
 
 # User single clicks on the directory listbox
@@ -453,7 +441,7 @@ proc tixFileSelectBox:SelectDir {w} {
     }
 
     tixFileSelectBox:SetFilter $w \
-	[tixFileIntName [tixSubFolder $data(i-directory) $subdir]] \
+	[tixFSNormalize [file join $data(i-directory) $subdir]] \
 	$data(i-pattern)
     set data(flag) 0
 }
@@ -463,13 +451,13 @@ proc tixFileSelectBox:InvokeDir {w} {
 
     set theDir [$data(w:dirlist) subwidget listbox get active]
 
-    tixFileSelectBox:SetDir $w [tixFileIntName \
-	[tixSubFolder $data(i-directory) $theDir]]
+    tixFileSelectBox:SetDir $w \
+	[tixFSNormalize [file join $data(i-directory) $theDir]]
 
     $data(w:dirlist) subwidget listbox select clear 0 end
 
     tixFileSelectBox:SetFilter $w $data(i-directory) $data(i-pattern)
-    tixFileSelectBox:InterpFilter $w [tixNativeName $data(filter)]
+    tixFileSelectBox:InterpFilter $w [tixFSNativeNorm $data(filter)]
 
     tixFileSelectBox:LoadDir $w
 
@@ -498,10 +486,10 @@ proc tixFileSelectBox:SelectFile {w} {
 	# Make sure that the selection is not empty!
 	#
 	tixFileSelectBox:SetValue $w \
-	    [tixFileIntName [tixSubFolder $data(i-directory) $selected]]
+	    [tixFSNormalize [file join $data(i-directory) $selected]]
 	tixSetSilent $data(w:selection) $data(-value)
 
-	if {$data(-browsecmd) != ""} {
+	if {[llength $data(-browsecmd)]} {
 	    tixEvalCmdBinding $w $data(-browsecmd) "" $data(-value)
 	}
     }
@@ -555,21 +543,22 @@ proc tixMkFileDialog {w args} {
     tixStdDlgBtns $w.btns
     
     if {$option(-okcmd) != ""} {
-	tixFileSelectBox $w.fsb -command "wm withdraw $w; $option(-okcmd)"
+	tixFileSelectBox $w.fsb \
+	    -command "[list wm withdraw $w]; $option(-okcmd)"
     } else {
-	tixFileSelectBox $w.fsb -command "wm withdraw $w"
+	tixFileSelectBox $w.fsb -command [list wm withdraw $w]
     }
 
-    $w.btns button ok     config -command "$w.fsb invoke"
-    $w.btns button apply  config -command "$w.fsb filter" -text Filter
-    $w.btns button cancel config -command "wm withdraw $w"
+    $w.btns button ok     config -command [list $w.fsb invoke]
+    $w.btns button apply  config -command [list $w.fsb filter] -text Filter
+    $w.btns button cancel config -command [list wm withdraw $w]
 
     if {$option(-helpcmd) == ""} {
 	$w.btns button help config -state disabled
     } else {
 	$w.btns button help config -command $option(-helpcmd)
     }
-    wm protocol $w WM_DELETE_WINDOW "wm withdraw $w"
+    wm protocol $w WM_DELETE_WINDOW [list wm withdraw $w]
     pack $w.btns  -side bottom -fill both
     pack $w.fsb   -fill both -expand yes
 

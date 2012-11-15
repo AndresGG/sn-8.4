@@ -1,3 +1,6 @@
+
+/*	$Id: tixUnixPort.h,v 1.3 2005/03/25 20:15:53 hobbs Exp $	*/
+
 /*
  * tixUnixPort.h --
  *
@@ -16,8 +19,14 @@
 #define _TIX_UNIXPORT_H_
 
 struct _TixpSubRegion {
+#ifdef MAC_OSX_TK
+    Pixmap pixmap;
+    int x, y;
+#endif
     XRectangle rect;
     int rectUsed;
+    int origX;
+    int origY;
 };
 
 #ifdef UCHAR_SUPPORTED

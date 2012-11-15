@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: IconView.tcl,v 1.2 2001/12/09 05:04:02 idiscovery Exp $
+#
 # IconView.tcl --
 #
 #	This file implements the Icon View widget: the "icon" view mode of
@@ -6,7 +10,8 @@
 #	(1) Creation of the icons in the canvas subwidget.
 #	(2) Automatic arrangement of the objects
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -33,11 +38,7 @@ tixWidgetClass tixIconView {
 	{*canvas.highlightBackground	#d9d9d9}
 	{*canvas.relief			sunken}
 	{*canvas.takeFocus		1}
-	{*Scrollbar.background		#d9d9d9}
-	{*Scrollbar.relief		sunken}
-	{*Scrollbar.troughColor		#c3c3c3}
 	{*Scrollbar.takeFocus		0}
-	{*Scrollbar.width		15}
     }
     -forcecall {
     }

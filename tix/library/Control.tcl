@@ -1,9 +1,15 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: Control.tcl,v 1.9 2004/03/28 02:44:57 hobbs Exp $
+#
 # Control.tcl --
 #
 # 	Implements the TixControl Widget. It is called the "SpinBox"
 # 	in other toolkits.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -54,12 +60,10 @@ tixWidgetClass tixControl {
 	{*entry.width			5}
 	{*label.anchor			e}
 	{*label.borderWidth		0}
-	{*Label.font                   -Adobe-Helvetica-Bold-R-Normal--*-120-*}
 	{*Button.anchor			c}
 	{*Button.borderWidth		2}
 	{*Button.highlightThickness	1}
 	{*Button.takeFocus		0}
-	{*Entry.background		#c3c3c3}
     }
 }
 
@@ -79,10 +83,10 @@ proc tixControl:ConstructFramedWidget {w frame} {
 
     set data(w:entry)  [entry $frame.entry]
 
-    set data(w:incr) [button $frame.incr -bitmap [tix getbitmap incr] \
-	-takefocus 0]
-    set data(w:decr) [button $frame.decr -bitmap [tix getbitmap decr] \
-	-takefocus 0]
+    set data(w:incr) \
+	[button $frame.incr -bitmap [tix getbitmap incr] -takefocus 0]
+    set data(w:decr) \
+	[button $frame.decr -bitmap [tix getbitmap decr] -takefocus 0]
 
 #    tixForm $data(w:entry) -left 0 -top 0 -bottom -1 -right $data(w:decr) 
 #    tixForm $data(w:incr) -right -1 -top 0 -bottom %50
@@ -105,29 +109,22 @@ proc tixControl:SetBindings {w} {
 
     tixChainMethod $w SetBindings
 
-    if {$data(-autorepeat)} {
-	bind $data(w:incr) <ButtonPress-1> \
-		[format {after idle tixControl:StartRepeat %s  1} $w]
-	bind $data(w:decr) <ButtonPress-1> \
-		[format {after idle tixControl:StartRepeat %s  -1} $w]
+    bind $data(w:incr) <ButtonPress-1> \
+	[list after idle tixControl:StartRepeat $w 1]
+    bind $data(w:decr) <ButtonPress-1> \
+	[list after idle tixControl:StartRepeat $w -1]
 
-	# These bindings will stop the button autorepeat when the 
-	# mouse button is up
-	foreach btn "$data(w:incr) $data(w:decr)" amt {1 -1} {
-	    bind $btn <ButtonRelease-1> "tixControl:StopRepeat $w $amt"
-	}
-    } else {
-	# Force the non-autorepeat case to use the normal
-	# tk button class bindings
-	$data(w:incr) configure -command "tixControl:incr $w"
-	$data(w:decr) configure -command "tixControl:decr $w"
+    # These bindings will stop the button autorepeat when the 
+    # mouse button is up
+    foreach btn [list $data(w:incr) $data(w:decr)] {
+	bind $btn <ButtonRelease-1> [list tixControl:StopRepeat $w]
     }
 
     tixSetMegaWidget $data(w:entry) $w
 
     # If user press <return>, verify the value and call the -command
     #
-    tixAddBindTag $data(w:entry) TixControl:Entry 
+    tixAddBindTag $data(w:entry) TixControl:Entry
 }
 
 proc tixControlBind {} {
@@ -144,7 +141,7 @@ proc tixControlBind {} {
 	[tixGetMegaWidget %W] decr
     }
     tixBind TixControl:Entry <FocusOut> {
-	if {"%d" == "NotifyNonlinear" || "%d" == "NotifyNonlinearVirtual"} {
+	if {"%d" eq "NotifyNonlinear" || "%d" eq "NotifyNonlinearVirtual"} {
 	    tixControl:Tab [tixGetMegaWidget %W] %d
 	}
     }
@@ -163,14 +160,13 @@ proc tixControlBind {} {
 proc tixControl:config-state {w arg} {
     upvar #0 $w data
 
-    if {$arg == "normal"} {
+    if {$arg eq "normal"} {
 	$data(w:incr)  config -state $arg
 	$data(w:decr)  config -state $arg
 	catch {
 	    $data(w:label) config -fg $data(labelfg)
 	}
 	$data(w:entry) config -state $arg -fg $data(entryfg)
-	tixControl:SetBindings $w
     } else {
 	$data(w:incr)  config -state $arg
 	$data(w:decr)  config -state $arg
@@ -178,8 +174,6 @@ proc tixControl:config-state {w arg} {
 	    $data(w:label) config -fg $data(-disabledforeground)
 	}
 	$data(w:entry) config -state $arg -fg $data(-disabledforeground)
-	bind $data(w:incr) <ButtonPress-1> {}
-	bind $data(w:decr) <ButtonPress-1> {}
     }
 }
 
@@ -197,7 +191,7 @@ proc tixControl:config-value {w value} {
 proc tixControl:config-variable {w arg} {
     upvar #0 $w data
 
-    if [tixVariable:ConfigVariable $w $arg] {
+    if {[tixVariable:ConfigVariable $w $arg]} {
        # The value of data(-value) is changed if tixVariable:ConfigVariable 
        # returns true
        tixControl:SetValue $w $data(-value) 1 1
@@ -214,12 +208,12 @@ proc tixControl:config-variable {w arg} {
 proc tixControl:incr {w {by 1}} {
     upvar #0 $w data
 
-    if {$data(-state) != "disabled"} {
-	if {[catch {$data(w:entry) index sel.first}] == 0} {
+    if {$data(-state) ne "disabled"} {
+	if {![catch {$data(w:entry) index sel.first}]} {
 	    $data(w:entry) select from end
 	    $data(w:entry) select to   end
 	}
-	# CYGNUS LOCAL - why set value before changing it?
+	# CYGNUS - why set value before changing it?
 	#tixControl:SetValue $w [$data(w:entry) get] 0 1
 	tixControl:AdjustValue $w $by
     }
@@ -228,14 +222,14 @@ proc tixControl:incr {w {by 1}} {
 proc tixControl:decr {w {by 1}} {
     upvar #0 $w data
 
-    if {$data(-state) != "disabled"} {
-	if {[catch {$data(w:entry) index sel.first}] == 0} {
+    if {$data(-state) ne "disabled"} {
+	if {![catch {$data(w:entry) index sel.first}]} {
 	    $data(w:entry) select from end
 	    $data(w:entry) select to   end
 	}
-	# CYGNUS LOCAL - why set value before changing it?
+	# CYGNUS - why set value before changing it?
 	#tixControl:SetValue $w [$data(w:entry) get] 0 1
-	tixControl:AdjustValue $w [expr 0 - $by]
+	tixControl:AdjustValue $w [expr {0 - $by}]
     }
 }
 
@@ -248,7 +242,7 @@ proc tixControl:invoke {w} {
 proc tixControl:update {w} {
     upvar #0 $w data
 
-    if [info exists data(edited)] {
+    if {[info exists data(edited)]} {
 	tixControl:invoke $w
     }
 }
@@ -262,15 +256,15 @@ proc tixControl:update {w} {
 proc tixControl:AdjustValue {w amount} {
     upvar #0 $w data
 
-    if {$amount == 1 && $data(-incrcmd) != ""} {
+    if {$amount == 1 && [llength $data(-incrcmd)]} {
 	set newValue [tixEvalCmdBinding $w $data(-incrcmd) "" $data(-value)]
-    } elseif {$amount == -1 && $data(-decrcmd) != ""} {
+    } elseif {$amount == -1 && [llength $data(-decrcmd)]} {
 	set newValue [tixEvalCmdBinding $w $data(-decrcmd) "" $data(-value)]
     } else {
-	set newValue [expr $data(-value) + $amount * $data(-step)]
+	set newValue [expr {$data(-value) + $amount * $data(-step)}]
     }
 
-    if {$data(-state) != "disabled"} {
+    if {$data(-state) ne "disabled"} {
 	tixControl:SetValue $w $newValue 0 1
     }
 }
@@ -279,8 +273,8 @@ proc tixControl:SetValue {w newvalue noUpdate forced} {
     upvar #0 $w data
 
     if {[$data(w:entry) selection present]} {
-	set oldSelection \
-	    "[$data(w:entry) index sel.first] [$data(w:entry) index sel.last]"
+	set oldSelection [list [$data(w:entry) index sel.first] \
+			      [$data(w:entry) index sel.last]]
     }
 
     set oldvalue $data(-value)
@@ -288,7 +282,7 @@ proc tixControl:SetValue {w newvalue noUpdate forced} {
     set changed 0
 
 
-    if {$data(-validatecmd) != ""} {
+    if {[llength $data(-validatecmd)]} {
 	# Call the user supplied validation command
 	#
        set data(-value) [tixEvalCmdBinding $w $data(-validatecmd) "" $newvalue]
@@ -298,14 +292,14 @@ proc tixControl:SetValue {w newvalue noUpdate forced} {
 	# If the new value is not a valid number, the old value will be
 	# kept due to the "catch" statements
 	#
-	if [catch {expr 0+$newvalue}] {
+	if {[catch {expr 0+$newvalue}]} {
 	    set newvalue 0
 	    set data(-value) 0
 	    set changed 1
 	}
 
 	if {$newvalue == ""} {
-	    if {![tixGetBoolean -nocomplain $data(-allowempty)]} {
+	    if {![string is true -strict $data(-allowempty)]} {
 		set newvalue 0
 		set changed 1
 	    } else {
@@ -316,8 +310,8 @@ proc tixControl:SetValue {w newvalue noUpdate forced} {
 	if {$newvalue != ""} {
 	    # Change this to a valid decimal string (trim leading 0)
 	    #
-	    regsub {^[0]*} $newvalue "" newvalue
-	    if [catch {expr 0+$newvalue}] {
+	    regsub -- {^[0]*} $newvalue "" newvalue
+	    if {[catch {expr 0+$newvalue}]} {
 		set newvalue 0
 		set data(-value) 0
 		set changed 1
@@ -326,11 +320,11 @@ proc tixControl:SetValue {w newvalue noUpdate forced} {
 		set newvalue 0
 	    }
 
-	    if [tixGetBoolean -nocomplain $data(-integer)] {
+	    if {[string is true -strict $data(-integer)]} {
 		set data(-value) [tixGetInt -nocomplain $newvalue]
 	    } else {
-		if [catch {set data(-value) [format "%d" $newvalue]}] {
-		    if [catch {set data(-value) [expr $newvalue+0.0]}] {
+		if {[catch {set data(-value) [format "%d" $newvalue]}]} {
+		    if {[catch {set data(-value) [expr $newvalue+0.0]}]} {
 			set data(-value) $oldvalue
 		    }
 		}
@@ -351,12 +345,12 @@ proc tixControl:SetValue {w newvalue noUpdate forced} {
 	tixVariable:UpdateVariable $w
     }
 
-    if {$forced || "x$newvalue" != "x$data(-value)" || $changed} {
+    if {$forced || ($newvalue ne $data(-value)) || $changed} {
 	$data(w:entry) delete 0 end
 	$data(w:entry) insert 0 $data(-value)
 	$data(w:entry) icursor $oldCursor
 	if {[info exists oldSelection]} {
-	    eval $data(w:entry) selection range $oldSelection
+	    eval [list $data(w:entry) selection range] $oldSelection
 	}
     }
 
@@ -399,35 +393,29 @@ proc tixControl:StartRepeat {w amount} {
     upvar #0 $w data
 
     incr data(serial)
-    # CYGNUS LOCAL bug fix
+    # CYGNUS bug fix
     # Need to set a local variable because otherwise the buttonrelease
     # callback could change the value of data(serial) between now and
     # the time the repeat is scheduled.
     set serial $data(serial)
 
-    if {$data(-autorepeat)} {
-	tixControl:doAdjustValue $w $amount
-	after $data(-initwait) tixControl:Repeat $w $amount $serial
-    }
-
-    focus $data(w:entry)
-}
-
-proc tixControl:doAdjustValue {w amount} {
-
-    upvar #0 $w data
-
-    if {[catch {$data(w:entry) index sel.first}] == 0} {
+    if {![catch {$data(w:entry) index sel.first}]} {
 	$data(w:entry) select from end
 	$data(w:entry) select to   end
     }
 
-    if [info exists data(edited)] {
+    if {[info exists data(edited)]} {
 	unset data(edited)
 	tixControl:SetValue $w [$data(w:entry) get] 0 1
     }
 
     tixControl:AdjustValue $w $amount
+
+    if {$data(-autorepeat)} {
+	after $data(-initwait) tixControl:Repeat $w $amount $serial
+    }
+
+    focus $data(w:entry)
 }
 
 proc tixControl:Repeat {w amount serial} {
@@ -436,7 +424,7 @@ proc tixControl:Repeat {w amount serial} {
     }
     upvar #0 $w data
 
-    if {$serial == $data(serial)} {
+    if {$serial eq $data(serial)} {
 	tixControl:AdjustValue $w $amount
 
 	if {$data(-autorepeat)} {
@@ -445,12 +433,8 @@ proc tixControl:Repeat {w amount serial} {
     }
 }
 
-proc tixControl:StopRepeat {w amount} {
+proc tixControl:StopRepeat {w} {
     upvar #0 $w data
-
-    if {$data(-autorepeat) == "false" } {
-	tixControl:doAdjustValue $w $amount
-    }
 
     incr data(serial)
 }
@@ -488,7 +472,7 @@ proc tixControl:Escape {w} {
 proc tixControl:KeyPress {w} {
     upvar #0 $w data
 
-    if {$data(-selectmode) == "normal"} {
+    if {$data(-selectmode) eq "normal"} {
 	set data(edited) 0
 	return
     } else {

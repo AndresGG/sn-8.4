@@ -1,8 +1,13 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: STList.tcl,v 1.4 2001/12/09 05:04:02 idiscovery Exp $
+#
 # STList.tcl --
 #
 #	This file implements Scrolled TList widgets
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -24,11 +29,7 @@ tixWidgetClass tixScrolledTList {
 	{*tlist.highlightBackground	#d9d9d9}
 	{*tlist.relief			sunken}
 	{*tlist.takeFocus		1}
-	{*Scrollbar.background		#d9d9d9}
-	{*Scrollbar.troughColor		#c3c3c3}
 	{*Scrollbar.takeFocus		0}
-	{*Scrollbar.relief		sunken}
-	{*Scrollbar.width		15}
     }
 }
 
@@ -55,7 +56,7 @@ proc tixScrolledTList:SetBindings {w} {
     $data(w:tlist) config \
 	-xscrollcommand "$data(w:hsb) set"\
 	-yscrollcommand "$data(w:vsb) set"\
-	-sizecmd "tixScrolledWidget:Configure $w"
+	-sizecmd [list tixScrolledWidget:Configure $w]
 
     $data(w:hsb) config -command "$data(w:tlist) xview"
     $data(w:vsb) config -command "$data(w:tlist) yview"

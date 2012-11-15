@@ -1,21 +1,38 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: DefSchm.tcl,v 1.2 2001/12/09 05:04:02 idiscovery Exp $
+#
 # DefSchm.tcl --
 #
 #	Implements the default color and font schemes for Tix.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
 
 proc tixSetDefaultFontset {} {
-    global tixOption
+    global tixOption tcl_platform
 
-    set tixOption(font)         -Adobe-Helvetica-Medium-R-Normal--*-120-*
-    set tixOption(bold_font)    -Adobe-Helvetica-Bold-R-Normal--*-120-*
-    set tixOption(menu_font)    -Adobe-Helvetica-Bold-R-Normal--*-120-*
-    set tixOption(italic_font)  -Adobe-Helvetica-Bold-O-Normal--*-120-*
-    set tixOption(fixed_font)   -*-courier-medium-r-*-*-14-*-*-*-*-*-*-*
+    switch -- $tcl_platform(platform) "windows" {
+	# This should be Tahoma for Win2000/XP
+	set font "MS Sans Serif"
+	set fixedfont "Courier New"
+	set size 8
+     } unix {
+	set font "helvetica"
+	set fixedfont "courier"
+	set size -12
+    }
+
+    set tixOption(font)         [list $font $size]
+    set tixOption(bold_font)    [list $font $size bold]
+    set tixOption(menu_font)    [list $font $size]
+    set tixOption(italic_font)  [list $font $size bold italic]
+    set tixOption(fixed_font)   [list $fixedfont $size]
+    set tixOption(border1)      1
 }
 
 proc tixSetDefaultScheme-Color {} {

@@ -1,8 +1,13 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: SWindow.tcl,v 1.4 2001/12/09 05:04:02 idiscovery Exp $
+#
 # SWindow.tcl --
 #
 #	This file implements Scrolled Window widgets
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -52,11 +57,7 @@ tixWidgetClass tixScrolledWindow {
 	{*window.borderWidth		1}
 	{*f1.borderWidth		1}
 	{*Scrollbar.borderWidth		1}
-	{*Scrollbar.background		#d9d9d9}
-	{*Scrollbar.relief		sunken}
-	{*Scrollbar.troughColor		#c3c3c3}
 	{*Scrollbar.takeFocus		0}
-	{*Scrollbar.width		15}
     }
 }
 
@@ -89,11 +90,7 @@ proc tixScrolledWindow:ConstructWidget {w} {
 	[scrollbar $w.vsb -orient vertical -takefocus 0]
 #   set data(w:pann) \
 #	[frame $w.pann -bd 2 -relief groove]
-
-    if {$data(-sizebox) && $tcl_platform(platform) == "windows"} {
-        set data(w:sizebox) [ide_sizebox $w.sizebox]
-    }
-
+    
     $data(pw:f1) config -highlightthickness \
 	[$data(w:hsb) cget -highlightthickness]
 

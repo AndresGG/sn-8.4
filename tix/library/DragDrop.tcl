@@ -1,8 +1,13 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: DragDrop.tcl,v 1.4 2001/12/09 05:04:02 idiscovery Exp $
+#
 # DragDrop.tcl ---
 #
 #	Implements drag+drop for Tix widgets.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -52,7 +57,7 @@ proc tixDragDropContext:Send {w target event X Y} {
     global tixDrop
 
     foreach tag [tixDropBindTags $target] {
-	if [info exists tixDrop($tag,$event)] {
+	if {[info exists tixDrop($tag,$event)]} {
 	    tixDragDropContext:CallCommand $w $target \
 		$tixDrop($tag,$event) $X $Y
 	}
@@ -92,7 +97,7 @@ proc tixDragDropContext:drag {w X Y} {
     upvar #0 $w data
     global tixDrop
 
-    set target [winfo containing $X $Y]
+    set target [winfo containing -displayof $w $X $Y]
  
     if {$target != $data(oldTarget)} {
 	if {$data(oldTarget) != ""} {
@@ -112,7 +117,7 @@ proc tixDragDropContext:drop {w X Y} {
     upvar #0 $w data
     global tixDrop
 
-    set target [winfo containing $X $Y]
+    set target [winfo containing -displayof $w $X $Y]
     if {$target != ""} {
 	tixDragDropContext:Send $w $target <Drop> $X $Y
     }
@@ -150,7 +155,7 @@ proc tixDropBindTags {w args} {
     global tixDropTags
 
     if {$args == ""} {
-	if [info exists tixDropTags($w)] {
+	if {[info exists tixDropTags($w)]} {
 	    return $tixDropTags($w)
 	} else {
 	    return [list [winfo class $w] $w]

@@ -3,11 +3,13 @@
  *
  *	This module implements "HList" widgets.
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000      Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tixHList.c,v 1.10 2008/02/28 04:05:29 hobbs Exp $
  */
 
 #include <tixPort.h>
@@ -204,20 +206,20 @@ static Tk_ConfigSpec entryConfigSpecs[] = {
 static void		WidgetCmdDeletedProc _ANSI_ARGS_((
 			    ClientData clientData));
 static int		WidgetConfigure _ANSI_ARGS_((Tcl_Interp *interp,
-			    WidgetPtr wPtr, int argc, char **argv,
+			    WidgetPtr wPtr, int argc, CONST84 char **argv,
 			    int flags));
 static void		WidgetDestroy _ANSI_ARGS_((ClientData clientData));
 static void		WidgetEventProc _ANSI_ARGS_((ClientData clientData,
 			    XEvent *eventPtr));
 static int		WidgetCommand _ANSI_ARGS_((ClientData clientData,
-			    Tcl_Interp *, int argc, char **argv));
+			    Tcl_Interp *, int argc, CONST84 char **argv));
 static void		WidgetDisplay _ANSI_ARGS_((ClientData clientData));
 
 	/* Extra procedures for this widget
 	 */
 static HListElement *	AllocElement _ANSI_ARGS_((WidgetPtr wPtr,
-			    HListElement * parent, char * pathName, 
-			    char * name, char * ditemType));
+			    HListElement * parent, CONST84 char * pathName, 
+			    CONST84 char * name, CONST84 char * ditemType));
 static void		AppendList _ANSI_ARGS_((WidgetPtr wPtr,
 			    HListElement *parent, HListElement *chPtr, int at,
 			    HListElement *afterPtr,
@@ -233,7 +235,7 @@ static void		ComputeElementGeometry _ANSI_ARGS_((WidgetPtr wPtr,
 static void		ComputeOneElementGeometry _ANSI_ARGS_((WidgetPtr wPtr,
 			    HListElement *chPtr, int indent));
 static int		ConfigElement _ANSI_ARGS_((WidgetPtr wPtr,
-			    HListElement *chPtr, int argc, char ** argv, 
+			    HListElement *chPtr, int argc, CONST84 char ** argv, 
 			    int flags, int forced));
 static int		CurSelection _ANSI_ARGS_((Tcl_Interp * interp,
 			    WidgetPtr wPtr, HListElement * chPtr));
@@ -244,10 +246,10 @@ static void		DeleteOffsprings _ANSI_ARGS_((WidgetPtr wPtr,
 static void		DeleteSiblings _ANSI_ARGS_((WidgetPtr wPtr,
 			    HListElement * chPtr));
 static void		DrawElements _ANSI_ARGS_((WidgetPtr wPtr,
-			    Pixmap pixmap, GC gc, HListElement * chPtr,
+			    Drawable drawable, HListElement * chPtr,
 			    int x, int y, int xOffset));
 static void		DrawOneElement _ANSI_ARGS_((WidgetPtr wPtr, 
-			    Pixmap pixmap, GC gc, HListElement * chPtr,
+			    Drawable drawable, HListElement * chPtr,
 			    int x, int y, int xOffset));
 static HListElement *	FindElementAtPosition _ANSI_ARGS_((WidgetPtr wPtr,
 			    int y));
@@ -258,8 +260,8 @@ static HListElement *	FindPrevEntry  _ANSI_ARGS_((WidgetPtr wPtr,
 static void		FreeElement _ANSI_ARGS_((WidgetPtr wPtr,
 			    HListElement * chPtr));
 static HListElement *	NewElement _ANSI_ARGS_((Tcl_Interp *interp,
-			    WidgetPtr wPtr, int argc, char ** argv,
-			    char * pathName, char * defParentName,
+			    WidgetPtr wPtr, int argc, CONST84 char ** argv,
+			    CONST84 char * pathName, CONST84 char * defParentName,
 			    int * newArgc));
 static void		RedrawWhenIdle _ANSI_ARGS_((WidgetPtr wPtr));
 static int		XScrollByPages _ANSI_ARGS_((WidgetPtr wPtr,
@@ -284,7 +286,7 @@ static void		HL_SelectionClearNotifyAncestors _ANSI_ARGS_((
 static void		SelectionNotifyAncestors _ANSI_ARGS_((
 			    WidgetPtr wPtr, HListElement * chPtr));
 static void		UpdateOneScrollBar _ANSI_ARGS_((WidgetPtr wPtr,
-			    char * command, int total, int window, int first));
+			    CONST84 char * command, int total, int window, int first));
 static void		UpdateScrollBars _ANSI_ARGS_((WidgetPtr wPtr,
 			    int sizeChanged));
 static void		DItemSizeChangedProc _ANSI_ARGS_((
@@ -341,9 +343,9 @@ Tix_HListCmd(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
-    Tk_Window main = (Tk_Window) clientData;
+    Tk_Window mainwin = (Tk_Window) clientData;
     WidgetPtr wPtr;
     Tk_Window tkwin, subwin;
 
@@ -358,7 +360,7 @@ Tix_HListCmd(clientData, interp, argc, argv)
      * to act as the header. The subwidget will always be raised to the top
      * so that it won't be obscured by any window items
      */
-    tkwin = Tk_CreateWindowFromPath(interp, main, argv[1], (char *) NULL);
+    tkwin = Tk_CreateWindowFromPath(interp, mainwin, argv[1], (char *) NULL);
     if (tkwin == NULL) {
 	return TCL_ERROR;
     }
@@ -472,7 +474,7 @@ Tix_HListCmd(clientData, interp, argc, argv)
 
     wPtr->initialized = 1;
 
-    interp->result = Tk_PathName(wPtr->dispData.tkwin);
+    Tcl_SetResult(interp, Tk_PathName(wPtr->dispData.tkwin), TCL_STATIC);
     return TCL_OK;
 }
 
@@ -499,7 +501,7 @@ WidgetCommand(clientData, interp, argc, argv)
     ClientData clientData;		/* Information about the widget. */
     Tcl_Interp *interp;			/* Current interpreter. */
     int argc;				/* Number of arguments. */
-    char **argv;			/* Argument strings. */
+    CONST84 char **argv;		/* Argument strings. */
 {
     int code;
 
@@ -575,11 +577,11 @@ Tix_HLAdd(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
-    char * pathName = argv[0];
+    CONST84 char * pathName = argv[0];
 
     argc --;
     argv ++;
@@ -619,11 +621,11 @@ Tix_HLAddChild(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
-    char * parentName;
+    CONST84 char * parentName;
 
     parentName = argv[0];
     if (argv[0] && strcmp(argv[0], "") == 0) {
@@ -664,7 +666,7 @@ Tix_HLSetSite(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     int changed = 0;
     WidgetPtr wPtr = (WidgetPtr) clientData;
@@ -731,7 +733,7 @@ Tix_HLCGet(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
 
@@ -748,7 +750,7 @@ Tix_HLConfig(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
 
@@ -773,7 +775,7 @@ Tix_HLDelete(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -847,7 +849,7 @@ Tix_HLEntryCget(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -873,7 +875,7 @@ Tix_HLEntryConfig(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -905,7 +907,7 @@ Tix_HLGeometryInfo(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int qSize[2];
@@ -953,7 +955,7 @@ Tix_HLHide(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -978,7 +980,7 @@ Tix_HLShow(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -1003,7 +1005,7 @@ Tix_HLInfo(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -1172,7 +1174,7 @@ Tix_HLItemInfo(interp, wPtr, argc, argv)
     Tcl_Interp *interp;		/* Current interpreter. */
     WidgetPtr wPtr;		/* HList widget */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     HListElement * chPtr;
     int itemX, itemY;
@@ -1304,7 +1306,7 @@ Tix_HLNearest(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -1337,7 +1339,7 @@ Tix_HLSee(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -1358,18 +1360,21 @@ Tix_HLSee(clientData, interp, argc, argv)
     }
 }
 
-/*----------------------------------------------------------------------
+/*
+ *----------------------------------------------------------------------
+ *
  * Tix_HLBBox --
  *
- *	Returns the visible bounding box of an HList element (x1, y1, x2, y2).
- *	Currently only y1 and y2 matters. x1 and x2 are always the left
- *	and right edges of the window.
+ *	Returns the visible bounding box of an HList element (x1, y1,
+ *	x2, y2).  Currently only y1 and y2 matters. x1 and x2 are
+ *	always the left and right edges of the window.
  *
  * Return value:
  *	See user documenetation.
  *
  * Side effects:
  *	None.
+ *
  *----------------------------------------------------------------------
  */
 
@@ -1535,7 +1540,7 @@ Tix_HLSelection(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -1643,7 +1648,7 @@ Tix_HLXView(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -1709,7 +1714,7 @@ Tix_HLYView(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListElement * chPtr;
@@ -1777,7 +1782,7 @@ Tix_HLYView(clientData, interp, argc, argv)
  *
  * Results:
  *	The return value is a standard Tcl result.  If TCL_ERROR is
- *	returned, then interp->result contains an error message.
+ *	returned, then interp's result contains an error message.
  *
  * Side effects:
  *	Configuration information, such as colors, border width,
@@ -1791,7 +1796,7 @@ WidgetConfigure(interp, wPtr, argc, argv, flags)
     Tcl_Interp *interp;			/* Used for error reporting. */
     WidgetPtr wPtr;			/* Information about widget. */
     int argc;				/* Number of valid entries in argv. */
-    char **argv;			/* Arguments. */
+    CONST84 char **argv;		/* Arguments. */
     int flags;				/* Flags to pass to
 					 * Tk_ConfigureWidget. */
 {
@@ -1822,7 +1827,7 @@ WidgetConfigure(interp, wPtr, argc, argv, flags)
 	if (wPtr->separator != 0) {
 	    ckfree(wPtr->separator);
 	}
-	wPtr->separator = (char*)tixStrDup(".");
+	wPtr->separator = tixStrDup(".");
     }
 
     if (oldfont != wPtr->font) {
@@ -1871,7 +1876,7 @@ WidgetConfigure(interp, wPtr, argc, argv, flags)
     }
     wPtr->normalGC = newGC;
 
-    /* The selected text GC */
+    /* The selected text GC [TODO: why need the BG??]*/
     gcValues.font		= TixFontId(wPtr->font);
     gcValues.foreground		= wPtr->selectFg->pixel;
     gcValues.background		= Tk_3DBorderColor(wPtr->selectBorder)->pixel;
@@ -1885,16 +1890,8 @@ WidgetConfigure(interp, wPtr, argc, argv, flags)
     wPtr->selectGC = newGC;
 
     /* The dotted anchor lines */
-    gcValues.foreground		= wPtr->normalFg->pixel;
-    gcValues.background		= wPtr->normalBg->pixel;
-    gcValues.graphics_exposures = False;
-    gcValues.line_style		= LineDoubleDash;
-    gcValues.dashes		= 2;
-    gcValues.subwindow_mode	= IncludeInferiors;
-
-    newGC = Tk_GetGC(wPtr->dispData.tkwin,
-	GCForeground|GCBackground|GCGraphicsExposures|GCLineStyle|GCDashList|
-	    GCSubwindowMode, &gcValues);
+    newGC = Tix_GetAnchorGC(wPtr->dispData.tkwin,
+            Tk_3DBorderColor(wPtr->selectBorder));
     if (wPtr->anchorGC != None) {
 	Tk_FreeGC(wPtr->dispData.display, wPtr->anchorGC);
     }
@@ -2021,7 +2018,9 @@ SubWindowEventProc(clientData, eventPtr)
     XEvent *eventPtr;		/* Information about event. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
+#ifdef TK_PARENT_DESTROYED
     Tk_FakeWin * fw;
+#endif
 
     switch (eventPtr->type) {
       case DestroyNotify:
@@ -2029,6 +2028,8 @@ SubWindowEventProc(clientData, eventPtr)
 #ifdef TK_PARENT_DESTROYED
 	/*
 	 * The TK_PARENT_DESTROYED symbol is no longer defined in Tk 8.0
+         *
+         * TODO: do we still have to handle this??
 	 */
 	fw = (Tk_FakeWin *) (wPtr->headerWin);
 	if (fw->flags & TK_PARENT_DESTROYED) {
@@ -2410,9 +2411,9 @@ static HListElement *
 AllocElement(wPtr, parent, pathName, name, ditemType)
     WidgetPtr wPtr;
     HListElement * parent;
-    char * pathName;
-    char * name;
-    char * ditemType;
+    CONST84 char * pathName;
+    CONST84 char * name;
+    CONST84 char * ditemType;
 {
     HListElement      * chPtr;
     Tcl_HashEntry     * hashPtr;
@@ -2450,13 +2451,13 @@ AllocElement(wPtr, parent, pathName, name, ditemType)
 	chPtr->_oneCol.width	= 0;
     }
     if (pathName) {
-	chPtr->pathName		= (char*)tixStrDup(pathName);
+	chPtr->pathName		= tixStrDup(pathName);
     } else {
 	chPtr->pathName		= NULL;
     }
 
     if (name) {
-	chPtr->name		= (char*)tixStrDup(name);
+	chPtr->name		= tixStrDup(name);
     } else {
 	chPtr->name		= NULL;
     }
@@ -2657,23 +2658,24 @@ NewElement(interp, wPtr, argc, argv, pathName, defParentName, newArgc)
     Tcl_Interp *interp;
     WidgetPtr wPtr;
     int argc;
-    char ** argv;
-    char * pathName;		/* Default pathname, if -pathname is not
+    CONST84 char ** argv;
+    CONST84 char * pathName;	/* Default pathname, if -pathname is not
 				 * specified in the options */
-    char * defParentName;	/* Default parent name (will NULL if pathName 
+    CONST84 char * defParentName;/* Default parent name (will NULL if pathName 
 				 * is not NULL */
     int * newArgc;
 {
 #define FIXED_SPACE 20
     char fixedSpace[FIXED_SPACE+1];
-    char *p, *parentName = NULL;
-    char *name;				/* Last part of the name */
+    CONST84 char *p;
+    CONST84 char *name;			/* Last part of the name */
+    char *parentName = NULL;
     int i, n, numChars;
     HListElement *parent;
     HListElement *chPtr;
     char sep = wPtr->separator[0];
     int allocated = 0;
-    char * ditemType = NULL;
+    CONST84 char * ditemType = NULL;
     HListElement *afterPtr  = NULL;
     HListElement *beforePtr = NULL;
     int at = -1;
@@ -2765,7 +2767,7 @@ NewElement(interp, wPtr, argc, argv, pathName, defParentName, newArgc)
 	 */
 	char buff[40];
 
-	parentName = defParentName;
+	parentName = (char *) defParentName;
 	if (parentName == NULL) {
 	    parent = wPtr->root;
 	} else {
@@ -2778,18 +2780,22 @@ NewElement(interp, wPtr, argc, argv, pathName, defParentName, newArgc)
 	    }
 	}
 
-	/* Generate a default name for this entry */
+	/* 
+         * Generate a default name for this entry
+         *
+         * TODO: make sure this name is unique!
+         */
 	sprintf(buff, "%d", parent->numCreatedChild);
 	name = buff;
 
 	if (parentName == NULL) {
-	    pathName = (char*)tixStrDup(name);
+	    pathName = tixStrDup(name);
 	    allocated = 1;
 	}
 	else {
 	    pathName = ckalloc(strlen(parentName)+1+ strlen(name)+1);
 	    allocated = 1;
-	    sprintf(pathName, "%s%c%s", parentName, sep, name);
+	    sprintf((char *) pathName, "%s%c%s", parentName, sep, name);
 	}
     }
     else {
@@ -2907,7 +2913,7 @@ ConfigElement(wPtr, chPtr, argc, argv, flags, forced)
     WidgetPtr wPtr;
     HListElement *chPtr;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
     int flags;
     int forced;			/* We need a "forced" configure to ensure that
 				 * the DItem is initialized properly */
@@ -3044,7 +3050,7 @@ static HListElement * FindElementAtPosition(wPtr, y)
 HListElement * Tix_HLFindElement(interp, wPtr, pathName)
     Tcl_Interp * interp;
     WidgetPtr wPtr;
-    char * pathName;
+    CONST84 char * pathName;
 {
     Tcl_HashEntry     * hashPtr;
 
@@ -3353,7 +3359,8 @@ static void ComputeOneElementGeometry(wPtr, chPtr, indent)
 
 	if (iPtr != NULL) {
 	    Tix_DItemCalculateSize(iPtr);
-	    /* Tix_DItemWidth() and Tix_DItemHeight() already include padding
+	    /*
+             * Tix_DItemWidth() and Tix_DItemHeight() already include padding
 	     */
 	    width  += Tix_DItemWidth (iPtr);
 	    height += Tix_DItemHeight(iPtr);
@@ -3399,16 +3406,22 @@ static void ComputeBranchPosition(wPtr, chPtr)
 		branchX = iPtr->imagetext.imageW / 2;
 		branchY = iPtr->imagetext.imageH;
 		if (Tix_DItemHeight(iPtr) > iPtr->imagetext.imageH) {
-		    branchY +=	(Tix_DItemHeight(iPtr) -
-			iPtr->imagetext.imageH) /2;
+                    int diff = Tix_DItemHeight(iPtr) - iPtr->imagetext.imageH;
+		    branchY += diff /2;
+                    if (diff % 2) {
+                        branchY += 1;
+                    }
 		}
 	    }
 	    else if (iPtr->imagetext.bitmap != None) {
 		branchX = iPtr->imagetext.bitmapW / 2;
 		branchY = iPtr->imagetext.bitmapH;
 		if (Tix_DItemHeight(iPtr) >iPtr->imagetext.bitmapH) {
-		    branchY += (Tix_DItemHeight(iPtr) - 
-			iPtr->imagetext.bitmapH) /2;
+                    int diff = Tix_DItemHeight(iPtr) - iPtr->imagetext.bitmapH;
+		    branchY += diff /2;
+                    if (diff % 2) {
+                        branchY += 1;
+                    }
 		}
 	    }
 	    else {
@@ -3515,6 +3528,7 @@ WidgetDisplay(clientData)
 	    Tcl_ResetResult(interp);
 	} else {
 	    Tix_HLSeeElement(wPtr, chPtr, 0);
+	    UpdateScrollBars(wPtr, 0);
 	}
 
 	ckfree(wPtr->elmToSee);
@@ -3554,10 +3568,9 @@ WidgetDisplay(clientData)
 
     /* Fill the background */
     XFillRectangle(wPtr->dispData.display, buffer, wPtr->backgroundGC,
-	0, 0, Tk_Width(tkwin), Tk_Height(tkwin));
+	    0, 0, (unsigned) Tk_Width(tkwin), (unsigned) Tk_Height(tkwin));
 
-    DrawElements(wPtr, buffer, wPtr->normalGC, wPtr->root,
-	elmX, elmY,
+    DrawElements(wPtr, buffer, wPtr->root, elmX, elmY,
 	wPtr->borderWidth + wPtr->highlightWidth - wPtr->leftPixel);
 
     if (wPtr->borderWidth > 0) {
@@ -3589,7 +3602,8 @@ WidgetDisplay(clientData)
 	 */
 
 	XCopyArea(wPtr->dispData.display, buffer, Tk_WindowId(tkwin),
-	    wPtr->normalGC, 0, 0, Tk_Width(tkwin), Tk_Height(tkwin), 0, 0);
+		wPtr->normalGC, 0, 0,
+		(unsigned) Tk_Width(tkwin), (unsigned) Tk_Height(tkwin), 0, 0);
 	Tk_FreePixmap(wPtr->dispData.display, buffer);
     }
 
@@ -3619,7 +3633,7 @@ WidgetDisplay(clientData)
 	    Tk_Depth(wPtr->headerWin));
 
 	XFillRectangle(wPtr->dispData.display, buffer,
-	    wPtr->backgroundGC, 0, 0, hdrW, hdrH);
+	    wPtr->backgroundGC, 0, 0, (unsigned) hdrW, (unsigned) hdrH);
 
 	Tix_HLDrawHeader(wPtr, buffer, wPtr->normalGC,
 	    0, 0, hdrW, hdrH, xOffset);
@@ -3627,7 +3641,7 @@ WidgetDisplay(clientData)
 	if (buffer != Tk_WindowId(wPtr->headerWin)) {
 	    XCopyArea(wPtr->dispData.display, buffer, 
 		Tk_WindowId(wPtr->headerWin), wPtr->normalGC,
-		0, 0, hdrW, hdrH, 0, 0);
+		0, 0, (unsigned) hdrW, (unsigned) hdrH, 0, 0);
 
 	    Tk_FreePixmap(wPtr->dispData.display, buffer);
 	}
@@ -3655,35 +3669,50 @@ WidgetDisplay(clientData)
 /*
  *----------------------------------------------------------------------
  *
- * DrawElements --
- *--------------------------------------------------------------
+ * DrawElements() --
+ *
+ *      Draws an element and all of its visible descendants.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
  */
-static void DrawElements(wPtr, pixmap, gc, chPtr, x, y, xOffset)
-    WidgetPtr wPtr;
-    Pixmap pixmap;
-    GC gc;
-    HListElement * chPtr;
-    int x;
-    int y;
-    int xOffset;
+
+static void
+DrawElements(wPtr, drawable, chPtr, x, y, xOffset)
+    WidgetPtr wPtr;                     /* Widget to render */
+    Drawable drawable;                  /* Drawable to draw into */
+    HListElement * chPtr;               /* Draw this element and its visible
+                                         * descendants */
+    int x;                              /* x position of the element's 
+                                         * top-left corner */
+    int y;                              /* y position of the element's 
+                                         * top-left corner */
+    int xOffset;                        /* x-offset due to horizontal
+                                         * scrolling */
 {
     HListElement * ptr, * lastVisible;
+    GC gc = wPtr->normalGC;
     int myIconX = 0, myIconY = 0;		/* center of my icon */
     int childIconX, childIconY;		/* center of child's icon */
     int childY, childX;
     int oldY;
-    int topBorder;
-
-    if (wPtr->useHeader) {
-	topBorder = wPtr->headerHeight;
-    } else {
-	topBorder = 0;
-    }
+    int top    = wPtr->useHeader ? wPtr->headerHeight : 0;
+    int left   = 0;
+    int bottom = Tk_Height(wPtr->dispData.tkwin);
+    int right  = Tk_Width(wPtr->dispData.tkwin);
 
     if (chPtr != wPtr->root) {
-	if (wPtr->bottomPixel > y  && (y + chPtr->height) >= topBorder) {
-	    /* Otherwise element is not see at all */
-	    DrawOneElement(wPtr, pixmap, gc, chPtr, x, y, xOffset);
+	if (bottom > y  && (y + chPtr->height) >= top) {
+	    /*
+             * This element is (at least partialy) visible
+             */
+
+	    DrawOneElement(wPtr, drawable, chPtr, x, y, xOffset);
 	}
 	myIconX = x + chPtr->branchX;
 	myIconY = y + chPtr->branchY;
@@ -3694,7 +3723,6 @@ static void DrawElements(wPtr, pixmap, gc, chPtr, x, y, xOffset)
 	    childX = x +  wPtr->indent;
 	}
 	childY = y + chPtr->height;
-
 	if (myIconX > childX) {
 	    /* Can't shift the vertical branch too much to the right */
 	    myIconX = childX;
@@ -3731,105 +3759,93 @@ static void DrawElements(wPtr, pixmap, gc, chPtr, x, y, xOffset)
 	childIconX = childX + ptr->iconX;
 	childIconY = childY + ptr->iconY;
 
-	if (wPtr->bottomPixel > childY	&&
-	    (childY + ptr->allHeight) >= topBorder) {
+	if (bottom > childY && (childY + ptr->allHeight) >= top) {
+	    DrawElements(wPtr, drawable, ptr, childX, childY, xOffset);
 
-	    /* Otherwise all descendants of ptr are not seen at all
-	     */
-	    DrawElements(wPtr, pixmap, gc, ptr, childX, childY, xOffset);
-
-	    if (wPtr->drawBranch && chPtr != wPtr->root) {
-		/* Draw a horizontal branch to the child's image/bitmap */
-		XDrawLine(wPtr->dispData.display, pixmap, gc, myIconX,
+	    if (wPtr->drawBranch && chPtr != wPtr->root
+		    && top <= childIconY && childIconY <= bottom) {
+		/*
+                 * Draw a horizontal branch to the child. We draw the line
+                 * after drawing the element, because DrawElement may
+                 * clear out some area around the element.
+                 */
+		XDrawLine(wPtr->dispData.display, drawable, gc, myIconX,
 		    childIconY, childIconX, childIconY);
 	    }
 	}
 
-	if (wPtr->drawBranch && chPtr != wPtr->root) {
+	/*
+	 * -- no branches for toplevel elements
+	 * -- for last element, draw a vertical branch, even if element
+	 *    is not seen
+	 */
+	if (ptr == lastVisible      && wPtr->drawBranch
+	    && chPtr != wPtr->root  && childIconY >= top
+	    && left <= myIconX      && myIconX <= right) {
 	    /*
-	     * NB: no branches for toplevel elements
-	     */
-	    if (ptr == lastVisible) {
-		/* Last element. Must draw a vertical branch, even if element
-		 * is not seen
-		 */
-		int y0, y1;	/* used to clip the vertical lines. Otherwise
-				 * will wrap-around 65536 (max coordinate for
-				 * X
-				 */
-		y0 = myIconY;
-		y1 = childIconY;
+             * clip vertical lines to avoid wrap-around
+             */
+            int y0 = myIconY < 0 ? 0 : myIconY;
+            int y1 = childIconY > bottom ? bottom : childIconY;
 
-		if (y0 < 0) {
-		    y0 = 0;
-		}
-		if (y1 > Tk_Height(wPtr->dispData.tkwin)) {
-		    y1 = Tk_Height(wPtr->dispData.tkwin);
-		}
-		XDrawLine(wPtr->dispData.display, pixmap, gc, myIconX, y0,
+	    XDrawLine(wPtr->dispData.display, drawable, gc, myIconX, y0,
 		    myIconX, y1);
-	    }
 	}
 	childY += ptr->allHeight;
     }
 
     if (!wPtr->useIndicator) {
 	return;
-    } else {
-	childY = oldY;
     }
+    childY = oldY;
 
     /* Second iteration : draw the indicators */
     for (ptr = chPtr->childHead; ptr!=NULL; ptr=ptr->next) {
-	int justMapped;
+	int cY = childY;
 
 	if (ptr->hidden) {
 	    continue;
 	}
+	childY += ptr->allHeight;
+	childIconY = cY + ptr->iconY;
 
-	childIconY = childY + ptr->iconY;
-
-	if (wPtr->bottomPixel > childY	&&
-	    (childY + ptr->allHeight) >= topBorder) {
+	if (bottom > cY && (cY + ptr->allHeight) >= top
+	    && ptr->indicator != NULL
+	) {
 	    /* Otherwise all descendants of ptr are not seen at all
 	     */
-	    if (ptr->indicator != NULL) {
-		int indW = Tix_DItemWidth (ptr->indicator);
-		int indH = Tix_DItemHeight(ptr->indicator);
-		int indX;
-		int indY = childIconY;
+	    int justMapped,
+	        indW = Tix_DItemWidth (ptr->indicator),
+	        indH = Tix_DItemHeight(ptr->indicator),
+	        indY = childIconY - indH/2,
+	        indX = (chPtr == wPtr->root
+		       ? (wPtr->indent / 2 + wPtr->borderWidth
+		         + wPtr->highlightWidth - wPtr->leftPixel)
+		       : myIconX) - indW/2;
+	    if ( indX > right || (indX + indW) < left
+		 || indY > bottom ||(indY + indH) < top
+	    ) {
+		continue;  /* indicator not visible */
+	    }
 
-		if (chPtr == wPtr->root) {
-		    indX = wPtr->indent / 2 + wPtr->borderWidth
-			+ wPtr->highlightWidth - wPtr->leftPixel;
-		} else {
-		    indX = myIconX;
-		}
-
-		indX -= indW/2;
-		indY -= indH/2;		
-
-		justMapped = 0;
-		if (Tix_DItemType(ptr->indicator) == TIX_DITEM_WINDOW) {
-		    Tix_SetWindowItemSerial(&wPtr->mappedWindows,
-			ptr->indicator, wPtr->serial);
-		    if (!Tk_IsMapped(ptr->indicator->window.tkwin)) {
-			justMapped = 1;
-		    }
-		}
-
-		/* Put down the indicator */
-		Tix_DItemDisplay(pixmap, gc, ptr->indicator,
-		    indX, indY, indW, indH,
-		    TIX_DITEM_NORMAL_FG|TIX_DITEM_NORMAL_BG);
-
-		if (justMapped) {
-		    XLowerWindow(Tk_Display(ptr->indicator->window.tkwin),
-			Tk_WindowId(ptr->indicator->window.tkwin));
+	    justMapped = 0;
+	    if (Tix_DItemType(ptr->indicator) == TIX_DITEM_WINDOW) {
+		Tix_SetWindowItemSerial(&wPtr->mappedWindows,
+		    ptr->indicator, wPtr->serial);
+		if (!Tk_IsMapped(ptr->indicator->window.tkwin)) {
+		    justMapped = 1;
 		}
 	    }
+
+	    /* Put down the indicator */
+	    Tix_DItemDisplay(drawable, ptr->indicator,
+		    indX, indY, indW, indH, 0, 0,
+                    TIX_DITEM_NORMAL_FG|TIX_DITEM_NORMAL_BG);
+
+	    if (justMapped) {
+		Tk_RestackWindow(ptr->indicator->window.tkwin, Below, NULL);
+	    }
 	}
-	childY += ptr->allHeight;
     }
 }
 
@@ -3839,18 +3855,25 @@ static void DrawElements(wPtr, pixmap, gc, chPtr, x, y, xOffset)
  * DrawOneElement --
  *--------------------------------------------------------------
  */
-static void DrawOneElement(wPtr, pixmap, gc, chPtr, x, y, xOffset)
-    WidgetPtr wPtr;
-    Pixmap pixmap;
-    GC gc;
-    HListElement * chPtr;
-    int x;
-    int y;
-    int xOffset;
+
+static void
+DrawOneElement(wPtr, drawable, chPtr, x, y, xOffset)
+    WidgetPtr wPtr;                     /* Widget to render */
+    Drawable drawable;                  /* Drawable to draw into */
+    HListElement * chPtr;               /* Draw this element and its visible
+                                         * descendants */
+    int x;                              /* x position of the element's 
+                                         * top-left corner */
+    int y;                              /* y position of the element's 
+                                         * top-left corner */
+    int xOffset;                        /* x-offset due to horizontal
+                                         * scrolling */
 {
+    int flags0 = TIX_DITEM_NORMAL_FG;   /* DItem flags for column 0 */
+    int flags1 = TIX_DITEM_NORMAL_FG;   /* DItem flags for column 1 and above*/
     int i;
-    int flags = TIX_DITEM_NORMAL_FG, bgFlags = 0;
     int selectWidth, selectX;
+    int hasDrawnBackground = 0;
 
     x = xOffset + chPtr->indent;
 
@@ -3859,44 +3882,57 @@ static void DrawOneElement(wPtr, pixmap, gc, chPtr, x, y, xOffset)
 	selectX = xOffset;
     } else {
 	selectWidth = Tix_DItemWidth(chPtr->col[0].iPtr)
-	  + 2*wPtr->selBorderWidth;
+	        + 2*wPtr->selBorderWidth;
 	selectX = x;
     }
 
+    if (chPtr->selected && wPtr->wideSelect) {
+	Tk_Fill3DRectangle(wPtr->dispData.tkwin, drawable, wPtr->selectBorder,
+	        selectX, y, selectWidth, chPtr->height, wPtr->selBorderWidth,
+	        TK_RELIEF_RAISED);
+        hasDrawnBackground = 1;
+    }
+
     if (chPtr->selected) {
-	/*
-	 * When the ditem is selected, we have already drawn the
-	 * selection background ourself, so we don't want
-	 * DitemDisplay() to draw any background for us. So in this
-	 * case both TIX_DITEM_NORMAL_BG and TIX_DITEM_SELECTED_BG are
-	 * *not* set
-	 */
-	Tk_Fill3DRectangle(wPtr->dispData.tkwin, pixmap, wPtr->selectBorder,
-	    selectX, y, selectWidth, chPtr->height, wPtr->selBorderWidth,
-	    TK_RELIEF_RAISED);
-	gc = wPtr->selectGC;
-	flags |= TIX_DITEM_SELECTED_FG;
+	flags0 |= TIX_DITEM_SELECTED_FG;
+
+	if (hasDrawnBackground) {
+	    flags1 |= TIX_DITEM_SELECTED_FG;
+        } else {
+	    flags0 |= TIX_DITEM_SELECTED_BG;
+            flags0 |= TIX_DITEM_NORMAL_BG;
+	}
     } else {
-	/*
-	 * Set the TIX_DITEM_NORMAL_BG. This will be used unless
-	 * ACTIVE_BG and/or DISABLE_BG are set
-	 */
-	bgFlags |= TIX_DITEM_NORMAL_BG;
+        flags0 |= TIX_DITEM_NORMAL_BG;
+    }
+
+    if (!hasDrawnBackground) {
+        flags1 |= TIX_DITEM_NORMAL_BG;
     }
 
     if (chPtr == wPtr->anchor) {
-	flags |= TIX_DITEM_ACTIVE_FG;
+	flags0 |= TIX_DITEM_ACTIVE_FG;
 
-	if (!chPtr->selected) {
-	    /* don't set any background when the item is selected (otherwise
-	     * it looks messed up when wideSelect is false
-	     */
-	    bgFlags |= TIX_DITEM_ACTIVE_BG;
+	if (hasDrawnBackground) {
+            flags1 |= TIX_DITEM_ACTIVE_FG;
+        } else {
+	    flags0 |= TIX_DITEM_ACTIVE_BG;
+            if (wPtr->hasFocus && !(wPtr->wideSelect)) {
+                flags0 |= TIX_DITEM_ANCHOR;
+            }
 	}
     }
+
     if (chPtr == wPtr->dropSite) {
-	XDrawRectangle(Tk_Display(wPtr->dispData.tkwin), pixmap,
-	    wPtr->dropSiteGC, selectX, y, selectWidth-1, chPtr->height-1);
+        /*
+         * Draw a rectangle to indicate that this is a drop site.
+         *
+         * TOD: what about wide-select??
+         */
+
+	XDrawRectangle(Tk_Display(wPtr->dispData.tkwin), drawable,
+	        wPtr->dropSiteGC, selectX, y,
+		(unsigned) selectWidth-1, (unsigned) chPtr->height-1);
     }
 
     /*
@@ -3904,33 +3940,16 @@ static void DrawOneElement(wPtr, pixmap, gc, chPtr, x, y, xOffset)
      *
      * %% ToDo: clip off the non-visible items
      */
-    x = xOffset;
-    for (i=0; i<wPtr->numColumns; i++) {
-	int drawX = x;
+
+    for (x=xOffset, i=0; i<wPtr->numColumns; i++) {
 	Tix_DItem * iPtr = chPtr->col[i].iPtr;
-	int itemWidth;
-
-	itemWidth = wPtr->actualSize[i].width - 2*wPtr->selBorderWidth;
-
-	/*
-	 * Draw the background: this is tricky because we have idented the
-	 * first column. If we call Tix_DItemDisplay() with the background
-	 * flags set, the first column will look ugly
-	 */
-	if (iPtr != NULL) {
-	    Tix_DItemDrawBackground(pixmap, gc, iPtr,
-		drawX + wPtr->selBorderWidth, y + wPtr->selBorderWidth,
-		itemWidth,
-		chPtr->height - 2*wPtr->selBorderWidth, bgFlags);
-	}
-
-	if (i == 0) {
-	    drawX += chPtr->indent;
-	    itemWidth -= chPtr->indent;
-	}
+	int drawX, drawY, drawW, drawH;
+        int drawOffX, drawOffY;
+        int flags;
 
 	if (iPtr != NULL) {
 	    int justMapped = 0;
+
 
 	    if (Tix_DItemType(iPtr) == TIX_DITEM_WINDOW) {
 		Tix_SetWindowItemSerial(&wPtr->mappedWindows,iPtr,
@@ -3940,31 +3959,49 @@ static void DrawOneElement(wPtr, pixmap, gc, chPtr, x, y, xOffset)
 		}
 	    }
 
-	    Tix_DItemDisplay(pixmap, gc, iPtr,
-		drawX + wPtr->selBorderWidth, y + wPtr->selBorderWidth,
-		itemWidth,
-		chPtr->height - 2*wPtr->selBorderWidth, flags);
+            drawX = x;
+            drawY = y;
+            drawW = wPtr->actualSize[i].width;
+            drawH = chPtr->height;
+
+            drawOffX = wPtr->selBorderWidth;
+            drawOffY = wPtr->selBorderWidth;
+
+            if (i == 0) {
+                flags = flags0;
+                drawOffX += chPtr->indent;
+            } else {
+                flags = flags1;
+            }
+
+	    Tix_DItemDisplay(drawable, iPtr, drawX, drawY, drawW, drawH,
+                    drawOffX, drawOffY, flags);
 
 	    if (justMapped) {
 		/*
 		 * We need to lower it so that it doesn't
 		 * overlap the header subwindow
 		 */
-		XLowerWindow(Tk_Display(iPtr->window.tkwin),
-		    Tk_WindowId(iPtr->window.tkwin));
+
+		Tk_RestackWindow(iPtr->window.tkwin, Below, NULL);
 	    }
 	}
 
 	x += wPtr->actualSize[i].width;
     }
 
-    if (chPtr == wPtr->anchor) {
-	int ancW, ancH;
-	ancW = selectWidth-1;
-	ancH = chPtr->height-1;
+    if (chPtr == wPtr->anchor && wPtr->hasFocus && wPtr->wideSelect) {
+	int ancX, ancY, ancW, ancH;
+        ancX = selectX + wPtr->selBorderWidth;
+        ancY = y       + wPtr->selBorderWidth;
+	ancW = selectWidth   - 2*wPtr->selBorderWidth;
+	ancH = chPtr->height - 2*wPtr->selBorderWidth;
 
-	Tix_DrawAnchorLines(Tk_Display(wPtr->dispData.tkwin), pixmap,
-	    wPtr->anchorGC, selectX, y, ancW, ancH);
+        /*
+         * TODO: use a different anchorGC on normal background
+         */
+	Tix_DrawAnchorLines(Tk_Display(wPtr->dispData.tkwin), drawable,
+	        wPtr->anchorGC, ancX, ancY, ancW, ancH);
     }
 }
 
@@ -4165,7 +4202,7 @@ static void DeleteNode(wPtr, chPtr)
  */
 static void UpdateOneScrollBar(wPtr, command, total, window, first)
     WidgetPtr wPtr;
-    char * command;
+    CONST84 char * command;
     int total;
     int window;
     int first;
@@ -4202,7 +4239,6 @@ static void UpdateScrollBars(wPtr, sizeChanged)
 	window = Tk_Width(wPtr->dispData.tkwin)
 	  - 2*wPtr->borderWidth - 2*wPtr->highlightWidth;
 	first  = wPtr->leftPixel;
-
 	UpdateOneScrollBar(wPtr, wPtr->xScrollCmd, total, window, first);
     }
 
@@ -4215,7 +4251,6 @@ static void UpdateScrollBars(wPtr, sizeChanged)
 	if (wPtr->useHeader) {
 	    window -= wPtr->headerHeight;
 	}
-
 	UpdateOneScrollBar(wPtr, wPtr->yScrollCmd, total, window, first);
     }
 

@@ -1,3 +1,6 @@
+#
+#	$Id: ListNBK.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -77,7 +80,7 @@ proc RunSample {w} {
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
     bind $w <Destroy> exit
 }

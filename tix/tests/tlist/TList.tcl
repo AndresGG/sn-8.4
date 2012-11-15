@@ -1,3 +1,6 @@
+#
+#	$Id: TList.tcl,v 1.1.1.1 2000/05/17 11:08:53 idiscovery Exp $
+#
 # This tests the TList widget.
 #
 #

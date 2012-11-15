@@ -1,8 +1,14 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: ChkList.tcl,v 1.6 2004/03/28 02:44:57 hobbs Exp $
+#
 # ChkList.tcl --
 #
 #	This file implements the TixCheckList widget.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -28,11 +34,7 @@ tixWidgetClass tixCheckList {
     -default {
 	{.scrollbar			auto}
 	{.doubleClick			false}
-	{*Scrollbar.background          #d9d9d9}
-	{*Scrollbar.relief              sunken}
 	{*Scrollbar.takeFocus           0}
-	{*Scrollbar.troughColor         #c3c3c3}
-	{*Scrollbar.width               15}
 	{*borderWidth                   1}
 	{*hlist.background              #c3c3c3}
 	{*hlist.drawBranch              1}
@@ -75,7 +77,7 @@ proc tixCheckList:GetSel {w var ent mode} {
     set ents ""
 
     catch {
-	if ![string comp [$data(w:hlist) entrycget $ent -bitmap] $img($mode)] {
+	if {[$data(w:hlist) entrycget $ent -bitmap] eq $img($mode)} {
 	    lappend ents $ent
 	}
     }
@@ -107,25 +109,25 @@ proc tixCheckList:getselection {w {mode on}} {
 proc tixCheckList:getstatus {w ent} {
     upvar #0 $w data
 
-    if {[$data(w:hlist) entrycget $ent -itemtype] == "imagetext"} {
+    if {[$data(w:hlist) entrycget $ent -itemtype] eq "imagetext"} {
 	set img(on)      [tix getbitmap ck_on]
 	set img(off)     [tix getbitmap ck_off]
 	set img(default) [tix getbitmap ck_def]
 
 	set bitmap [$data(w:hlist) entrycget $ent -bitmap]
 
-	if {"x$bitmap" == "x$img(on)"} {
+	if {$bitmap eq $img(on)} {
 	    set status on
 	}
-	if {"x$bitmap" == "x$img(off)"} {
+	if {$bitmap eq $img(off)} {
 	    set status off
 	}
-	if {"x$bitmap" == "x$img(default)"} {
+	if {$bitmap eq $img(default)} {
 	    set status default
 	}
     }
 
-    if [info exists status] {
+    if {[info exists status]} {
 	return $status
     } else {
 	return "none"
@@ -138,18 +140,18 @@ proc tixCheckList:setstatus {w ent {mode on}} {
     if {$data(-radio)} {
 	set status [tixCheckList:getstatus $w $ent]
 
-	if {"x$status" == "x$mode"} {
+	if {$status eq $mode} {
 	    return
 	}
 
-	if {$mode == "on"} {
+	if {$mode eq "on"} {
 	    if {$data(selected) != ""} {
 		tixCheckList:Select $w $data(selected) off
 	    }
 	    set data(selected) $ent
 	    tixCheckList:Select $w $ent $mode
-	} elseif {$mode == "off"} {
-	    if {"x$data(selected)" == "x$ent"} {
+	} elseif {$mode eq "off"} {
+	    if {$data(selected) eq $ent} {
 		return
 	    }
 	    tixCheckList:Select $w $ent $mode
@@ -164,7 +166,7 @@ proc tixCheckList:setstatus {w ent {mode on}} {
 proc tixCheckList:Select {w ent mode} {
     upvar #0 $w data
 
-    if {[$data(w:hlist) entrycget $ent -itemtype] == "imagetext"} {
+    if {[$data(w:hlist) entrycget $ent -itemtype] eq "imagetext"} {
 	set img(on)      ck_on
 	set img(off)     ck_off
 	set img(default) ck_def
@@ -187,7 +189,7 @@ proc tixCheckList:Select {w ent mode} {
 proc tixCheckList:HandleCheck {w ent} {
     upvar #0 $w data
 
-    if {[$data(w:hlist) entrycget $ent -itemtype] == "imagetext"} {
+    if {[$data(w:hlist) entrycget $ent -itemtype] eq "imagetext"} {
 	set img(on)      [tix getbitmap ck_on]
 	set img(off)     [tix getbitmap ck_off]
 	set img(default) [tix getbitmap ck_def]

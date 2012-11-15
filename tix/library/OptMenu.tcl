@@ -1,8 +1,13 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: OptMenu.tcl,v 1.3 2001/12/09 05:04:02 idiscovery Exp $
+#
 # OptMenu.tcl --
 #
 #	This file implements the TixOptionMenu widget.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -107,7 +112,7 @@ proc tixOptionMenu:SetValue {w value {noUpdate 0}} {
 	}
     }
 
-    if [info exists data($name,index)] {
+    if {[info exists data($name,index)]} {
        $data(w:menubutton) config -text $data($name,label)
 
        set data(-value) $value
@@ -148,7 +153,7 @@ proc tixOptionMenu:SetMaxWidth {w} {
 proc tixOptionMenu:config-state {w value} {
     upvar #0 $w data
 
-    if ![info exists data(w:label)] {
+    if {![info exists data(w:label)]} {
 	return
     }
 
@@ -181,7 +186,7 @@ proc tixOptionMenu:config-value {w value} {
 proc tixOptionMenu:config-variable {w arg} {
     upvar #0 $w data
 
-    if [tixVariable:ConfigVariable $w $arg] {
+    if {[tixVariable:ConfigVariable $w $arg]} {
        # The value of data(-value) is changed if tixVariable:ConfigVariable 
        # returns true
        tixOptionMenu:SetValue $w $data(-value) 1
@@ -198,7 +203,7 @@ proc tixOptionMenu:config-variable {w arg} {
 proc tixOptionMenu:add {w type name args} {
     upvar #0 $w data
 
-    if [info exists data($name,index)] {
+    if {[info exists data($name,index)]} {
 	error "item $name already exists in the option menu $w"
     }
 

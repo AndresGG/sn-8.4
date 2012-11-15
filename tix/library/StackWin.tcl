@@ -1,8 +1,13 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: StackWin.tcl,v 1.3 2004/03/28 02:44:57 hobbs Exp $
+#
 # StackWin.tcl --
 #
 #	Similar to NoteBook but uses a Select widget to represent the pages.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -29,24 +34,23 @@ proc tixStackWindow:ConstructWidget {w} {
     # We can't use the packer because it will conflict with the
     # geometry management of the VStack widget.
     #
-    tixManageGeometry $data(w:tabs) "tixVStack:ClientGeomProc $w"
+    tixManageGeometry $data(w:tabs) [list tixVStack:ClientGeomProc $w]
 }
 
 proc tixStackWindow:add {w child args} {
     upvar #0 $w data
 
-    set ret [eval tixChainMethod $w add $child $args]
+    set ret [eval [list tixChainMethod $w add $child] $args]
 
     # Find out the -label option
     #
-    tixForEach {flag value} $args {
-	if {$flag == "-label"} {
+    foreach {flag value} $args {
+	if {$flag eq "-label"} {
 	    set label $value
 	}
     }
 
-    $data(w:tabs) add $child -command "$w raise $child" \
-	-text $label
+    $data(w:tabs) add $child -command [list $w raise $child] -text $label
 
     return $ret
 }

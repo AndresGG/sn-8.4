@@ -1,8 +1,13 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: Select.tcl,v 1.3 2001/12/09 05:04:02 idiscovery Exp $
+#
 # Select.tcl --
 #
 #	Implement the tixSelect widget.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -71,7 +76,7 @@ proc tixSelect:config-state {w arg} {
 	    $data(w:$item) config -state disabled -relief raised \
 		-bg $data(buttonbg)
 	}
-	if ![info exists data(labelFg)] {
+	if {![info exists data(labelFg)]} {
 	    set data(labelFg) [$data(w:label) cget -foreground]
 	    catch {
 		$data(w:label) config -fg [tix option get disabled_fg]
@@ -89,7 +94,7 @@ proc tixSelect:config-state {w arg} {
 		    -command "$w invoke $item" -state normal
 	    }
 	}
-	if [info exists data(labelFg)] {
+	if {[info exists data(labelFg)]} {
 	    catch {
 		$data(w:label) config -fg $data(labelFg)
 	    }
@@ -105,7 +110,7 @@ proc tixSelect:config-variable {w arg} {
 
     set oldValue $data(-value)
 
-    if [tixVariable:ConfigVariable $w $arg] {
+    if {[tixVariable:ConfigVariable $w $arg]} {
 	# The value of data(-value) is changed if tixVariable:ConfigVariable 
 	# returns true
 	set newValue $data(-value)
@@ -203,7 +208,7 @@ proc tixSelect:invoke {w button} {
     } else {
 	# This button was not selected
 	#
-	if [tixGetBoolean $data(-radio)] {
+	if {[tixGetBoolean $data(-radio)]} {
 	    # The button become the sole item in the list
 	    #
 	    set newValue [list $button]

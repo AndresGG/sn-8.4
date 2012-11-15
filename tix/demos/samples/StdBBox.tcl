@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: StdBBox.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -26,11 +30,11 @@ proc RunSample {w} {
     #
     tixStdButtonBox $w.box
     $w.box subwidget ok     config \
-	-command "puts {OK pressed}; destroy $w"
+	-command "tixDemo:Status {OK pressed}; destroy $w"
     $w.box subwidget apply  config -text "Filter" -underline 0 \
-	-command "puts {Filter pressed}"
+	-command "tixDemo:Status {Filter pressed}"
     $w.box subwidget cancel config \
-	-command "puts {Cancel pressed}; destroy $w"
+	-command "tixDemo:Status {Cancel pressed}; destroy $w"
     $w.box subwidget help config -state disabled
 
     pack $w.box -side bottom -fill x
@@ -55,7 +59,7 @@ proc RunSample {w} {
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
-	bind $w <Destroy> exit
+    bind $w <Destroy> exit
 }

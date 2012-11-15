@@ -3,19 +3,25 @@
  *
  *	This module implements "tixNoteBookFrame" widgets.
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000      Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- *
+ * $Id: tixNBFrame.c,v 1.9 2008/02/28 22:41:11 hobbs Exp $
  */
 
 #include <tixPort.h>
 #include <tixInt.h>
 #include <tixDef.h>
 
-#define NUM_TAB_POINTS 6
+#define NUM_TAB_POINTS          6
+#define ANCHOR_TABPAD           2
+#define MIN_TABPADX             3
+#define MIN_TABPADY             3
+#define ACTIVE_TAB_ELEVATION    2
+#define MAX_BORDER_WIDTH        4
 
 /*
  * A data structure of the following type is kept for each
@@ -47,34 +53,32 @@ typedef struct NoteBookFrameStruct {
     int borderWidth;		/* Width of 3-D borders. */
     Tk_3DBorder bgBorder;	/* Used for drawing background. */
     Tk_3DBorder focusBorder;	/* background of the "focus" tab. */
-    Tk_3DBorder inActiveBorder;	/* background of the "active" tab */
+    Tk_3DBorder inactiveBorder;	/* background of the "inactive" tab(s) */
     XColor * backPageColorPtr;	/* the color used as the "back page" */
     GC backPageGC;		/* GC for drawing text in normal mode. */
     int relief;			/* Indicates whether window as a whole is
 				 * raised, sunken, or flat. */
-    int tabPadx;
-    int tabPady;
+    int tabPadx;                /* Horiz-paddings around the tab label/image */
+    int tabPady;                /* Vert-paddings around the tab label/image */
 
     int isSlave;		/* if is in Slave mode, do not request for
 				 * germetry */
     /* Text drawing */
-    TixFont font;		/* Information about text font, or NULL. */
+    TixFont font;		/* Font used by the active (selected)
+                                 * notebook tab. May be NULL */
     XColor *textColorPtr;	/* Color for drawing text. */
     XColor *disabledFg;		/* Foreground color when disabled.  NULL
 				 * means use normalFg with a 50% stipple
 				 * instead. */
-    GC textGC;			/* GC for drawing text in normal mode. */
-    GC focusGC;			/* GC for focusing text. */
+    GC activeGC;		/* GC for drawing text on active tab. */
+    GC disabledGC;		/* GC for drawing text on disabled tabs */
+    GC anchorGC;		/* GC for drawing dotted anchor highlight. */
+    GC inactiveAnchorGC;	/* GC for drawing dotted anchor highlight
+                                 * inside inactive tabs.*/
     Pixmap gray;		/* Pixmap for displaying disabled text if
 				 * disabledFg is NULL. */
-    GC disabledGC;		/* Used to produce disabled effect.  If
-				 * disabledFg isn't NULL, this GC is used to
-				 * draw button text or icon.  Otherwise
-				 * text or icon is drawn with normalGC and
-				 * this GC is used to stipple background
-				 * across it.*/
 
-     Cursor cursor;		/* Current cursor for window, or None. */
+    Cursor cursor;		/* Current cursor for window, or None. */
 
     struct _Tab * tabHead;
     struct _Tab * tabTail;
@@ -105,7 +109,6 @@ typedef struct _Tab {
 
     char * text;
     int width, height;
-    int numChars;
     Tk_Justify justify;		/* Justification to use for multi-line text. */
     int wrapLength;
     int underline;		/* Index of character to underline.  < 0 means
@@ -192,13 +195,13 @@ static Tk_ConfigSpec configSpecs[] = {
     {TK_CONFIG_BORDER, "-inactivebackground", "inactiveBackground",
        "Background",
        DEF_NOTEBOOKFRAME_INACTIVE_BG_COLOR,
-       Tk_Offset(WidgetRecord, inActiveBorder),
+       Tk_Offset(WidgetRecord, inactiveBorder),
        TK_CONFIG_COLOR_ONLY},
 
     {TK_CONFIG_BORDER, "-inactivebackground", "inactiveBackground",
        "Background",
        DEF_NOTEBOOKFRAME_INACTIVE_BG_MONO,
-       Tk_Offset(WidgetRecord, inActiveBorder),
+       Tk_Offset(WidgetRecord, inactiveBorder),
        TK_CONFIG_MONO_ONLY},
 
     {TK_CONFIG_RELIEF, "-relief", "relief", "Relief",
@@ -267,45 +270,42 @@ static Tk_ConfigSpec tabConfigSpecs[] = {
  * Forward declarations for procedures defined later in this file:
  */
 
-	/* These are standard procedures for TK widgets
-	 * implemeted in C
-	 */
-static void		WidgetCmdDeletedProc _ANSI_ARGS_((
-			    ClientData clientData));
-static int		WidgetConfigure _ANSI_ARGS_((Tcl_Interp *interp,
-			    WidgetPtr wPtr, int argc, char **argv,
-			    int flags));
-static int		WidgetCommand _ANSI_ARGS_((ClientData clientData,
-			    Tcl_Interp *, int argc, char **argv));
-static void		WidgetComputeGeometry _ANSI_ARGS_((WidgetPtr wPtr));
-static void		WidgetDestroy _ANSI_ARGS_((ClientData clientData));
-static void		WidgetDisplay _ANSI_ARGS_((ClientData clientData));
-static void		WidgetEventProc _ANSI_ARGS_((ClientData clientData,
-			    XEvent *eventPtr));
+/* These are standard procedures for TK widgets implemeted in C
+ */
+static void		WidgetCmdDeletedProc(
+			    ClientData clientData);
+static int		WidgetConfigure(Tcl_Interp *interp,
+			    WidgetPtr wPtr, int argc, CONST84 char **argv,
+			    int flags);
+static int		WidgetCommand(ClientData clientData,
+			    Tcl_Interp *, int argc, CONST84 char **argv);
+static void		WidgetComputeGeometry(WidgetPtr wPtr);
+static void		WidgetDestroy(ClientData clientData);
+static void		WidgetDisplay(ClientData clientData);
+static void		WidgetEventProc(ClientData clientData,
+			    XEvent *eventPtr);
 
 	/* Extra procedures for this widget
 	 */
-static int		AddTab _ANSI_ARGS_((WidgetPtr wPtr, char * name,
-			    char ** argv, int argc));
-static void		DeleteTab _ANSI_ARGS_((Tab * tPtr));
-static void		CancelRedrawWhenIdle _ANSI_ARGS_((WidgetPtr wPtr));
-static void		ComputeGeometry _ANSI_ARGS_((WidgetPtr wPtr));
-static void		DrawTab _ANSI_ARGS_((WidgetPtr wPtr,
-			    Tab * tPtr, int x, int isActive,
-			    Drawable drawable));
-static Tab * 		FindTab _ANSI_ARGS_((Tcl_Interp *interp,
-			    WidgetPtr wPtr, char * name));
-static void		FocusTab _ANSI_ARGS_((WidgetPtr wPtr,
-			    Tab * tPtr, int x, Drawable drawable));
-static void		GetTabPoints _ANSI_ARGS_((
+static int		AddTab(WidgetPtr wPtr, CONST84 char * name,
+			    CONST84 char ** argv, int argc);
+static void		DeleteTab(Tab * tPtr);
+static void		CancelRedrawWhenIdle(WidgetPtr wPtr);
+static void		ComputeGeometry(WidgetPtr wPtr);
+static void		DrawTab(WidgetPtr wPtr,
+			    Tab * tPtr, int x, int isActive, int isFocused,
+			    Drawable drawable);
+static Tab * 		FindTab(Tcl_Interp *interp,
+			    WidgetPtr wPtr, CONST84 char * name);
+static void		GetTabPoints(
 			    WidgetPtr wPtr, Tab * tPtr,
-			    int x, XPoint *points));
-static void		ImageProc _ANSI_ARGS_((ClientData clientData,
+			    int x, XPoint *points, int isActive);
+static void		ImageProc(ClientData clientData,
 			    int x, int y, int width, int height,
-			    int imgWidth, int imgHeight));
-static void		RedrawWhenIdle _ANSI_ARGS_((WidgetPtr wPtr));
-static int		TabConfigure _ANSI_ARGS_((WidgetPtr wPtr,
-			    Tab *tPtr, char ** argv, int argc));
+			    int imgWidth, int imgHeight);
+static void		RedrawWhenIdle(WidgetPtr wPtr);
+static int		TabConfigure(WidgetPtr wPtr,
+			    Tab *tPtr, CONST84 char ** argv, int argc);
 
 
 /*
@@ -330,9 +330,9 @@ Tix_NoteBookFrameCmd(clientData, interp, argc, argv)
 				 * interpreter. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
-    Tk_Window main = (Tk_Window) clientData;
+    Tk_Window mainwin = (Tk_Window) clientData;
     WidgetPtr wPtr;
     Tk_Window tkwin;
 
@@ -342,7 +342,7 @@ Tix_NoteBookFrameCmd(clientData, interp, argc, argv)
 	return TCL_ERROR;
     }
 
-    tkwin = Tk_CreateWindowFromPath(interp, main, argv[1], (char *) NULL);
+    tkwin = Tk_CreateWindowFromPath(interp, mainwin, argv[1], (char *) NULL);
     if (tkwin == NULL) {
 	return TCL_ERROR;
     }
@@ -367,12 +367,13 @@ Tix_NoteBookFrameCmd(clientData, interp, argc, argv)
     wPtr->disabledFg 		= NULL;
     wPtr->gray	 		= None;
     wPtr->disabledGC 		= None;
-    wPtr->inActiveBorder 	= NULL;
+    wPtr->inactiveBorder 	= NULL;
     wPtr->focusBorder	 	= NULL;
-    wPtr->font	 	= NULL;
+    wPtr->font	 	        = NULL;
     wPtr->textColorPtr	 	= NULL;
-    wPtr->textGC	 	= None;
-    wPtr->focusGC	 	= None;
+    wPtr->activeGC	 	= None;
+    wPtr->anchorGC		= None;
+    wPtr->inactiveAnchorGC	= None;
     wPtr->relief 	 	= TK_RELIEF_FLAT;
     wPtr->cursor 	 	= None;
 
@@ -396,7 +397,7 @@ Tix_NoteBookFrameCmd(clientData, interp, argc, argv)
 	return TCL_ERROR;
     }
 
-    interp->result = Tk_PathName(wPtr->tkwin);
+    Tcl_SetResult(interp, Tk_PathName(wPtr->tkwin), TCL_STATIC);
     return TCL_OK;
 }
 
@@ -423,11 +424,11 @@ WidgetCommand(clientData, interp, argc, argv)
     ClientData clientData;		/* Information about the widget. */
     Tcl_Interp *interp;			/* Current interpreter. */
     int argc;				/* Number of arguments. */
-    char **argv;			/* Argument strings. */
+    CONST84 char **argv;		/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int result = TCL_OK;
-    int length;
+    unsigned int length;
     char c;
 
     if (argc < 2) {
@@ -716,7 +717,7 @@ WidgetCommand(clientData, interp, argc, argv)
  *
  * Results:
  *	The return value is a standard Tcl result.  If TCL_ERROR is
- *	returned, then interp->result contains an error message.
+ *	returned, then interp's result contains an error message.
  *
  * Side effects:
  *	Configuration information, such as colors, border width,
@@ -730,25 +731,33 @@ WidgetConfigure(interp, wPtr, argc, argv, flags)
     Tcl_Interp *interp;			/* Used for error reporting. */
     WidgetPtr wPtr;			/* Information about widget. */
     int argc;				/* Number of valid entries in argv. */
-    char **argv;			/* Arguments. */
+    CONST84 char **argv;		/* Arguments. */
     int flags;				/* Flags to pass to
 					 * Tk_ConfigureWidget. */
 {
     XGCValues gcValues;
     GC newGC;
-    int mask;
+    unsigned int mask;
 
     if (Tk_ConfigureWidget(interp, wPtr->tkwin, configSpecs,
 	    argc, argv, (char *) wPtr, flags) != TCL_OK) {
 	return TCL_ERROR;
     }
 
-    if (wPtr->tabPadx < 3) {
-	wPtr->tabPadx = 3;
+    /*
+     * Tab paddings cannot be too small, or else we can't draw the
+     * focus highlight nicely.
+     */
+    if (wPtr->tabPadx < MIN_TABPADX) {
+	wPtr->tabPadx = MIN_TABPADX;
     } 
-    if (wPtr->tabPady < 2) {
-	wPtr->tabPady = 2;
+    if (wPtr->tabPady < MIN_TABPADY) {
+	wPtr->tabPady = MIN_TABPADY;
     } 
+
+    if (wPtr->borderWidth > MAX_BORDER_WIDTH) {
+        wPtr->borderWidth = MAX_BORDER_WIDTH;
+    }
 
     Tk_SetBackgroundFromBorder(wPtr->tkwin, wPtr->bgBorder);
 
@@ -765,7 +774,7 @@ WidgetConfigure(interp, wPtr, argc, argv, flags)
     wPtr->backPageGC = newGC;
 
     /*
-     * Get the text GC
+     * Get the active GC
      */
     gcValues.foreground = wPtr->textColorPtr->pixel;
     gcValues.background = Tk_3DBorderColor(wPtr->bgBorder)->pixel;
@@ -774,10 +783,10 @@ WidgetConfigure(interp, wPtr, argc, argv, flags)
     newGC = Tk_GetGC(wPtr->tkwin,
 	 GCBackground|GCForeground|GCFont|GCGraphicsExposures,
 	 &gcValues);
-    if (wPtr->textGC != None) {
-	Tk_FreeGC(wPtr->display, wPtr->textGC);
+    if (wPtr->activeGC != None) {
+	Tk_FreeGC(wPtr->display, wPtr->activeGC);
     }
-    wPtr->textGC = newGC;
+    wPtr->activeGC = newGC;
 
     /*
      * Get the disabled GC
@@ -807,20 +816,25 @@ WidgetConfigure(interp, wPtr, argc, argv, flags)
     wPtr->disabledGC = newGC;
 
     /*
-     * Get the focus GC
+     * GC for the dotted anchor lines drawn around the focused tab's
+     * label/image.
      */
-    gcValues.foreground 	= wPtr->textColorPtr->pixel;
-    gcValues.background 	= Tk_3DBorderColor(wPtr->bgBorder)->pixel;
-    gcValues.graphics_exposures = False;
-    gcValues.line_style         = LineDoubleDash;
-    gcValues.dashes 		= 2;
-    newGC = Tk_GetGC(wPtr->tkwin,
-	GCForeground|GCBackground|GCGraphicsExposures|GCLineStyle|GCDashList,
-	&gcValues);
-    if (wPtr->focusGC != None) {
-	Tk_FreeGC(wPtr->display, wPtr->focusGC);
+    newGC = Tix_GetAnchorGC(wPtr->tkwin, Tk_3DBorderColor(wPtr->bgBorder));
+    if (wPtr->anchorGC != None) {
+	Tk_FreeGC(wPtr->display, wPtr->anchorGC);
     }
-    wPtr->focusGC = newGC;
+    wPtr->anchorGC = newGC;
+
+    /*
+     * GC for the dotted anchor lines drawn around the focused tab's
+     * label/image.
+     */
+    newGC = Tix_GetAnchorGC(wPtr->tkwin,
+            Tk_3DBorderColor(wPtr->inactiveBorder));
+    if (wPtr->inactiveAnchorGC != None) {
+	Tk_FreeGC(wPtr->display, wPtr->inactiveAnchorGC);
+    }
+    wPtr->inactiveAnchorGC = newGC;
 
     WidgetComputeGeometry(wPtr);
     RedrawWhenIdle(wPtr);
@@ -925,11 +939,14 @@ WidgetDestroy(clientData)
     if (wPtr->backPageGC != None) {
 	Tk_FreeGC(wPtr->display, wPtr->backPageGC);
     }
-    if (wPtr->textGC != None) {
-	Tk_FreeGC(wPtr->display, wPtr->textGC);
+    if (wPtr->activeGC != None) {
+	Tk_FreeGC(wPtr->display, wPtr->activeGC);
     }
-    if (wPtr->focusGC != None) {
-	Tk_FreeGC(wPtr->display, wPtr->focusGC);
+    if (wPtr->anchorGC != None) {
+	Tk_FreeGC(wPtr->display, wPtr->anchorGC);
+    }
+    if (wPtr->inactiveAnchorGC != None) {
+	Tk_FreeGC(wPtr->display, wPtr->inactiveAnchorGC);
     }
     if (wPtr->gray != None) {
 	Tk_FreeBitmap(wPtr->display, wPtr->gray);
@@ -988,7 +1005,7 @@ WidgetCmdDeletedProc(clientData)
 static Tab * FindTab(interp, wPtr, name)
     Tcl_Interp * interp;
     WidgetPtr wPtr;
-    char * name;
+    CONST84 char * name;
 {
     Tab *tPtr;
  
@@ -1006,7 +1023,7 @@ static Tab * FindTab(interp, wPtr, name)
 static int TabConfigure(wPtr, tPtr, argv, argc)
     WidgetPtr wPtr;
     Tab *tPtr;
-    char ** argv;
+    CONST84 char ** argv;
     int argc;
 {
     if (Tk_ConfigureWidget(wPtr->interp, wPtr->tkwin, tabConfigSpecs,
@@ -1030,10 +1047,13 @@ static int TabConfigure(wPtr, tPtr, argv, argc)
 	}
     }
 
+    /*
+     * Recalculate the size of the tab (minus the padding and borders)
+     */
+
     if (tPtr->text != NULL) {
-	tPtr->numChars = strlen(tPtr->text);
-	TixComputeTextGeometry(wPtr->font, tPtr->text, tPtr->numChars,
-	    tPtr->wrapLength, &tPtr->width, &tPtr->height);
+        TixComputeTextGeometry(wPtr->font, tPtr->text, -1,
+                tPtr->wrapLength, &tPtr->width, &tPtr->height);
     }
     else if (tPtr->image != NULL) {
 	Tk_SizeOfImage(tPtr->image, &tPtr->width, &tPtr->height);
@@ -1062,7 +1082,7 @@ static int TabConfigure(wPtr, tPtr, argv, argc)
  *
  * Results:
  *	The return value is a standard Tcl result.  If TCL_ERROR is
- *	returned, then interp->result contains an error message.
+ *	returned, then interp's result contains an error message.
  *
  * Side effects:
  *	Configuration information, such as colors, border width,
@@ -1074,8 +1094,8 @@ static int TabConfigure(wPtr, tPtr, argv, argc)
 static int
 AddTab(wPtr, name, argv, argc)
     WidgetPtr wPtr;			/* Information about widget. */
-    char * name;			/* Arguments. */
-    char ** argv;
+    CONST84 char * name;		/* Arguments. */
+    CONST84 char ** argv;
     int argc;
 {
     Tab * tPtr;
@@ -1084,12 +1104,11 @@ AddTab(wPtr, name, argv, argc)
 
     tPtr->next = NULL;
     tPtr->wPtr = wPtr;
-    tPtr->name = (char*)tixStrDup(name);
+    tPtr->name = tixStrDup(name);
     tPtr->state = tixNormalUid;
     tPtr->text = NULL;
     tPtr->width = 0;
     tPtr->height = 0;
-    tPtr->numChars = 0;
     tPtr->justify = TK_JUSTIFY_CENTER;
     tPtr->wrapLength = 0;
     tPtr->underline = -1;
@@ -1185,12 +1204,18 @@ CancelRedrawWhenIdle(wPtr)
     }
 }
 
-static void GetTabPoints(wPtr, tPtr, x, points)
+static void
+GetTabPoints(wPtr, tPtr, x, points, isActive)
     WidgetPtr wPtr;
     Tab * tPtr;
     int x;
     XPoint *points;
+    int isActive;
 {
+    /*
+     * Starting clock-wise from points[0] (the lower-left corner of the tab)
+     */
+
     points[0].x = x + wPtr->borderWidth;
     points[0].y = wPtr->tabsHeight;
     points[1].x = points[0].x;
@@ -1204,6 +1229,13 @@ static void GetTabPoints(wPtr, tPtr, x, points)
     points[4].y = points[1].y;
     points[5].x = points[4].x;
     points[5].y = points[0].y;
+
+    if (!isActive) {
+        points[1].y += ACTIVE_TAB_ELEVATION;
+        points[2].y += ACTIVE_TAB_ELEVATION;
+        points[3].y += ACTIVE_TAB_ELEVATION;
+        points[4].y += ACTIVE_TAB_ELEVATION;
+    }
 }
 
 /*
@@ -1214,35 +1246,69 @@ static void GetTabPoints(wPtr, tPtr, x, points)
  *	Draws one tab according to its position and text
  *
  * Results:
+ *      None.
  *
  * Side effects:
+ *      None.
  *
  *----------------------------------------------------------------------
  */
-static void DrawTab(wPtr, tPtr, x, isActive, drawable)
-    WidgetPtr wPtr;
-    Tab * tPtr;
-    int x;
-    int isActive;
-    Drawable drawable;
+
+static void
+DrawTab(wPtr, tPtr, x, isActive, isFocused, drawable)
+    WidgetPtr wPtr;             /* The widget to draw */
+    Tab * tPtr;                 /* The tab to draw. */
+    int x;                      /* The x coordinate of the left edge
+                                 * of the tab */
+    int isActive;               /* Is this an active tab */
+    int isFocused;              /* Should this tab be focused */
+    Drawable drawable;          /* The drawable to render the widget
+                                 * in */
 {
     Tk_3DBorder border;
     XPoint points[NUM_TAB_POINTS];
     int drawX, drawY, extraH;
+    GC gc, anchorGC;
+    int tabHeight = wPtr->tabsHeight - ACTIVE_TAB_ELEVATION;
+
+    /*
+     * (1) Choose the right GC/border for drawing the tab
+     */
+
+    if (tPtr->state == tixNormalUid) {
+        gc = wPtr->activeGC;
+        if (isActive) {
+            anchorGC = wPtr->anchorGC;
+        } else {
+            anchorGC = wPtr->inactiveAnchorGC;
+        }
+    } else {
+	anchorGC = NULL;
+        gc = wPtr->disabledGC;
+    }
 
     if (isActive) {
 	border = wPtr->bgBorder;
     } else {
-	border = wPtr->inActiveBorder;
+	border = wPtr->inactiveBorder;
+        tabHeight -= ACTIVE_TAB_ELEVATION;
     }
 
-    GetTabPoints(wPtr, tPtr, x, points);
+    /*
+     * (2) Draw the tab border
+     */
+
+    GetTabPoints(wPtr, tPtr, x, points, isActive);
     drawX = x + wPtr->borderWidth + wPtr->tabPadx;
     drawY = wPtr->borderWidth + wPtr->tabPady;
-    extraH = wPtr->tabsHeight - tPtr->height - 
-      wPtr->borderWidth - wPtr->tabPady *2;
+    extraH = tabHeight - tPtr->height - wPtr->borderWidth - wPtr->tabPady *2;
 
     if (extraH > 0) {
+        /*
+         * Center the content vertically -- we may have contents
+         * of different height in the tabs of this notebook frame.
+         */
+
 	switch (tPtr->anchor) {
 	  case TK_ANCHOR_SW: case TK_ANCHOR_S: case TK_ANCHOR_SE:
 	    drawY += extraH;
@@ -1258,96 +1324,96 @@ static void DrawTab(wPtr, tPtr, x, isActive, drawable)
 	}
     }
 
-    Tk_Fill3DPolygon(wPtr->tkwin, drawable,
-	border, points, NUM_TAB_POINTS,
-	wPtr->borderWidth, TK_RELIEF_SUNKEN);
-
-    if (tPtr->text != NULL) {
-	if (tPtr->state == tixNormalUid) {
-	    TixDisplayText(wPtr->display, drawable, wPtr->font,
-	        tPtr->text, tPtr->numChars,
-	    	drawX, drawY,
-	        tPtr->width,
-	        tPtr->justify,
-	        tPtr->underline,
-	        wPtr->textGC);
-	} else {
-	    TixDisplayText(wPtr->display, drawable, wPtr->font,
-	        tPtr->text, tPtr->numChars,
-	    	drawX, drawY,
-	        tPtr->width,
-	        tPtr->justify,
-	        tPtr->underline,
-	        wPtr->disabledGC);
-	}
+    if (!isActive) {
+        drawY += ACTIVE_TAB_ELEVATION;
     }
-    else if (tPtr->image != NULL) {
+
+#ifdef __WIN32__
+    if (wPtr->borderWidth == 2) {
+        /*
+         * If the borderWidth is the standard value of 2, try to make
+         * the 3D page tab look like native Win32 tabs.
+         */
+
+        int x = points[0].x - wPtr->borderWidth;
+        int y = points[2].y - wPtr->borderWidth;
+        int w = points[4].x - points[0].x + wPtr->borderWidth * 2;
+        int h = points[0].y - points[2].y + wPtr->borderWidth * 2;
+
+        if (tPtr != wPtr->tabHead && isActive) {
+            /*
+             * Make this active tab look more prominent
+             */
+
+            x -= 2;
+            w += 2;
+        }
+
+        Tk_Fill3DRectangle(wPtr->tkwin, drawable,
+	        border, x, y, w, h,
+	        wPtr->borderWidth, TK_RELIEF_RAISED);
+
+        /*
+         * Round the edges of the 3D rect
+         */
+
+        XFillRectangle(wPtr->display, drawable, wPtr->backPageGC,
+            x, y, 2, 1);
+        XFillRectangle(wPtr->display, drawable, wPtr->backPageGC,
+            x, y, 1, 2);
+        XFillRectangle(wPtr->display, drawable, wPtr->backPageGC,
+            x+w-2, y, 2, 1);
+        XFillRectangle(wPtr->display, drawable, wPtr->backPageGC,
+            x+w-1, y, 1, 2);
+
+        /*
+         * Fill in one missing pixel
+         */
+
+        XFillRectangle(wPtr->display, drawable,
+                Tk_3DBorderGC(wPtr->tkwin, border, TK_3D_LIGHT_GC),
+                x+1, y+1, 1, 1);
+    } else {
+        Tk_Fill3DPolygon(wPtr->tkwin, drawable,
+                border, points, NUM_TAB_POINTS,
+                wPtr->borderWidth, TK_RELIEF_SUNKEN);
+    }
+#else
+    Tk_Fill3DPolygon(wPtr->tkwin, drawable,
+            border, points, NUM_TAB_POINTS,
+            wPtr->borderWidth, TK_RELIEF_SUNKEN);
+#endif
+
+    /*
+     * (3) Draw the tab content
+     */
+    if (tPtr->text != NULL) {
+        TixDisplayText(wPtr->display, drawable, wPtr->font,
+	        tPtr->text, -1,
+	    	drawX, drawY,
+	        tPtr->wrapLength,
+	        tPtr->justify,
+	        tPtr->underline,
+	        gc);
+    } else if (tPtr->image != NULL) {
 	Tk_RedrawImage(tPtr->image, 0, 0, tPtr->width, tPtr->height,
 	    drawable, drawX, drawY);
-    }
-    else if (tPtr->bitmap != None) {
-	GC gc;
-
-	if (tPtr->state == tixNormalUid) {
-	    gc = wPtr->textGC;
-	} else {
-	    gc = wPtr->disabledGC;
-	}
+    } else if (tPtr->bitmap != None) {
 	XSetClipOrigin(wPtr->display, gc, drawX, drawY);
 	XCopyPlane(wPtr->display, tPtr->bitmap, drawable,
-		gc, 0, 0, tPtr->width, tPtr->height,
+		gc, 0, 0, (unsigned) tPtr->width, (unsigned) tPtr->height,
 		drawX, drawY, 1);
 	XSetClipOrigin(wPtr->display, gc, 0, 0);
     }
 
-#if 0
-    if (wPtr->gotFocus && tPtr == wPtr->focus) {
-	XDrawLine(Tk_Display(wPtr->tkwin), drawable, wPtr->focusGC,
-            drawX,
-	    drawY + tPtr->height + 1, 
-	    drawX + tPtr->width,
-	    drawY + tPtr->height + 1);
-    }
-#endif
-}
-/*
- *----------------------------------------------------------------------
- *
- * FocusTab --
- *
- *	Draws focus highlight on a tab.
- *
- * Results:
- *
- * Side effects:
- *
- *----------------------------------------------------------------------
- */
-static void FocusTab(wPtr, tPtr, x, drawable)
-    WidgetPtr wPtr;
-    Tab * tPtr;
-    int x;
-    Drawable drawable;
-{
-    Tk_3DBorder border;
+    if (isFocused && (anchorGC != NULL)) {
+        int ancX = drawX - ANCHOR_TABPAD;
+        int ancY = drawY - ANCHOR_TABPAD;
+        int ancW = tPtr->width  + 2*ANCHOR_TABPAD;
+        int ancH = tPtr->height + 2*ANCHOR_TABPAD;
 
-    XPoint points[NUM_TAB_POINTS];
-
-    if (wPtr->active == tPtr) {
-	border = wPtr->bgBorder;
-    } else {
-	border = wPtr->inActiveBorder;
-    }
-
-    GetTabPoints(wPtr, tPtr, x, points);
-    Tk_Draw3DPolygon(wPtr->tkwin, drawable,
-	wPtr->focusBorder, points, NUM_TAB_POINTS,
-	wPtr->borderWidth, TK_RELIEF_SUNKEN);
-
-    if (wPtr->active == tPtr) {
-	Tk_Draw3DPolygon(wPtr->tkwin, drawable,
-	    border, points, NUM_TAB_POINTS,
-	    wPtr->borderWidth/2, TK_RELIEF_SUNKEN);
+	Tix_DrawAnchorLines(wPtr->display, drawable, anchorGC,
+                ancX, ancY, ancW, ancH);
     }
 }
 
@@ -1386,13 +1452,14 @@ WidgetDisplay(clientData)
 	}
     }
     else {
-	int x, y, activex;
+	int x, y, activex = 0;
 
 	buffer = Tix_GetRenderBuffer(wPtr->display, Tk_WindowId(wPtr->tkwin),
 	    Tk_Width(wPtr->tkwin), Tk_Height(wPtr->tkwin),
 	    Tk_Depth(wPtr->tkwin));
-	XFillRectangle(Tk_Display(wPtr->tkwin), buffer, wPtr->backPageGC,
-	    0, 0, Tk_Width(wPtr->tkwin), Tk_Height(wPtr->tkwin));
+	XFillRectangle(wPtr->display, buffer, wPtr->backPageGC, 0, 0,
+		(unsigned) Tk_Width(wPtr->tkwin),
+		(unsigned) Tk_Height(wPtr->tkwin));
 
 	Tk_Fill3DRectangle(wPtr->tkwin, buffer,
 		wPtr->bgBorder, 0, wPtr->tabsHeight,
@@ -1403,16 +1470,17 @@ WidgetDisplay(clientData)
 	/* Draw the tabs */
 	x = 0;
 	for (tPtr=wPtr->tabHead; tPtr; tPtr=tPtr->next) {
+            int isActive = 0, isFocused = 0;
+
 	    if (tPtr == wPtr->active) {
 		activex = x;
-		DrawTab(wPtr, tPtr, x, 1, buffer);
-	    }
-	    else {
-		DrawTab(wPtr, tPtr, x, 0, buffer);
+                isActive = 1;
 	    }
 	    if (tPtr == wPtr->focus && wPtr->gotFocus) {
-		FocusTab(wPtr, tPtr, x, buffer);
+                isFocused = 1;
 	    }
+
+            DrawTab(wPtr, tPtr, x, isActive, isFocused, buffer);
 
 	    x += (wPtr->borderWidth +  wPtr->tabPadx) * 2;
 	    x += tPtr->width;
@@ -1434,15 +1502,25 @@ WidgetDisplay(clientData)
 	    height = wPtr->borderWidth;
 	    width = wPtr->active->width + wPtr->tabPadx*2;
 
+#ifdef __WIN32__
+            if (wPtr->borderWidth == 2) {
+                x -= 1;
+                width += 2;
+                if (wPtr->active != wPtr->tabHead) {
+                    x -= 2;
+                    width += 2;
+                }
+            }
+#endif
 	    XFillRectangle(wPtr->display, buffer,
 		Tk_3DBorderGC(wPtr->tkwin, wPtr->bgBorder, TK_3D_FLAT_GC),
-		x, y, width, height);
+		x, y, (unsigned) width, (unsigned) height);
 	}
 
 	if (buffer != Tk_WindowId(wPtr->tkwin)) {
 	    XCopyArea(wPtr->display, buffer, Tk_WindowId(wPtr->tkwin),
-	        wPtr->textGC, 0, 0, Tk_Width(wPtr->tkwin),
-		Tk_Height(wPtr->tkwin), 0, 0);
+	        wPtr->activeGC, 0, 0, (unsigned) Tk_Width(wPtr->tkwin),
+		(unsigned) Tk_Height(wPtr->tkwin), 0, 0);
 	    Tk_FreePixmap(wPtr->display, buffer);
 	}
     }
@@ -1481,33 +1559,15 @@ ComputeGeometry(wPtr)
 	wPtr->tabsWidth  = 0;
 	wPtr->tabsHeight = 0;
 	for (tPtr=wPtr->tabHead; tPtr; tPtr=tPtr->next) {
-	    
-	    if (tPtr->text != NULL) {
-		tPtr->numChars = strlen(tPtr->text);
-		TixComputeTextGeometry(wPtr->font, tPtr->text,
-		    tPtr->numChars, tPtr->wrapLength, 
-		    &tPtr->width, &tPtr->height);
-	    }
-	    else if (tPtr->image != NULL) {
-		Tk_SizeOfImage(tPtr->image, &tPtr->width, &tPtr->height);
-	    }
-	    else if (tPtr->bitmap != None) {
-		Tk_SizeOfBitmap(wPtr->display, tPtr->bitmap, &tPtr->width,
-		    &tPtr->height);
-	    }
-	    else {
-		tPtr->width = 0;
-		tPtr->height = 0;
-	    }
-
 	    wPtr->tabsWidth += (wPtr->borderWidth + wPtr->tabPadx) * 2;
 	    wPtr->tabsWidth += tPtr->width;
 
-	    if (tPtr->height > wPtr->tabsHeight) {
+	    if (wPtr->tabsHeight < tPtr->height) {
 		wPtr->tabsHeight = tPtr->height;
 	    }
 	}
 	wPtr->tabsHeight += wPtr->tabPady*2 + wPtr->borderWidth;
+        wPtr->tabsHeight += ACTIVE_TAB_ELEVATION;
 
 	wPtr->width  = wPtr->tabsWidth;
 	wPtr->height = wPtr->tabsHeight + wPtr->borderWidth*2;

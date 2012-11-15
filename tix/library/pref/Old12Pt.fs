@@ -1,3 +1,6 @@
+#
+# $Id: Old12Pt.fs,v 1.2 2001/12/09 05:03:09 idiscovery Exp $
+#
 
 proc tixSetFontset:12Point {} {
     global tixOption

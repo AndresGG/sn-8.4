@@ -1,3 +1,6 @@
+
+/*	$Id: tixHLHdr.c,v 1.3 2004/03/28 02:44:56 hobbs Exp $	*/
+
 /*
  *  tixHLHdr.c ---
  *
@@ -30,7 +33,7 @@ static void		FreeHeader _ANSI_ARGS_((Tcl_Interp  *interp,
 static HListHeader*	AllocHeader _ANSI_ARGS_((Tcl_Interp *interp,
 			    WidgetPtr wPtr));
 static HListHeader*	Tix_HLGetHeader _ANSI_ARGS_((Tcl_Interp * interp,
-			    WidgetPtr wPtr, char * string,
+			    WidgetPtr wPtr, CONST84 char * string,
 			    int requireIPtr));
 
 static Tk_ConfigSpec headerConfigSpecs[] = {
@@ -116,7 +119,7 @@ static HListHeader*
 Tix_HLGetHeader(interp, wPtr, string, requireIPtr)
     Tcl_Interp * interp;
     WidgetPtr wPtr;
-    char * string;
+    CONST84 char * string;
     int requireIPtr;
 {
     int column;
@@ -252,10 +255,11 @@ Tix_HLDrawHeader(wPtr, pixmap, gc, hdrX, hdrY, hdrW, hdrH, xOffset)
 		itemY += winItemExtra;
 	    }
 
-	    Tix_DItemDisplay(pixmap, gc, hPtr->iPtr,
+	    Tix_DItemDisplay(pixmap, hPtr->iPtr,
 	        itemX, itemY,
 		wPtr->actualSize[i].width - 2*hPtr->borderWidth,
 		wPtr->headerHeight        - 2*hPtr->borderWidth,
+                0, 0,
 		TIX_DITEM_NORMAL_FG);
 
 	    if (wPtr->needToRaise && 
@@ -328,7 +332,7 @@ Tix_HLHeader(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     static Tix_SubCmdInfo subCmdInfo[] = {
 	{TIX_DEFAULT_LEN, "cget", 2, 2, Tix_HLHdrCGet,
@@ -361,7 +365,7 @@ Tix_HLHdrCGet(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListHeader * hPtr;
@@ -383,7 +387,7 @@ Tix_HLHdrConfig(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListHeader * hPtr;
@@ -426,13 +430,13 @@ Tix_HLHdrCreate(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListHeader * hPtr;
     int i;
     Tix_DItem * iPtr;
-    char * ditemType = NULL;
+    CONST84 char * ditemType = NULL;
 
     if ((hPtr=Tix_HLGetHeader(interp, wPtr, argv[0], 0)) == NULL) {
 	return TCL_ERROR;
@@ -495,7 +499,7 @@ Tix_HLHdrDelete(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListHeader * hPtr;
@@ -526,7 +530,7 @@ Tix_HLHdrExist(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListHeader * hPtr;
@@ -553,7 +557,7 @@ Tix_HLHdrSize(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     HListHeader * hPtr;

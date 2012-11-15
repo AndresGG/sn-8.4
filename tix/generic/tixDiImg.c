@@ -4,16 +4,26 @@
  *	This file implements one of the "Display Items" in the Tix library :
  *	Image-text display items.
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000-2001 Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tixDiImg.c,v 1.4 2004/03/28 02:44:56 hobbs Exp $
  */
 
 #include <tixPort.h>
 #include <tixInt.h>
 #include <tixDef.h>
+
+/*
+ * If the item has a really small text, or no text at all, use
+ * this size. This makes the drawing of selection more sane.
+ */
+
+#define MIN_IMAGE_WIDTH  2
+#define MIN_IMAGE_HEIGHT 2
 
 #define DEF_IMAGEITEM_BITMAP	""
 #define DEF_IMAGEITEM_IMAGE		""
@@ -49,28 +59,24 @@ static Tk_ConfigSpec imageItemConfigSpecs[] = {
  *----------------------------------------------------------------------
  */
 
-
-#define SELECTED_BG SELECT_BG 
-#define DISABLED_BG DISABLED  
-
-#define DEF_IMAGESTYLE_NORMAL_FG_COLOR		BLACK
+#define DEF_IMAGESTYLE_NORMAL_FG_COLOR		NORMAL_FG
 #define DEF_IMAGESTYLE_NORMAL_FG_MONO		BLACK
-#define DEF_IMAGESTYLE_NORMAL_BG_COLOR		NORMAL_BG
+#define DEF_IMAGESTYLE_NORMAL_BG_COLOR		TIX_EDITOR_BG
 #define DEF_IMAGESTYLE_NORMAL_BG_MONO		WHITE
 
-#define DEF_IMAGESTYLE_ACTIVE_FG_COLOR		BLACK
+#define DEF_IMAGESTYLE_ACTIVE_FG_COLOR		NORMAL_FG
 #define DEF_IMAGESTYLE_ACTIVE_FG_MONO		WHITE
-#define DEF_IMAGESTYLE_ACTIVE_BG_COLOR		ACTIVE_BG
+#define DEF_IMAGESTYLE_ACTIVE_BG_COLOR		TIX_EDITOR_BG
 #define DEF_IMAGESTYLE_ACTIVE_BG_MONO		BLACK
 
-#define DEF_IMAGESTYLE_SELECTED_FG_COLOR	BLACK
+#define DEF_IMAGESTYLE_SELECTED_FG_COLOR	SELECT_FG
 #define DEF_IMAGESTYLE_SELECTED_FG_MONO		WHITE
-#define DEF_IMAGESTYLE_SELECTED_BG_COLOR	SELECTED_BG
+#define DEF_IMAGESTYLE_SELECTED_BG_COLOR	SELECT_BG
 #define DEF_IMAGESTYLE_SELECTED_BG_MONO		BLACK
 
-#define DEF_IMAGESTYLE_DISABLED_FG_COLOR	BLACK
+#define DEF_IMAGESTYLE_DISABLED_FG_COLOR	NORMAL_FG
 #define DEF_IMAGESTYLE_DISABLED_FG_MONO		BLACK
-#define DEF_IMAGESTYLE_DISABLED_BG_COLOR	DISABLED_BG
+#define DEF_IMAGESTYLE_DISABLED_BG_COLOR	TIX_EDITOR_BG
 #define DEF_IMAGESTYLE_DISABLED_BG_MONO		WHITE
 
 #define DEF_IMAGESTYLE_PADX		"0"
@@ -93,7 +99,7 @@ static Tk_ConfigSpec imageStyleConfigSpecs[] = {
     {TK_CONFIG_PIXELS, "-pady", "padY", "Pad",
        DEF_IMAGESTYLE_PADY, Tk_Offset(TixImageStyle, pad[1]), 0},
 
-/* The following is automatically generated */
+/* The following was automatically generated */
 	{TK_CONFIG_COLOR,"-background","background","Background",
 	DEF_IMAGESTYLE_NORMAL_BG_COLOR,
 	Tk_Offset(TixImageStyle,colors[TIX_DITEM_NORMAL].bg),
@@ -175,13 +181,14 @@ static void		Tix_ImageItemCalculateSize  _ANSI_ARGS_((
 static char *		Tix_ImageItemComponent	_ANSI_ARGS_((
 			    Tix_DItem * iPtr, int x, int y));
 static int		Tix_ImageItemConfigure _ANSI_ARGS_((
-			    Tix_DItem * iPtr, int argc, char ** argv,
+			    Tix_DItem * iPtr, int argc, CONST84 char ** argv,
 			    int flags));
 static Tix_DItem *	Tix_ImageItemCreate _ANSI_ARGS_((
 			    Tix_DispData * ddPtr, Tix_DItemInfo * diTypePtr));
 static void		Tix_ImageItemDisplay  _ANSI_ARGS_((
-			    Pixmap pixmap, GC gc, Tix_DItem * iPtr,
-			    int x, int y, int width, int height, int flag));
+			    Drawable drawable, Tix_DItem * iPtr,
+			    int x, int y, int width, int height,
+                            int xOffset, int yOffset, int flag));
 static void		Tix_ImageItemFree  _ANSI_ARGS_((
 			    Tix_DItem * iPtr));
 static void		Tix_ImageItemLostStyle	_ANSI_ARGS_((
@@ -189,7 +196,7 @@ static void		Tix_ImageItemLostStyle	_ANSI_ARGS_((
 static void		Tix_ImageItemStyleChanged  _ANSI_ARGS_((
 			    Tix_DItem * iPtr));
 static int		Tix_ImageStyleConfigure _ANSI_ARGS_((
-			    Tix_DItemStyle* style, int argc, char ** argv,
+			    Tix_DItemStyle* style, int argc, CONST84 char ** argv,
 			    int flags));
 static Tix_DItemStyle *	Tix_ImageStyleCreate _ANSI_ARGS_((
 			    Tcl_Interp *interp, Tk_Window tkwin,
@@ -212,7 +219,7 @@ Tix_DItemInfo tix_ImageItemType = {
     Tix_ImageItemStyleChanged,
     Tix_ImageItemLostStyle,
 
-    Tix_ImageStyleCreate,
+    Tix_ImageStyleCreate,               /* styleCreateProc */
     Tix_ImageStyleConfigure,
     Tix_ImageStyleFree,
     Tix_ImageStyleSetTemplate,
@@ -272,7 +279,7 @@ static void Tix_ImageItemFree(iPtr)
 static int Tix_ImageItemConfigure(iPtr, argc, argv, flags)
     Tix_DItem * iPtr;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
     int flags;
 {
     TixImageItem * itPtr = (TixImageItem *) iPtr;
@@ -313,10 +320,33 @@ static int Tix_ImageItemConfigure(iPtr, argc, argv, flags)
 
     return TCL_OK;
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tix_ImageItemDisplay --
+ *
+ *      Display an image item. {x, y, width, height} specifies a
+ *      region for to display this item in. {xOffset, yOffset} gives
+ *      the offset of the top-left corner of the image item relative
+ *      to the top-left corder of the region.
+ *
+ *      Background and foreground of the item are displayed according
+ *      to the flags parameter.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ * 
+ *----------------------------------------------------------------------
+ */
 
-static void Tix_ImageItemDisplay(pixmap, gc, iPtr, x, y, width, height, flags)
-    Pixmap pixmap;
-    GC gc;
+static void
+Tix_ImageItemDisplay(drawable, iPtr, x, y, width, height, xOffset, yOffset,
+        flags)
+    Drawable drawable;
     Tix_DItem * iPtr;
     int x;
     int y;
@@ -325,26 +355,35 @@ static void Tix_ImageItemDisplay(pixmap, gc, iPtr, x, y, width, height, flags)
     int flags;
 {
     TixImageItem *itPtr = (TixImageItem *)iPtr;
-    GC foreGC, backGC;
+    Display * display = itPtr->ddPtr->display;
     TixpSubRegion subReg;
+    GC foreGC;
 
     if ((width <= 0) || (height <= 0)) {
 	return;
     }
 
-    TixGetColorDItemGC(iPtr, &backGC, &foreGC, flags);
-    TixpStartSubRegionDraw(itPtr->ddPtr->display, pixmap, foreGC,
-	    &subReg, 0, 0, x, y, width, height,
-	    itPtr->size[0], itPtr->size[1]);
-    TixDItemGetAnchor(itPtr->stylePtr->anchor, x, y, width, height,
-	itPtr->size[0], itPtr->size[1], &x, &y);
+    TixGetColorDItemGC(iPtr, NULL, &foreGC, NULL, flags);
 
-    if (backGC != None) {
-	TixpSubRegFillRectangle(itPtr->ddPtr->display, pixmap,
-		backGC, &subReg, x, y, width, height);
-    }
+    TixpStartSubRegionDraw(display, drawable, foreGC,
+	    &subReg, 0, 0, x, y, width, height,
+	    itPtr->size[0] + xOffset, itPtr->size[1] + yOffset);
+
+    Tix_DItemDrawBackground(drawable, &subReg, iPtr, x, y, width, height,
+           xOffset, yOffset, flags);
+
+    /*
+     * Calculate the location of the image according to anchor settings.
+     */
+
+    TixDItemGetAnchor(iPtr->base.stylePtr->anchor, x, y, width, height,
+	    iPtr->base.size[0], iPtr->base.size[1], &x, &y);
 
     if (itPtr->image != NULL) {
+        /*
+         * Draw the image.
+         */
+
 	int bitY;
 
 	bitY = itPtr->size[1] - itPtr->imageH - 2*itPtr->stylePtr->pad[1];
@@ -354,17 +393,22 @@ static void Tix_ImageItemDisplay(pixmap, gc, iPtr, x, y, width, height, flags)
 	} else {
 	    bitY = 0;
 	}
+
+        x += xOffset;
+        y += yOffset;
+
 	TixpSubRegDrawImage(&subReg, itPtr->image, 0, 0, itPtr->imageW,
-		itPtr->imageH, pixmap,
+		itPtr->imageH, drawable,
 		x + itPtr->stylePtr->pad[0],
 		y + itPtr->stylePtr->pad[1] + bitY);
     }
 
-    TixpEndSubRegionDraw(itPtr->ddPtr->display, pixmap, foreGC,
+    TixpEndSubRegionDraw(display, drawable, foreGC,
 	    &subReg);
 }
 
-static void Tix_ImageItemCalculateSize(iPtr)
+static void
+Tix_ImageItemCalculateSize(iPtr)
     Tix_DItem * iPtr;
 {
     TixImageItem *itPtr = (TixImageItem *)iPtr;
@@ -377,10 +421,18 @@ static void Tix_ImageItemCalculateSize(iPtr)
 
 	itPtr->size[0] = itPtr->imageW;
 	itPtr->size[1] = itPtr->imageH;
+    } else {
+        itPtr->size[0] = MIN_IMAGE_WIDTH;
+        itPtr->size[0] = MIN_IMAGE_HEIGHT;
     }
 
     itPtr->size[0] += 2*itPtr->stylePtr->pad[0];
     itPtr->size[1] += 2*itPtr->stylePtr->pad[1];
+
+    itPtr->selX = 0;
+    itPtr->selY = 0;
+    itPtr->selW = itPtr->size[0];
+    itPtr->selH = itPtr->size[1];
 }
 
 static char * Tix_ImageItemComponent(iPtr, x, y)
@@ -471,20 +523,8 @@ Tix_ImageStyleCreate(interp, tkwin, diTypePtr, name)
     char * name;
     Tix_DItemInfo * diTypePtr;
 {
-    int i;
     TixImageStyle * stylePtr =
       (TixImageStyle *)ckalloc(sizeof(TixImageStyle));
-
-    stylePtr->pad[0]	 = 0;
-    stylePtr->pad[1]	 = 0;
-    stylePtr->anchor	 = TK_ANCHOR_CENTER;
-
-    for (i=0; i<4; i++) {
-	stylePtr->colors[i].bg = NULL;
-	stylePtr->colors[i].fg = NULL;
-	stylePtr->colors[i].backGC = None;
-	stylePtr->colors[i].foreGC = NULL;
-    }
 
     return (Tix_DItemStyle *)stylePtr;
 }
@@ -493,13 +533,15 @@ static int
 Tix_ImageStyleConfigure(style, argc, argv, flags)
     Tix_DItemStyle *style;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
     int flags;
 {
     TixImageStyle * stylePtr = (TixImageStyle *)style;
-    XGCValues gcValues;
-    GC newGC;
-    int i;
+    int oldPadX;
+    int oldPadY;
+
+    oldPadX = stylePtr->pad[0];
+    oldPadY = stylePtr->pad[1];
 
     if (!(flags &TIX_DONT_CALL_CONFIG)) {
 	if (Tk_ConfigureWidget(stylePtr->interp, stylePtr->tkwin,
@@ -509,30 +551,10 @@ Tix_ImageStyleConfigure(style, argc, argv, flags)
 	}
     }
 
-    gcValues.graphics_exposures = False;
-    for (i=0; i<4; i++) {
-	/* Foreground */
-	gcValues.background = stylePtr->colors[i].bg->pixel;
-	gcValues.foreground = stylePtr->colors[i].fg->pixel;
-	newGC = Tk_GetGC(stylePtr->tkwin,
-	    GCForeground|GCBackground|GCGraphicsExposures, &gcValues);
+    TixDItemStyleConfigureGCs(style);
 
-	if (stylePtr->colors[i].foreGC != None) {
-	    Tk_FreeGC(Tk_Display(stylePtr->tkwin),
-		stylePtr->colors[i].foreGC);
-	}
-	stylePtr->colors[i].foreGC = newGC;
-
-	/* Background */
-	gcValues.foreground = stylePtr->colors[i].bg->pixel;
-	newGC = Tk_GetGC(stylePtr->tkwin,
-	    GCForeground|GCGraphicsExposures, &gcValues);
-
-	if (stylePtr->colors[i].backGC != None) {
-	    Tk_FreeGC(Tk_Display(stylePtr->tkwin),
-		stylePtr->colors[i].backGC);
-	}
-	stylePtr->colors[i].backGC = newGC;
+    if (oldPadX != stylePtr->pad[0] ||  oldPadY != stylePtr->pad[1]) {
+	TixDItemStyleChanged(stylePtr->diTypePtr, (Tix_DItemStyle *)stylePtr);
     }
 
     return TCL_OK;
@@ -542,16 +564,6 @@ static void Tix_ImageStyleFree(style)
     Tix_DItemStyle *style;
 {
     TixImageStyle * stylePtr = (TixImageStyle *)style;
-    int i;
-
-    for (i=0; i<4; i++) {
-	if (stylePtr->colors[i].backGC != None) {
-	    Tk_FreeGC(Tk_Display(stylePtr->tkwin), stylePtr->colors[i].backGC);
-	}
-	if (stylePtr->colors[i].foreGC != None) {
-	    Tk_FreeGC(Tk_Display(stylePtr->tkwin), stylePtr->colors[i].foreGC);
-	}
-    }
 
     Tk_FreeOptions(imageStyleConfigSpecs, (char *)stylePtr,
 	Tk_Display(stylePtr->tkwin), 0);

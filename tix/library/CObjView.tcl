@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: CObjView.tcl,v 1.3 2001/12/09 05:04:02 idiscovery Exp $
+#
 # CObjView.tcl --
 #
 #	This file implements the Canvas Object View widget. This is a base
@@ -14,7 +18,8 @@
 #	virtual method :SelectObject.
 #
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -42,11 +47,7 @@ tixWidgetClass tixCObjView {
 	{*canvas.highlightBackground	#d9d9d9}
 	{*canvas.relief			sunken}
 	{*canvas.takeFocus		1}
-	{*Scrollbar.background		#d9d9d9}
-	{*Scrollbar.relief		sunken}
-	{*Scrollbar.troughColor		#c3c3c3}
 	{*Scrollbar.takeFocus		0}
-	{*Scrollbar.width		15}
     }
     -forcecall {
 	-scrollbar
@@ -125,8 +126,8 @@ proc tixCObjView:GeometryInfo {w cW cH} {
     set bd \
 	[expr [$data(w:canvas) cget -bd] + [$data(w:canvas) cget -highlightthickness]]
 
-    incr cW -[expr 2*$bd]
-    incr cH -[expr 2*$bd]
+    incr cW -[expr {2*$bd}]
+    incr cH -[expr {2*$bd}]
 
     return [tixCObjView:GetScrollRegion $w $cW $cH 0 0]
 }
@@ -148,8 +149,8 @@ proc tixCObjView:GetScrollRegion {w cW cH setReg callConfig} {
     set x1max $data(xorig)
     set y1max $data(yorig)
 
-    set x2min [expr $x1max + $cW - 1]
-    set y2min [expr $y1max + $cH - 1]
+    set x2min [expr {$x1max + $cW - 1}]
+    set y2min [expr {$y1max + $cH - 1}]
  
     set bbox [$data(w:canvas) bbox all]
 
@@ -188,8 +189,8 @@ proc tixCObjView:GetScrollRegion {w cW cH setReg callConfig} {
     set data(sx2) $x2
     set data(sy2) $y2
 
-    set sW [expr $x2 - $x1 + 1]
-    set sH [expr $y2 - $y1 + 1]
+    set sW [expr {$x2 - $x1 + 1}]
+    set sH [expr {$y2 - $y1 + 1}]
 
 #    puts "sregion = {$x1 $y1 $x2 $y2}; sW=$sW; cW=$cW"
 
@@ -242,20 +243,20 @@ proc tixCObjView:UserScroll {w dir type args} {
 	    set n $data(xorig)
 	    set orig $data(xorig)
 	    set s1 $data(sx1)
-	    set total [expr $data(sx2)-$data(sx1)]
+	    set total [expr {$data(sx2)-$data(sx1)}]
 	    set page  [tixWinWidth $data(w:canvas)]
 	    set min $data(sx1)
-	    set max [expr $data(sx1)+$total-$page]
+	    set max [expr {$data(sx1)+$total-$page}]
 	    set inc $data(-xscrollincrement)
 	}
 	y {
 	    set n $data(yorig)
 	    set orig $data(yorig)
 	    set s1 $data(sy1)
-	    set total [expr $data(sy2)-$data(sy1)]
+	    set total [expr {$data(sy2)-$data(sy1)}]
 	    set page  [tixWinHeight $data(w:canvas)]
 	    set min $data(sy1)
-	    set max [expr $data(sy1)+$total-$page]
+	    set max [expr {$data(sy1)+$total-$page}]
 	    set inc $data(-yscrollincrement)
 	}
     }
@@ -270,7 +271,7 @@ proc tixCObjView:UserScroll {w dir type args} {
 		    incr n [expr int($inc)*$amt]
 		}
 		pages {
-		    incr n [expr $page*$amt]
+		    incr n [expr {$page*$amt}]
 		}
 	    }
 	}
@@ -291,19 +292,19 @@ proc tixCObjView:UserScroll {w dir type args} {
 
     case $dir {
 	x {
-	    $data(w:canvas) xview scroll [expr $n-$orig] units
+	    $data(w:canvas) xview scroll [expr {$n-$orig}] units
 	    set data(xorig) $n
 	}
 	y {
-	    $data(w:canvas) yview scroll [expr $n-$orig] units
+	    $data(w:canvas) yview scroll [expr {$n-$orig}] units
 	    set data(yorig) $n
 	}
     }
 
     set cW [tixWinWidth $data(w:canvas)]
     set cH [tixWinHeight $data(w:canvas)]
-    set sW [expr $data(sx2)-$data(sx1)+1]
-    set sH [expr $data(sy2)-$data(sy1)+1]
+    set sW [expr {$data(sx2)-$data(sx1)+1}]
+    set sH [expr {$data(sy2)-$data(sy1)+1}]
 
     tixCObjView:SetScrollBars $w $cW $cH $sW $sH
 }
@@ -323,7 +324,7 @@ proc tixCObjView:XScroll {w first last} {
 	set x2 [lindex $sc 2]
     }
     
-    set W [expr $x2 - $x1]
+    set W [expr {$x2 - $x1}]
     if {$W < 1} {
 	set W 1
     }
@@ -348,7 +349,7 @@ proc tixCObjView:YScroll {w first last} {
 	set y2 [lindex $sc 3]
     }
     
-    set H [expr $y2 - $y1]
+    set H [expr {$y2 - $y1}]
     if {$H < 1} {
 	set H 1
     }

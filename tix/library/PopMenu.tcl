@@ -1,12 +1,34 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: PopMenu.tcl,v 1.7 2004/03/28 02:44:57 hobbs Exp $
+#
 # PopMenu.tcl --
 #
 #	This file implements the TixPopupMenu widget
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
+
+global tkPriv
+if {![llength [info globals tkPriv]]} {
+    tk::unsupported::ExposePrivateVariable tkPriv
+}
+#--------------------------------------------------------------------------
+# tkPriv elements used in this file:
+#
+# inMenubutton -	
+#--------------------------------------------------------------------------
+#
+foreach fun {tkMenuUnpost tkMbButtonUp tkMbEnter tkMbPost} {
+    if {![llength [info commands $fun]]} {
+	tk::unsupported::ExposePrivateCommand $fun
+    }
+}
+unset fun
 
 tixWidgetClass tixPopupMenu {
     -classname TixPopupMenu
@@ -23,8 +45,7 @@ tixWidgetClass tixPopupMenu {
 	{-postcmd postCmd PostCmd ""}
 	{-spring spring Spring 1 tixVerifyBoolean}
 	{-state state State normal}
-
-	{-cursor corsor Cursur arrow}
+	{-cursor corsor Cursor arrow}
     }
     -static {
 	-buttons
@@ -67,7 +88,7 @@ proc tixPopupMenu:SetBindings {w} {
 	foreach mod [lindex $elm 1] {
 	    tixBind TixPopupMenu:MB:$w <$mod-ButtonPress-$btn> \
 		"tixPopupMenu:Unpost $w"
-	
+
 	    tixBind TixPopupMenu:$w <$mod-ButtonPress-$btn> \
 		"tixPopupMenu:post $w %W %x %y"
 	}
@@ -101,7 +122,7 @@ proc tixPopupMenu:Unpost {w} {
 proc tixPopupMenu:BtnRelease {w rootX rootY} {
     upvar #0 $w data
 
-    set cW [winfo containing $rootX $rootY]
+    set cW [winfo containing -displayof $w $rootX $rootY]
 
     if {$data(-spring)} {
 	tixPopupMenu:Unpost $w
@@ -117,7 +138,7 @@ proc tixPopupMenu:Destructor {w} {
     upvar #0 $w data
 
     foreach client $data(g:clients) {
-	if [winfo exists $client] {
+	if {[winfo exists $client]} {
 	    tixDeleteBindTag $client TixPopupMenu:$w
 	}
     }
@@ -157,7 +178,7 @@ proc tixPopupMenu:unbind {w args} {
     upvar #0 $w data
 
     foreach client $args {
-	if [winfo exists $client] {
+	if {[winfo exists $client]} {
 	    set index [lsearch $data(g:clients) $client]
 	    if {$index != -1} {
 		tixDeleteBindTag $client TixPopupMenu:$w
@@ -180,13 +201,13 @@ proc tixPopupMenu:post {w client x y} {
 
     if {$data(-postcmd) != ""} {
 	set ret [tixEvalCmdBinding $w $data(-postcmd) "" $rootx $rooty]
-	if ![tixGetBoolean $ret] {
+	if {![tixGetBoolean $ret]} {
 	    return
 	}
     }
 
-    if [tixGetBoolean -nocomplain $data(-installcolormap)] {
-	wm colormapwindows . "$w"
+    if {[string is true -strict $data(-installcolormap)]} {
+	wm colormapwindows . $w
     }
 
 
@@ -210,7 +231,7 @@ proc tixPopupMenu:post {w client x y} {
     raise $w
 
     update
-    wm geometry $w $width\x$height+$wx+$wy
+    wm geometry $w ${width}x${height}+${wx}+${wy}
     update
 
     tkMbEnter $data(w:menubutton)

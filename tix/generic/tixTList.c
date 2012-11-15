@@ -3,11 +3,13 @@
  *
  *	This module implements "TList" widgets.
  *
- *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000      Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+ *
+ * $Id: tixTList.c,v 1.6 2008/02/28 04:05:29 hobbs Exp $
  */
 
 #include <tixPort.h>
@@ -186,13 +188,13 @@ static Tix_ListInfo entListInfo = {
 static void		WidgetCmdDeletedProc _ANSI_ARGS_((
 			    ClientData clientData));
 static int		WidgetConfigure _ANSI_ARGS_((Tcl_Interp *interp,
-			    WidgetPtr wPtr, int argc, char **argv,
+			    WidgetPtr wPtr, int argc, CONST84 char **argv,
 			    int flags));
 static void		WidgetDestroy _ANSI_ARGS_((ClientData clientData));
 static void		WidgetEventProc _ANSI_ARGS_((ClientData clientData,
 			    XEvent *eventPtr));
 static int		WidgetCommand _ANSI_ARGS_((ClientData clientData,
-			    Tcl_Interp *, int argc, char **argv));
+			    Tcl_Interp *, int argc, CONST84 char **argv));
 static void		WidgetDisplay _ANSI_ARGS_((ClientData clientData));
 static void		WidgetComputeGeometry _ANSI_ARGS_((
 			    ClientData clientData));
@@ -202,7 +204,7 @@ static void		WidgetComputeGeometry _ANSI_ARGS_((
 static void		CancelRedrawWhenIdle _ANSI_ARGS_((WidgetPtr wPtr));
 static void		CancelResizeWhenIdle _ANSI_ARGS_((WidgetPtr wPtr));
 static int		ConfigElement _ANSI_ARGS_((WidgetPtr wPtr,
-			    ListEntry *chPtr, int argc, char ** argv,
+			    ListEntry *chPtr, int argc, CONST84 char ** argv,
 			    int flags, int forced));
 static void 		RedrawRows _ANSI_ARGS_((
 			    WidgetPtr wPtr, Drawable pixmap));
@@ -215,7 +217,7 @@ static void		UpdateScrollBars _ANSI_ARGS_((WidgetPtr wPtr,
 			    int sizeChanged));
 static int		Tix_TLGetFromTo _ANSI_ARGS_((
 			    Tcl_Interp *interp, WidgetPtr wPtr,
-			    int argc, char **argv,
+			    int argc, CONST84 char **argv,
 			    ListEntry ** fromPtr_ret, ListEntry ** toPtr_ret));
 static void		Tix_TLDItemSizeChanged _ANSI_ARGS_((
 			    Tix_DItem *iPtr));
@@ -224,12 +226,12 @@ static void		MakeGeomRequest _ANSI_ARGS_((
 static int		Tix_TLGetNearest _ANSI_ARGS_((
    			    WidgetPtr wPtr, int posn[2]));
 static int		Tix_TLGetAt _ANSI_ARGS_((WidgetPtr wPtr,
-			    Tcl_Interp *interp, char * spec, int *at));
+			    Tcl_Interp *interp, CONST84 char * spec, int *at));
 static int		Tix_TLGetNeighbor _ANSI_ARGS_((
 			    WidgetPtr wPtr, Tcl_Interp *interp,
-			    int type, int argc, char **argv));
+			    int type, int argc, CONST84 char **argv));
 static int		Tix_TranslateIndex _ANSI_ARGS_((
-			    WidgetPtr wPtr, Tcl_Interp *interp, char * string,
+			    WidgetPtr wPtr, Tcl_Interp *interp, CONST84 char * string,
 			    int * index, int isInsert));
 static int		Tix_TLDeleteRange _ANSI_ARGS_((
 			    WidgetPtr wPtr, ListEntry * fromPtr,
@@ -280,9 +282,9 @@ Tix_TListCmd(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
-    Tk_Window main = (Tk_Window) clientData;
+    Tk_Window mainwin = (Tk_Window) clientData;
     WidgetPtr wPtr;
     Tk_Window tkwin;
 
@@ -292,7 +294,7 @@ Tix_TListCmd(clientData, interp, argc, argv)
 	return TCL_ERROR;
     }
 
-    tkwin = Tk_CreateWindowFromPath(interp, main, argv[1], (char *) NULL);
+    tkwin = Tk_CreateWindowFromPath(interp, mainwin, argv[1], (char *) NULL);
     if (tkwin == NULL) {
 	return TCL_ERROR;
     }
@@ -303,48 +305,23 @@ Tix_TListCmd(clientData, interp, argc, argv)
      * Allocate and initialize the widget record.
      */
     wPtr = (WidgetPtr) ckalloc(sizeof(WidgetRecord));
+    memset(wPtr, 0, sizeof(WidgetRecord));
 
     wPtr->dispData.tkwin 	= tkwin;
     wPtr->dispData.display 	= Tk_Display(tkwin);
     wPtr->dispData.interp 	= interp;
     wPtr->dispData.sizeChangedProc = Tix_TLDItemSizeChanged;
-    wPtr->font		= NULL;
-    wPtr->normalBg 		= NULL;
-    wPtr->normalFg		= NULL;
-    wPtr->command 		= NULL;
-    wPtr->border 		= NULL;
-    wPtr->borderWidth 		= 0;
-    wPtr->selectBorder 		= NULL;
-    wPtr->selBorderWidth 	= 0;
-    wPtr->selectFg		= NULL;
     wPtr->backgroundGC		= None;
     wPtr->selectGC		= None;
     wPtr->anchorGC		= None;
-    wPtr->highlightWidth	= 0;
-    wPtr->highlightColorPtr	= NULL;
+    wPtr->anchorGC2		= None;
     wPtr->highlightGC		= None;
     wPtr->relief 		= TK_RELIEF_FLAT;
     wPtr->cursor 		= None;
-    wPtr->redrawing 		= 0;
-    wPtr->resizing 		= 0;
-    wPtr->hasFocus 		= 0;
-    wPtr->selectMode		= NULL;
-    wPtr->seeElemPtr 		= NULL;
-    wPtr->anchor 		= NULL;
-    wPtr->active 		= NULL;
-    wPtr->dropSite 		= NULL;
-    wPtr->dragSite 		= NULL;
-    wPtr->sizeCmd		= NULL;
-    wPtr->browseCmd		= NULL;
-    wPtr->takeFocus		= NULL;
-    wPtr->orientUid		= NULL;
-    wPtr->serial		= 0;
     wPtr->state			= tixNormalUid;
     wPtr->rows			= (ListRow*)ckalloc(sizeof(ListRow) *1);
     wPtr->numRow		= 1;
     wPtr->numRowAllocd		= 1;
-    wPtr->width			= 0;
-    wPtr->height		= 0;
 
     Tix_LinkListInit(&wPtr->entList);
     Tix_InitScrollInfo((Tix_ScrollInfo*)&wPtr->scrollInfo[0], TIX_SCROLL_INT);
@@ -362,7 +339,7 @@ Tix_TListCmd(clientData, interp, argc, argv)
 	return TCL_ERROR;
     }
 
-    interp->result = Tk_PathName(wPtr->dispData.tkwin);
+    Tcl_SetResult(interp, Tk_PathName(wPtr->dispData.tkwin), TCL_STATIC);
     return TCL_OK;
 }
 
@@ -377,7 +354,7 @@ Tix_TListCmd(clientData, interp, argc, argv)
  *
  * Results:
  *	The return value is a standard Tcl result.  If TCL_ERROR is
- *	returned, then interp->result contains an error message.
+ *	returned, then interp's result contains an error message.
  *
  * Side effects:
  *	Configuration information, such as colors, border width,
@@ -391,7 +368,7 @@ WidgetConfigure(interp, wPtr, argc, argv, flags)
     Tcl_Interp *interp;			/* Used for error reporting. */
     WidgetPtr wPtr;			/* Information about widget. */
     int argc;				/* Number of valid entries in argv. */
-    char **argv;			/* Arguments. */
+    CONST84 char **argv;		/* Arguments. */
     int flags;				/* Flags to pass to
 					 * Tk_ConfigureWidget. */
 {
@@ -473,21 +450,20 @@ WidgetConfigure(interp, wPtr, argc, argv, flags)
     }
     wPtr->selectGC = newGC;
 
-    /* The dotted anchor lines */
-    gcValues.foreground 	= wPtr->normalFg->pixel;
-    gcValues.background 	= wPtr->normalBg->pixel;
-    gcValues.graphics_exposures = False;
-    gcValues.line_style         = LineDoubleDash;
-    gcValues.dashes 		= 2;
-    gcValues.subwindow_mode	= IncludeInferiors;
-
-    newGC = Tk_GetGC(wPtr->dispData.tkwin,
-	GCForeground|GCBackground|GCGraphicsExposures|GCLineStyle|GCDashList|
-	GCSubwindowMode, &gcValues);
+    /* The dotted anchor lines (for selected item) */
+    newGC = Tix_GetAnchorGC(wPtr->dispData.tkwin,
+            Tk_3DBorderColor(wPtr->selectBorder));
     if (wPtr->anchorGC != None) {
 	Tk_FreeGC(wPtr->dispData.display, wPtr->anchorGC);
     }
     wPtr->anchorGC = newGC;
+
+    /* The dotted anchor lines (for unselected item)  */
+    newGC = Tix_GetAnchorGC(wPtr->dispData.tkwin, wPtr->normalBg);
+    if (wPtr->anchorGC2 != None) {
+	Tk_FreeGC(wPtr->dispData.display, wPtr->anchorGC2);
+    }
+    wPtr->anchorGC2 = newGC;
 
     /* The highlight border */
     gcValues.background 	= wPtr->selectFg->pixel;
@@ -552,7 +528,7 @@ WidgetCommand(clientData, interp, argc, argv)
     ClientData clientData;		/* Information about the widget. */
     Tcl_Interp *interp;			/* Current interpreter. */
     int argc;				/* Number of arguments. */
-    char **argv;			/* Argument strings. */
+    CONST84 char **argv;		/* Argument strings. */
 {
     int code;
 
@@ -697,13 +673,16 @@ WidgetDestroy(clientData)
     if (wPtr->anchorGC != None) {
 	Tk_FreeGC(wPtr->dispData.display, wPtr->anchorGC);
     }
+    if (wPtr->anchorGC2 != None) {
+	Tk_FreeGC(wPtr->dispData.display, wPtr->anchorGC2);
+    }
     if (wPtr->highlightGC != None) {
 	Tk_FreeGC(wPtr->dispData.display, wPtr->highlightGC);
     }
 
     if (wPtr->entList.numItems > 0) {
 	ListEntry * fromPtr=NULL, *toPtr=NULL;
-	char * argv[2];
+	CONST84 char * argv[2];
 	argv[0] = "0";
 	argv[1] = "end";
 
@@ -937,6 +916,8 @@ WidgetDisplay(clientData)
     Pixmap pixmap;
     Tk_Window tkwin = wPtr->dispData.tkwin;
     int winH, winW;
+    int hl = wPtr->highlightWidth;
+    int bd = wPtr->borderWidth;
 
     wPtr->redrawing = 0;		/* clear the redraw flag */
     wPtr->serial ++;
@@ -946,10 +927,10 @@ WidgetDisplay(clientData)
 
     /* Fill the background */
     XFillRectangle(wPtr->dispData.display, pixmap, wPtr->backgroundGC,
-	0, 0, Tk_Width(tkwin), Tk_Height(tkwin));
+	0, 0, (unsigned) Tk_Width(tkwin), (unsigned) Tk_Height(tkwin));
 
-    winW = Tk_Width(tkwin)  - 2*wPtr->highlightWidth - 2*wPtr->borderWidth;
-    winH = Tk_Height(tkwin) - 2*wPtr->highlightWidth - 2*wPtr->borderWidth;
+    winW = Tk_Width(tkwin)  - 2*hl - 2*bd;
+    winH = Tk_Height(tkwin) - 2*hl - 2*bd;
 
     if (winW > 0 && winH > 0) {
 	RedrawRows(wPtr, pixmap);
@@ -957,13 +938,11 @@ WidgetDisplay(clientData)
 
     /* Draw the border */
     Tk_Draw3DRectangle(wPtr->dispData.tkwin, pixmap, wPtr->border,
-	wPtr->highlightWidth, wPtr->highlightWidth,
-	Tk_Width(tkwin)  - 2*wPtr->highlightWidth, 
-	Tk_Height(tkwin) - 2*wPtr->highlightWidth, wPtr->borderWidth,
-	wPtr->relief);
+	    hl, hl, Tk_Width(tkwin)  - 2*hl, Tk_Height(tkwin) - 2*hl, bd,
+	    wPtr->relief);
   
     /* Draw the highlight */
-    if (wPtr->highlightWidth > 0) {
+    if (hl > 0) {
 	GC gc;
 
 	if (wPtr->hasFocus) {
@@ -972,7 +951,7 @@ WidgetDisplay(clientData)
 	    gc = Tk_3DBorderGC(wPtr->dispData.tkwin, wPtr->border, 
 		TK_3D_FLAT_GC);
 	}
-	Tk_DrawFocusHighlight(tkwin, gc, wPtr->highlightWidth, pixmap);
+	Tk_DrawFocusHighlight(tkwin, gc, hl, pixmap);
     }
 
     /*
@@ -980,7 +959,8 @@ WidgetDisplay(clientData)
      * then delete the pixmap.
      */
     XCopyArea(wPtr->dispData.display, pixmap, Tk_WindowId(tkwin),
-	wPtr->backgroundGC, 0, 0, Tk_Width(tkwin), Tk_Height(tkwin), 0, 0);
+	    wPtr->backgroundGC, 0, 0,
+	    (unsigned) Tk_Width(tkwin), (unsigned) Tk_Height(tkwin), 0, 0);
     Tk_FreePixmap(wPtr->dispData.display, pixmap);
 
 }
@@ -1115,12 +1095,12 @@ Tix_TLInsert(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     ListEntry * chPtr = NULL;
     char buff[40];
-    char * ditemType;
+    CONST84 char * ditemType;
     int at;
     int added = 0;
     int code = TCL_OK;
@@ -1245,7 +1225,7 @@ Tix_TLIndex(clientData, interp, argc, argv)
     ClientData clientData;	/* TList widget record. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int index;
@@ -1269,7 +1249,7 @@ Tix_TLInfo(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     size_t len = strlen(argv[0]);
@@ -1331,7 +1311,7 @@ static int
 Tix_TranslateIndex(wPtr, interp, string, index, isInsert)
     WidgetPtr wPtr;		/* TList widget record. */
     Tcl_Interp *interp;		/* Current interpreter. */
-    char * string;		/* String representation of the index. */
+    CONST84 char * string;	/* String representation of the index. */
     int * index;		/* Returns the index value(0 = 1st element).*/
     int isInsert;		/* Is this function called by an "insert"
 				 * operation? */
@@ -1387,10 +1367,10 @@ static int Tix_TLGetNeighbor(wPtr, interp, type, argc, argv)
     Tcl_Interp *interp;		/* Current interpreter. */
     int type;
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     int index;
-    int dst;
+    int dst = 0; /* lint */
     int xStep, yStep;
     int numPerRow;
     char buff[100];
@@ -1456,7 +1436,7 @@ Tix_TLCGet(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
 
@@ -1473,7 +1453,7 @@ Tix_TLConfig(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
 
@@ -1498,7 +1478,7 @@ Tix_TLGeometryInfo(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int qSize[2];
@@ -1541,7 +1521,7 @@ Tix_TLDelete(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     ListEntry * fromPtr, *toPtr;
@@ -1610,7 +1590,7 @@ Tix_TLEntryCget(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     ListEntry * chPtr, * dummy;
@@ -1639,7 +1619,7 @@ Tix_TLEntryConfig(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     ListEntry * chPtr, * dummy;
@@ -1676,7 +1656,7 @@ Tix_TLNearest(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int posn[2];
@@ -1703,7 +1683,7 @@ Tix_TLNearest(clientData, interp, argc, argv)
 static int Tix_TLGetAt(wPtr, interp, spec, at)
     WidgetPtr wPtr;
     Tcl_Interp *interp;
-    char * spec;
+    CONST84 char * spec;
     int *at;
 {
     int posn[2];
@@ -1713,7 +1693,7 @@ static int Tix_TLGetAt(wPtr, interp, spec, at)
 	return TCL_ERROR;
     }
 
-    p = spec+1;
+    p = (char *) spec+1;
     posn[0] = strtol(p, &end, 0);
     if ((end == p) || (*end != ',')) {
 	return TCL_ERROR;
@@ -1796,7 +1776,7 @@ Tix_TLGetFromTo(interp, wPtr, argc, argv, fromPtr_ret, toPtr_ret)
     Tcl_Interp *interp;
     WidgetPtr wPtr;
     int argc;
-    char **argv;
+    CONST84 char **argv;
     ListEntry ** fromPtr_ret;
     ListEntry ** toPtr_ret;
 {
@@ -1862,7 +1842,7 @@ Tix_TLSelection(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     size_t len = strlen(argv[0]);
@@ -1965,16 +1945,35 @@ Tix_TLSelection(clientData, interp, argc, argv)
     return code;
 }
 
-/*----------------------------------------------------------------------
- * "see" command
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tix_TLSee --
+ *
+ *      Implements the "see" widget subcommand -- make sure that the
+ *      given entry is visible as much as possible.
+ *
+ *      We don't scroll the widget immediately in this function.
+ *      Instead, we set the wPtr->seeElemPtr and the scrolling will be
+ *      set when the widget is redrawn. This make sure that the "see"
+ *      command works even before the widget's contents has been laid
+ *      out.
+ *
+ * Results:
+ *      A standard Tcl result.
+ *
+ * Side effects:
+ *      Widget is scheduled to be redrawn.
+ *
  *----------------------------------------------------------------------
  */
+
 static int
 Tix_TLSee(clientData, interp, argc, argv)
-    ClientData clientData;
+    ClientData clientData;      /* The widget data struct */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     ListEntry * chPtr, * dummy;
@@ -2007,7 +2006,7 @@ Tix_TLSetSite(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     int changed = 0;
     WidgetPtr wPtr = (WidgetPtr) clientData;
@@ -2080,7 +2079,7 @@ Tix_TLView(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int axis;
@@ -2125,7 +2124,7 @@ ConfigElement(wPtr, chPtr, argc, argv, flags, forced)
     WidgetPtr wPtr;
     ListEntry *chPtr;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
     int flags;
     int forced;
 {
@@ -2158,7 +2157,8 @@ Realloc(wPtr, new_size)
     if (new_size == wPtr->numRowAllocd) {
 	return;
     }
-    wPtr->rows = (ListRow*)ckrealloc(wPtr->rows, sizeof(ListRow)*new_size);
+    wPtr->rows = (ListRow*)ckrealloc( (char *)wPtr->rows,
+                                      sizeof(ListRow)*new_size);
     wPtr->numRowAllocd = new_size;
 }
 
@@ -2299,7 +2299,7 @@ static void ResizeRows(wPtr, winW, winH)
 /*----------------------------------------------------------------------
  * RedrawRows --
  *
- *	Redraw the rows, according to the "offset: in both directions
+ *	Redraw the rows, according to the "offset" in both directions
  *----------------------------------------------------------------------
  */
 
@@ -2338,18 +2338,21 @@ RedrawRows(wPtr, pixmap)
 
     if (wPtr->seeElemPtr != NULL) {
 	/*
-	 * Adjust the scrolling so that the given entry is visible.
+	 * Adjust the scrolling so that the given the entry is visible in
+         * its entirty (as much as allowed by the height of the TList)
 	 */
-	int start = 0;		/* x1 position of the element to see. */
-	int size = 0;		/* width of the element to see. */
+
+	int start = 0;		/* y1 position of the element to see. */
+	int size = 0;		/* height of the element to see. */
 	int old = wPtr->scrollInfo[i].offset;
 
 	for (r=0, n=0, chPtr=(ListEntry*)wPtr->entList.head; chPtr;
-		chPtr=chPtr->next, n++) {
+		chPtr=chPtr->next) {
 	    if (chPtr == wPtr->seeElemPtr) {
-		size = wPtr->rows[r].size[i];
+		size = chPtr->size[i];
 		break;
 	    }
+            n++;
 	    if (n == wPtr->rows[r].numEnt) {
 		n=0;
 		r++;
@@ -2357,10 +2360,16 @@ RedrawRows(wPtr, pixmap)
 	    }
 	}
 
-	if (wPtr->scrollInfo[i].offset + windowSize > start + size) {
+	if (wPtr->scrollInfo[i].offset + windowSize < start + size) {
+            /*
+             * Bottom of the entry is beneath the bottom edge
+             */
 	    wPtr->scrollInfo[i].offset = start + size - windowSize;
 	}
-	if (wPtr->scrollInfo[i].offset < start) {
+	if (wPtr->scrollInfo[i].offset > start) {
+            /*
+             * Top of the entry is above the top edge
+             */
 	    wPtr->scrollInfo[i].offset = start;
 	}
 	if (wPtr->scrollInfo[i].offset != old) {
@@ -2369,7 +2378,10 @@ RedrawRows(wPtr, pixmap)
 	wPtr->seeElemPtr = NULL;
     }
 
-    /* Search for a row that is (possibly partially) visible*/
+    /*
+     * Search for the first row from the top (or first column from the left)
+     * that is (possibly partially) visible
+     */
     total=0; r=0;
     if (wPtr->scrollInfo[i].offset != 0) {
 	for (; r<wPtr->numRow; r++) {
@@ -2415,7 +2427,7 @@ RedrawRows(wPtr, pixmap)
 
 	/* Redraw all the visible columns in this row */
 	for (; n<wPtr->rows[r].numEnt; n++, chPtr = chPtr->next) {
-	    int flags = TIX_DITEM_NORMAL_FG;
+	    int flags = TIX_DITEM_NORMAL_FG | TIX_DITEM_NORMAL_BG;
 	    int W, H;
 
 	    if (chPtr->selected) {
@@ -2431,13 +2443,25 @@ RedrawRows(wPtr, pixmap)
 		W = chPtr->iPtr->base.size[0];
 	    }
 
-	    Tix_DItemDisplay(pixmap, None, chPtr->iPtr, p[0], p[1], W, H,
-		flags);
+            if (chPtr == wPtr->anchor && wPtr->hasFocus) {
+                flags |= TIX_DITEM_ANCHOR;
+            }
 
-	    if (chPtr == wPtr->anchor) {
+	    Tix_DItemDisplay(pixmap, chPtr->iPtr, p[0], p[1], W, H,
+		0, 0, flags);
+
+#if 0
+	    if (chPtr == wPtr->anchor && wPtr->hasFocus) {
+                GC ancGC;
+                if (chPtr->selected) {
+                    ancGC = wPtr->anchorGC;
+                } else {
+                    ancGC = wPtr->anchorGC2;
+                }
 		Tix_DrawAnchorLines(Tk_Display(wPtr->dispData.tkwin), pixmap,
-	            wPtr->anchorGC, p[0], p[1], W-1, H-1);
+	                ancGC, p[0], p[1], W, H);
 	    }
+#endif
 	    p[j] += wPtr->maxSize[j];
 	}
 

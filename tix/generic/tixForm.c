@@ -1,3 +1,6 @@
+
+/*	$Id: tixForm.c,v 1.3 2004/03/28 02:44:56 hobbs Exp $	*/
+
 /*
  * tixForm.c --
  *
@@ -27,9 +30,8 @@
  *     clients attached to S must delete their reference to S
  */
 
-#include <tkInt.h>
 #include <tixPort.h>
-#include <tix.h>
+#include <tixInt.h>
 #include <tixForm.h>
 #define DEBUG 0
 
@@ -45,10 +47,6 @@ typedef struct SpringList {
     int num;
 } SpringList;
 
-#ifdef BUILD_tix
-# undef TCL_STORAGE_CLASS
-# define TCL_STORAGE_CLASS DLLEXPORT
-#endif
 
 /*
  * SubCommands of the tixForm command.
@@ -78,7 +76,7 @@ static int 		PlaceClientSide _ANSI_ARGS_((FormInfo *clientPtr,
 			    int axis, int which, int isSelf));
 static int 		TestAndArrange _ANSI_ARGS_((MasterInfo *masterPtr));
 static int 		TixFm_CheckArgv _ANSI_ARGS_((ClientData clientData,
-			    Tcl_Interp *interp, int argc, char ** argv));
+			    Tcl_Interp *interp, int argc, CONST84 char ** argv));
 static void		TixFm_LostSlaveProc _ANSI_ARGS_((
 			    ClientData clientData, Tk_Window tkwin));
 static void 		TixFm_ReqProc _ANSI_ARGS_((ClientData clientData,
@@ -187,7 +185,7 @@ Tix_FormCmd(clientData, interp, argc, argv)
 				 * interpreter. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     static Tix_SubCmdInfo subCmdInfo[] = {
 	{TIX_DEFAULT_LEN, "check", 1, 1, TixFm_Check,
@@ -229,7 +227,7 @@ static int TixFm_SetGrid(clientData, interp, argc, argv)
 				 * interpreter. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     char buff[100];
     Tk_Window   topLevel = (Tk_Window) clientData;
@@ -289,7 +287,7 @@ static int TixFm_Forget(clientData, interp, argc, argv)
 				 * interpreter. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     FormInfo * clientPtr;
     Tk_Window topLevel = (Tk_Window) clientData;
@@ -338,7 +336,7 @@ static int TixFm_Slaves(clientData, interp, argc, argv)
 				 * interpreter. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     Tk_Window   topLevel = (Tk_Window) clientData;
     Tk_Window   master;
@@ -377,7 +375,7 @@ static int TixFm_Spring(clientData, interp, argc, argv)
 				 * interpreter. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     Tk_Window   topLevel = (Tk_Window) clientData;
     Tk_Window   tkwin;
@@ -458,7 +456,7 @@ static int TixFm_Check(clientData, interp, argc, argv)
 				 * interpreter. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     MasterInfo * masterPtr;
     Tk_Window topLevel = (Tk_Window) clientData;
@@ -488,7 +486,7 @@ static int TixFm_CheckArgv(clientData, interp, argc, argv)
 				 * interpreter. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     if ((argc >=1) && (argv[0][0] != '.')) {
 	return 0;			/* sorry, we expect a window name */
@@ -503,13 +501,13 @@ static int TixFm_SetClient(clientData, interp, argc, argv)
 				 * interpreter. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     Tk_Window topLevel = (Tk_Window) clientData;
     Tk_Window client, master;
     FormInfo * clientPtr;
     MasterInfo * masterPtr;
-    char *pathName;		/* path name of the client window */
+    CONST84 char *pathName;	/* path name of the client window */
 
     if (argc < 1 || (((argc-1) %2) != 0)) {
 	Tcl_AppendResult(interp, "Wrong # of arguments, should be ",
@@ -587,7 +585,7 @@ static int TixFm_SetClient(clientData, interp, argc, argv)
  */
 FormInfo * TixFm_FindClientPtrByName(interp, name, topLevel)
     Tcl_Interp * interp;
-    char * name;
+    CONST84 char * name;
     Tk_Window topLevel;
 {
     Tk_Window tkwin;
@@ -733,11 +731,9 @@ static void ArrangeGeometry(clientData)
     int cSize[2];			/* Size of client */
     int intBWidth;			/* internal borderWidth of master */
 
-    TkWindow* winPtr;
     masterPtr = (MasterInfo *) clientData;
-    winPtr = (TkWindow*)masterPtr->tkwin;
 
-    if (winPtr->flags & TK_ALREADY_DEAD) {
+    if (((Tk_FakeWin *) (masterPtr->tkwin))->flags & TK_ALREADY_DEAD) {
 	masterPtr->flags.repackPending = 0;
 	return;
     }

@@ -4,12 +4,15 @@
  *	This file implements one of the "Display Items" in the Tix library :
  *	WindowItem display items.
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000-2001 Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tixDiWin.c,v 1.3 2004/03/28 02:44:56 hobbs Exp $
  */
+
 #include <tixPort.h>
 #include <tixInt.h>
 #include <tixDef.h>
@@ -65,15 +68,110 @@ static Tk_ConfigSpec windowItemConfigSpecs[] = {
 #define DEF_WINDOWSTYLE_PADY	"0"
 #define DEF_WINDOWSTYLE_ANCHOR	"w"
 
+#define SELECTED_BG SELECT_BG 
+#define DISABLED_BG DISABLED  
+
+#define DEF_WINDOWSTYLE_NORMAL_FG_COLOR		BLACK
+#define DEF_WINDOWSTYLE_NORMAL_FG_MONO		BLACK
+#define DEF_WINDOWSTYLE_NORMAL_BG_COLOR		NORMAL_BG
+#define DEF_WINDOWSTYLE_NORMAL_BG_MONO		WHITE
+
+#define DEF_WINDOWSTYLE_ACTIVE_FG_COLOR		BLACK
+#define DEF_WINDOWSTYLE_ACTIVE_FG_MONO		WHITE
+#define DEF_WINDOWSTYLE_ACTIVE_BG_COLOR		ACTIVE_BG
+#define DEF_WINDOWSTYLE_ACTIVE_BG_MONO		BLACK
+
+#define DEF_WINDOWSTYLE_SELECTED_FG_COLOR	BLACK
+#define DEF_WINDOWSTYLE_SELECTED_FG_MONO		WHITE
+#define DEF_WINDOWSTYLE_SELECTED_BG_COLOR	SELECTED_BG
+#define DEF_WINDOWSTYLE_SELECTED_BG_MONO		BLACK
+
+#define DEF_WINDOWSTYLE_DISABLED_FG_COLOR	BLACK
+#define DEF_WINDOWSTYLE_DISABLED_FG_MONO		BLACK
+#define DEF_WINDOWSTYLE_DISABLED_BG_COLOR	DISABLED_BG
+#define DEF_WINDOWSTYLE_DISABLED_BG_MONO		WHITE
+
 static Tk_ConfigSpec windowStyleConfigSpecs[] = {
     {TK_CONFIG_ANCHOR, "-anchor", "anchor", "Anchor",
        DEF_WINDOWSTYLE_ANCHOR, Tk_Offset(TixWindowStyle, anchor), 0},
 
+    {TK_CONFIG_SYNONYM, "-bg", "background", (char *) NULL,
+       (char *) NULL, 0, 0},
+
+    {TK_CONFIG_SYNONYM, "-fg", "foreground", (char *) NULL,
+       (char *) NULL, 0, 0},
+ 
     {TK_CONFIG_PIXELS, "-padx", "padX", "Pad",
        DEF_WINDOWSTYLE_PADX, Tk_Offset(TixWindowStyle, pad[0]), 0},
 
     {TK_CONFIG_PIXELS, "-pady", "padY", "Pad",
        DEF_WINDOWSTYLE_PADY, Tk_Offset(TixWindowStyle, pad[1]), 0},
+
+/* The following was automatically generated */
+	{TK_CONFIG_COLOR,"-background","background","Background",
+	DEF_WINDOWSTYLE_NORMAL_BG_COLOR,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_NORMAL].bg),
+	TK_CONFIG_COLOR_ONLY},
+	{TK_CONFIG_COLOR,"-background","background","Background",
+	DEF_WINDOWSTYLE_NORMAL_BG_MONO,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_NORMAL].bg),
+	TK_CONFIG_MONO_ONLY},
+	{TK_CONFIG_COLOR,"-foreground","foreground","Foreground",
+	DEF_WINDOWSTYLE_NORMAL_FG_COLOR,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_NORMAL].fg),
+	TK_CONFIG_COLOR_ONLY},
+	{TK_CONFIG_COLOR,"-foreground","foreground","Foreground",
+	DEF_WINDOWSTYLE_NORMAL_FG_MONO,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_NORMAL].fg),
+	TK_CONFIG_MONO_ONLY},
+	{TK_CONFIG_COLOR,"-activebackground","activeBackground","ActiveBackground",
+	DEF_WINDOWSTYLE_ACTIVE_BG_COLOR,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_ACTIVE].bg),
+	TK_CONFIG_COLOR_ONLY},
+	{TK_CONFIG_COLOR,"-activebackground","activeBackground","ActiveBackground",
+	DEF_WINDOWSTYLE_ACTIVE_BG_MONO,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_ACTIVE].bg),
+	TK_CONFIG_MONO_ONLY},
+	{TK_CONFIG_COLOR,"-activeforeground","activeForeground","ActiveForeground",
+	DEF_WINDOWSTYLE_ACTIVE_FG_COLOR,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_ACTIVE].fg),
+	TK_CONFIG_COLOR_ONLY},
+	{TK_CONFIG_COLOR,"-activeforeground","activeForeground","ActiveForeground",
+	DEF_WINDOWSTYLE_ACTIVE_FG_MONO,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_ACTIVE].fg),
+	TK_CONFIG_MONO_ONLY},
+	{TK_CONFIG_COLOR,"-selectbackground","selectBackground","SelectBackground",
+	DEF_WINDOWSTYLE_SELECTED_BG_COLOR,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_SELECTED].bg),
+	TK_CONFIG_COLOR_ONLY},
+	{TK_CONFIG_COLOR,"-selectbackground","selectBackground","SelectBackground",
+	DEF_WINDOWSTYLE_SELECTED_BG_MONO,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_SELECTED].bg),
+	TK_CONFIG_MONO_ONLY},
+	{TK_CONFIG_COLOR,"-selectforeground","selectForeground","SelectForeground",
+	DEF_WINDOWSTYLE_SELECTED_FG_COLOR,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_SELECTED].fg),
+	TK_CONFIG_COLOR_ONLY},
+	{TK_CONFIG_COLOR,"-selectforeground","selectForeground","SelectForeground",
+	DEF_WINDOWSTYLE_SELECTED_FG_MONO,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_SELECTED].fg),
+	TK_CONFIG_MONO_ONLY},
+	{TK_CONFIG_COLOR,"-disabledbackground","disabledBackground","DisabledBackground",
+	DEF_WINDOWSTYLE_DISABLED_BG_COLOR,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_DISABLED].bg),
+	TK_CONFIG_COLOR_ONLY},
+	{TK_CONFIG_COLOR,"-disabledbackground","disabledBackground","DisabledBackground",
+	DEF_WINDOWSTYLE_DISABLED_BG_MONO,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_DISABLED].bg),
+	TK_CONFIG_MONO_ONLY},
+	{TK_CONFIG_COLOR,"-disabledforeground","disabledForeground","DisabledForeground",
+	DEF_WINDOWSTYLE_DISABLED_FG_COLOR,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_DISABLED].fg),
+	TK_CONFIG_COLOR_ONLY},
+	{TK_CONFIG_COLOR,"-disabledforeground","disabledForeground","DisabledForeground",
+	DEF_WINDOWSTYLE_DISABLED_FG_MONO,
+	Tk_Offset(TixImageStyle,colors[TIX_DITEM_DISABLED].fg),
+	TK_CONFIG_MONO_ONLY},
 
     {TK_CONFIG_END, (char *) NULL, (char *) NULL, (char *) NULL,
        (char *) NULL, 0, 0}
@@ -94,13 +192,14 @@ static char *		Tix_WindowItemComponent  _ANSI_ARGS_((
 static void		Tix_WindowItemCalculateSize  _ANSI_ARGS_((
 			    Tix_DItem * iPtr));
 static int 		Tix_WindowItemConfigure _ANSI_ARGS_((
-			    Tix_DItem * iPtr, int argc, char ** argv,
+			    Tix_DItem * iPtr, int argc, CONST84 char ** argv,
 			    int flags));
 static Tix_DItem * 	Tix_WindowItemCreate _ANSI_ARGS_((
 			    Tix_DispData * ddPtr, Tix_DItemInfo * diTypePtr));
 static void		Tix_WindowItemDisplay  _ANSI_ARGS_((
-			    Pixmap pixmap, GC gc, Tix_DItem * iPtr,
-			    int x, int y, int width, int height, int flags));
+			    Drawable drawable, Tix_DItem * iPtr,
+			    int x, int y, int width, int height,
+                            int xOffset, int yOffset, int flags));
 static void		Tix_WindowItemFree  _ANSI_ARGS_((
 			    Tix_DItem * iPtr));
 static void		Tix_WindowItemLostStyle  _ANSI_ARGS_((
@@ -110,7 +209,7 @@ static void 		Tix_WindowItemStyleChanged  _ANSI_ARGS_((
 static void		Tix_WindowItemUnmap _ANSI_ARGS_((
 			    TixWindowItem *itPtr));
 static int 		Tix_WindowStyleConfigure _ANSI_ARGS_((
-			    Tix_DItemStyle* style, int argc, char ** argv,
+			    Tix_DItemStyle* style, int argc, CONST84 char ** argv,
 			    int flags));
 static Tix_DItemStyle *	Tix_WindowStyleCreate _ANSI_ARGS_((
 			    Tcl_Interp *interp, Tk_Window tkwin,
@@ -259,7 +358,7 @@ UnmanageWindow(iPtr, tkwin)
 static int Tix_WindowItemConfigure(iPtr, argc, argv, flags)
     Tix_DItem * iPtr;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
     int flags;
 {
     TixWindowItem * itPtr = (TixWindowItem *) iPtr;
@@ -322,50 +421,108 @@ badWindow:
     itPtr->tkwin = NULL;
     return TCL_ERROR;
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tix_WindowItemDisplay --
+ *
+ *      Display an window item. {x, y, width, height} specifies a
+ *      region for to display this item in. {xOffset, yOffset} gives
+ *      the offset of the top-left corner of the window item relative
+ *      to the top-left corder of the region.
+ *
+ *      Background and foreground of the item are displayed according
+ *      to the flags parameter.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      The geometry management calls such as Tk_MoveResizeWindow()
+ *      may cause repaints in the parent window that owns this item,
+ *      but it shouldn't enter an infinite loop.
+ *      Tk_MoveResizeWindow (or the underlying windowing system?) will
+ *      supress repaint events if the window's geometry is not changed
+ *      by the Tk_MoveResizeWindow call.
+ * 
+ *----------------------------------------------------------------------
+ */
 
-static void Tix_WindowItemDisplay(pixmap, gc, iPtr, x, y, width, height, flag)
-    Pixmap pixmap;
-    GC gc;
+static void
+Tix_WindowItemDisplay(drawable, iPtr, x, y, width, height, xOffset, yOffset, 
+        flags)
+    Drawable drawable;
     Tix_DItem * iPtr;
     int x;
     int y;
     int width;
     int height;
-    int flag;
+    int flags;
 {
     TixWindowItem *itPtr = (TixWindowItem *)iPtr;
+    Display * display = itPtr->ddPtr->display;
+    TixpSubRegion subReg;
+    GC foreGC;
+    int winX, winY, winH, winW;
 
     if (itPtr->tkwin == NULL) {
 	return;
     }
 
+    TixGetColorDItemGC(iPtr, NULL, &foreGC, NULL, flags);
+
+    TixpStartSubRegionDraw(display, drawable, foreGC,
+	    &subReg, 0, 0, x, y, width, height,
+	    itPtr->size[0] + xOffset, itPtr->size[1] + yOffset);
+
+    Tix_DItemDrawBackground(drawable, &subReg, iPtr, x, y, width, height,
+           xOffset, yOffset, flags);
+
+    /*
+     * Calculate the location of the window according to anchor settings.
+     */
+
     TixDItemGetAnchor(itPtr->stylePtr->anchor, x, y, width, height,
-	itPtr->size[0], itPtr->size[1], &x, &y);
+	    itPtr->size[0], itPtr->size[1], &x, &y);
 
-    x += itPtr->stylePtr->pad[0];
-    y += itPtr->stylePtr->pad[1];
-    width  -= 2*itPtr->stylePtr->pad[0];
-    height -= 2*itPtr->stylePtr->pad[1];
+    winX = xOffset + itPtr->stylePtr->pad[0];
+    winY = yOffset + itPtr->stylePtr->pad[1];
+    winW = itPtr->size[0] - 2*itPtr->stylePtr->pad[0];
+    winH = itPtr->size[1] - 2*itPtr->stylePtr->pad[1];
 
-    if (width < 1 || height < 1) {
+    if (winW + winX > width) {
+        winW = width - winX;
+    }
+    if (winH + winY > height) {
+        winH = height - winY;
+    }
+
+    winX += x;
+    winY += y;
+
+    if (width < 1 || height < 1 || winW < 1 || winH < 1) {
 	if (itPtr->ddPtr->tkwin != Tk_Parent(itPtr->tkwin)) {
 	    Tk_UnmaintainGeometry(itPtr->tkwin, itPtr->ddPtr->tkwin);
 	}
+
 	Tk_UnmapWindow(itPtr->tkwin);
-	return;
+    } else {
+        if (itPtr->ddPtr->tkwin == Tk_Parent(itPtr->tkwin)) {
+            Tk_MapWindow(itPtr->tkwin);
+            Tk_MoveResizeWindow(itPtr->tkwin, winX, winY, winW, winH);
+        } else {
+            Tk_MaintainGeometry(itPtr->tkwin, itPtr->ddPtr->tkwin,
+	            winX, winY, winW, winH);
+        }
     }
 
-    if (itPtr->ddPtr->tkwin == Tk_Parent(itPtr->tkwin)) {
-	Tk_MapWindow(itPtr->tkwin);
-	Tk_MoveResizeWindow(itPtr->tkwin, x, y, width, height);
-    }
-    else {
-	Tk_MaintainGeometry(itPtr->tkwin, itPtr->ddPtr->tkwin,
-	    x, y, width, height);
-    }
+    TixpEndSubRegionDraw(display, drawable, foreGC,
+	    &subReg);
 }
 
-static void Tix_WindowItemCalculateSize(iPtr)
+static void
+Tix_WindowItemCalculateSize(iPtr)
     Tix_DItem * iPtr;
 {
     TixWindowItem *itPtr = (TixWindowItem*)iPtr;
@@ -380,6 +537,11 @@ static void Tix_WindowItemCalculateSize(iPtr)
 
     itPtr->size[0] += 2*itPtr->stylePtr->pad[0];
     itPtr->size[1] += 2*itPtr->stylePtr->pad[1];
+
+    itPtr->selX = 0;
+    itPtr->selY = 0;
+    itPtr->selW = itPtr->size[0];
+    itPtr->selH = itPtr->size[1];
 }
 
 static char * Tix_WindowItemComponent(iPtr, x, y)
@@ -572,6 +734,7 @@ Tix_WindowItemUnmap(itPtr)
  *
  *----------------------------------------------------------------------
  */
+
 static Tix_DItemStyle *
 Tix_WindowStyleCreate(interp, tkwin, diTypePtr, name)
     Tcl_Interp * interp;
@@ -582,10 +745,6 @@ Tix_WindowStyleCreate(interp, tkwin, diTypePtr, name)
     TixWindowStyle * stylePtr =
       (TixWindowStyle *)ckalloc(sizeof(TixWindowStyle));
 
-    stylePtr->pad[0]	 = 0;
-    stylePtr->pad[1] 	 = 0;
-    stylePtr->anchor	 = TK_ANCHOR_CENTER;
-
     return (Tix_DItemStyle *)stylePtr;
 }
 
@@ -593,7 +752,7 @@ static int
 Tix_WindowStyleConfigure(style, argc, argv, flags)
     Tix_DItemStyle *style;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
     int flags;
 {
     TixWindowStyle * stylePtr = (TixWindowStyle *)style;
@@ -610,6 +769,8 @@ Tix_WindowStyleConfigure(style, argc, argv, flags)
 	    return TCL_ERROR;
 	}
     }
+
+    TixDItemStyleConfigureGCs(style);
 
     if (oldPadX != stylePtr->pad[0] ||  oldPadY != stylePtr->pad[1]) {
 	TixDItemStyleChanged(stylePtr->diTypePtr, (Tix_DItemStyle *)stylePtr);
@@ -628,19 +789,53 @@ static void Tix_WindowStyleFree(style)
     ckfree((char *)stylePtr);
 }
 
+static int bg_flags [4] = {
+    TIX_DITEM_NORMAL_BG,
+    TIX_DITEM_ACTIVE_BG,
+    TIX_DITEM_SELECTED_BG,
+    TIX_DITEM_DISABLED_BG
+};
+static int fg_flags [4] = {
+    TIX_DITEM_NORMAL_FG,
+    TIX_DITEM_ACTIVE_FG,
+    TIX_DITEM_SELECTED_FG,
+    TIX_DITEM_DISABLED_FG
+};
+
 static void
 Tix_WindowStyleSetTemplate(style, tmplPtr)
     Tix_DItemStyle* style;
     Tix_StyleTemplate * tmplPtr;
 {
     TixWindowStyle * stylePtr = (TixWindowStyle *)style;
-
+    int i;
 
     if (tmplPtr->flags & TIX_DITEM_PADX) {
 	stylePtr->pad[0] = tmplPtr->pad[0];
     }
     if (tmplPtr->flags & TIX_DITEM_PADY) {
 	stylePtr->pad[1] = tmplPtr->pad[1];
+    }
+
+    for (i=0; i<4; i++) {
+	if (tmplPtr->flags & bg_flags[i]) {
+	    if (stylePtr->colors[i].bg != NULL) {
+		Tk_FreeColor(stylePtr->colors[i].bg);
+	    }
+	    stylePtr->colors[i].bg = Tk_GetColor(
+		stylePtr->interp, stylePtr->tkwin,
+		Tk_NameOfColor(tmplPtr->colors[i].bg));
+	}
+    }
+    for (i=0; i<4; i++) {
+	if (tmplPtr->flags & fg_flags[i]) {
+	    if (stylePtr->colors[i].fg != NULL) {
+		Tk_FreeColor(stylePtr->colors[i].fg);
+	    }
+	    stylePtr->colors[i].fg = Tk_GetColor(
+		stylePtr->interp, stylePtr->tkwin,
+		Tk_NameOfColor(tmplPtr->colors[i].fg));
+	}
     }
 
     Tix_WindowStyleConfigure(style, 0, 0, TIX_DONT_CALL_CONFIG);

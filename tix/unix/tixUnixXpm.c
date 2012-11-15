@@ -1,3 +1,6 @@
+
+/*	$Id: tixUnixXpm.c,v 1.4 2006/11/15 22:18:36 hobbs Exp $	*/
+
 /*
  * tixUnixImgXpm.c --
  *
@@ -14,6 +17,13 @@
 #include <tixPort.h>
 #include <tixUnixInt.h>
 #include <tixImgXpm.h>
+#include <X11/Xutil.h>
+
+#if !defined(WIN32) && !defined(MAC_OSX_TK)
+#define TkPutImage(colors, ncolors, display, pixels, gc, image, destx, desty, srcx, srcy, width, height) \
+	XPutImage(display, pixels, gc, image, destx, desty, srcx, \
+	srcy, width, height);
+#endif
 
 typedef struct PixmapData {
     Pixmap mask;		/* Mask: only display pixmap pixels where
@@ -47,6 +57,31 @@ TixpInitPixmapInstance(masterPtr, instancePtr)
     instancePtr->clientData = (ClientData)dataPtr;
 }
 
+#ifdef MAC_OSX_TK
+static int
+MacPutPixel(image, x, y, pixel)
+    XImage *image;
+    int x, y;
+    unsigned long pixel;
+{
+    unsigned char *destPtr = &(image->data[(y * image->bytes_per_line)
+	    + ((x * image->bits_per_pixel) / NBBY)]);
+    int i=0;
+	
+    switch  (image->bits_per_pixel) {
+	case 32:
+
+	    destPtr[i++] = 0;
+	case 24:
+
+	    destPtr[i++] = (unsigned char) ((pixel >> 16) & 0xff);
+	    destPtr[i++] = (unsigned char) ((pixel >> 8) & 0xff);
+	    destPtr[i++] = (unsigned char) (pixel & 0xff);
+	    break;
+    }
+    return 0;
+}
+#endif
 /*----------------------------------------------------------------------
  * TixpXpmAllocTmpBuffer --
  *
@@ -80,20 +115,26 @@ TixpXpmAllocTmpBuffer(masterPtr, instancePtr, imagePtr, maskPtr)
     /*
      * Create the XImage structures to store the temporary image
      */
-    image = XCreateImage(display,
-	Tk_Visual(instancePtr->tkwin),
-	depth, ZPixmap, 0, 0,
-	masterPtr->size[0], masterPtr->size[1], pad, 0);
+    image = XCreateImage(display, Tk_Visual(instancePtr->tkwin),
+	    (unsigned) depth, ZPixmap, 0, 0,
+	    (unsigned) masterPtr->size[0], (unsigned) masterPtr->size[1],
+	    pad, 0);
     image->data =
-      (char *)ckalloc(image->bytes_per_line * masterPtr->size[1]);
+      (char *)ckalloc((unsigned) image->bytes_per_line * masterPtr->size[1]);
+#ifdef MAC_OSX_TK
+    image->f.put_pixel = MacPutPixel;
+#endif
 
-    mask  = XCreateImage(display,
-	Tk_Visual(instancePtr->tkwin),
-	1, XYPixmap, 0, 0,
-	masterPtr->size[0], masterPtr->size[1], pad, 0);
+    mask  = XCreateImage(display, Tk_Visual(instancePtr->tkwin),
+	    1, XYPixmap, 0, 0,
+	    (unsigned) masterPtr->size[0], (unsigned) masterPtr->size[1],
+	    pad, 0);
 
     mask->data =
-      (char *)ckalloc(mask->bytes_per_line  * masterPtr->size[1]);
+	(char *)ckalloc((unsigned) mask->bytes_per_line  * masterPtr->size[1]);
+#ifdef MAC_OSX_TK
+    mask->f.put_pixel = MacPutPixel;
+#endif
 
     *imagePtr = image;
     *maskPtr = mask;
@@ -173,8 +214,9 @@ TixpXpmRealizePixmap(masterPtr, instancePtr, image, mask, isTransp)
 
     gc = Tk_GetGC(instancePtr->tkwin, 0, NULL);
 
-    XPutImage(display, instancePtr->pixmap,
-	gc, image, 0, 0, 0, 0, masterPtr->size[0], masterPtr->size[1]);
+    TkPutImage(0, 0, display, instancePtr->pixmap,
+	    gc, image, 0, 0, 0, 0,
+	    (unsigned) masterPtr->size[0], (unsigned) masterPtr->size[1]);
 
     Tk_FreeGC(display, gc);
 
@@ -186,8 +228,9 @@ TixpXpmRealizePixmap(masterPtr, instancePtr, image, mask, isTransp)
 	    Tk_WindowId(instancePtr->tkwin),
 	    masterPtr->size[0], masterPtr->size[1], 1);
 	gc = XCreateGC(display, dataPtr->mask, 0, NULL);
-	XPutImage(display, dataPtr->mask,
-	    gc, mask,  0, 0, 0, 0, masterPtr->size[0], masterPtr->size[1]);
+	TkPutImage(0, 0, display, dataPtr->mask,
+		gc, mask,  0, 0, 0, 0,
+		(unsigned) masterPtr->size[0], (unsigned) masterPtr->size[1]);
 	XFreeGC(display, gc);
     } else {
 	dataPtr->mask = None;

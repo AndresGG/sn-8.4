@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: CmpImg4.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -15,8 +19,8 @@ proc RunSample {w} {
     # Note that the -backpagecolor option belongs to the "nbframe"
     # subwidget.
     tixNoteBook $w.nb -ipadx 6 -ipady 6
-    $w config -bg gray
-    $w.nb subwidget nbframe config -backpagecolor gray -tabpady 0
+    # $w config -bg gray
+    # $w.nb subwidget nbframe config -backpagecolor gray -tabpady 0
 
     # Create the two compound images --
     #
@@ -115,7 +119,7 @@ proc CreateCommonButtons {w f} {
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
-    bind .demo <Destroy> exit
+    bind $w <Destroy> exit
 }

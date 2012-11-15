@@ -1,14 +1,16 @@
 /*
- * tixDiImgTxt.c --
+ * tixDiITxt.c --
  *
  *	This file implements one of the "Display Items" in the Tix library :
  *	Image-text display items.
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000-2001 Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tixDiITxt.c,v 1.6 2004/03/28 02:44:56 hobbs Exp $
  */
 
 #include <tixPort.h>
@@ -67,31 +69,27 @@ static Tk_ConfigSpec imageTextItemConfigSpecs[] = {
  *----------------------------------------------------------------------
  */
 
-
-#define SELECTED_BG SELECT_BG 
-#define DISABLED_BG DISABLED  
-
-#define DEF_IMAGETEXTSTYLE_NORMAL_FG_COLOR	BLACK
+#define DEF_IMAGETEXTSTYLE_NORMAL_FG_COLOR	NORMAL_FG
 #define DEF_IMAGETEXTSTYLE_NORMAL_FG_MONO	BLACK
-#define DEF_IMAGETEXTSTYLE_NORMAL_BG_COLOR	NORMAL_BG
+#define DEF_IMAGETEXTSTYLE_NORMAL_BG_COLOR	TIX_EDITOR_BG
 #define DEF_IMAGETEXTSTYLE_NORMAL_BG_MONO	WHITE
 
-#define DEF_IMAGETEXTSTYLE_ACTIVE_FG_COLOR	BLACK
+#define DEF_IMAGETEXTSTYLE_ACTIVE_FG_COLOR	NORMAL_FG
 #define DEF_IMAGETEXTSTYLE_ACTIVE_FG_MONO	WHITE
-#define DEF_IMAGETEXTSTYLE_ACTIVE_BG_COLOR	ACTIVE_BG
+#define DEF_IMAGETEXTSTYLE_ACTIVE_BG_COLOR	TIX_EDITOR_BG
 #define DEF_IMAGETEXTSTYLE_ACTIVE_BG_MONO	BLACK
 
-#define DEF_IMAGETEXTSTYLE_SELECTED_FG_COLOR	BLACK
+#define DEF_IMAGETEXTSTYLE_SELECTED_FG_COLOR	SELECT_FG
 #define DEF_IMAGETEXTSTYLE_SELECTED_FG_MONO	WHITE
-#define DEF_IMAGETEXTSTYLE_SELECTED_BG_COLOR	SELECTED_BG
+#define DEF_IMAGETEXTSTYLE_SELECTED_BG_COLOR	SELECT_BG
 #define DEF_IMAGETEXTSTYLE_SELECTED_BG_MONO	BLACK
 
 #define DEF_IMAGETEXTSTYLE_DISABLED_FG_COLOR	BLACK
 #define DEF_IMAGETEXTSTYLE_DISABLED_FG_MONO	BLACK
-#define DEF_IMAGETEXTSTYLE_DISABLED_BG_COLOR	DISABLED_BG
+#define DEF_IMAGETEXTSTYLE_DISABLED_BG_COLOR	TIX_EDITOR_BG
 #define DEF_IMAGETEXTSTYLE_DISABLED_BG_MONO	WHITE
 
-#define DEF_IMAGETEXTSTYLE_FONT	 CTL_FONT
+#define DEF_IMAGETEXTSTYLE_FONT	        CTL_FONT
 #define DEF_IMAGETEXTSTYLE_GAP		"4"
 #define DEF_IMAGETEXTSTYLE_PADX		"2"
 #define DEF_IMAGETEXTSTYLE_PADY		"2"
@@ -211,13 +209,14 @@ static void		Tix_ImageTextItemCalculateSize	_ANSI_ARGS_((
 static char *		Tix_ImageTextItemComponent  _ANSI_ARGS_((
 			    Tix_DItem * iPtr, int x, int y));
 static int		Tix_ImageTextItemConfigure _ANSI_ARGS_((
-			    Tix_DItem * iPtr, int argc, char ** argv,
+			    Tix_DItem * iPtr, int argc, CONST84 char ** argv,
 			    int flags));
 static Tix_DItem *	Tix_ImageTextItemCreate _ANSI_ARGS_((
 			    Tix_DispData * ddPtr, Tix_DItemInfo * diTypePtr));
 static void		Tix_ImageTextItemDisplay  _ANSI_ARGS_((
-			    Pixmap pixmap, GC gc, Tix_DItem * iPtr,
-			    int x, int y, int width, int height, int flag));
+			    Drawable drawable, Tix_DItem * iPtr,
+			    int x, int y, int width, int height,
+                            int xOffset, int yOffset, int flag));
 static void		Tix_ImageTextItemFree  _ANSI_ARGS_((
 			    Tix_DItem * iPtr));
 static void		Tix_ImageTextItemLostStyle  _ANSI_ARGS_((
@@ -225,7 +224,7 @@ static void		Tix_ImageTextItemLostStyle  _ANSI_ARGS_((
 static void		Tix_ImageTextItemStyleChanged  _ANSI_ARGS_((
 			    Tix_DItem * iPtr));
 static int		Tix_ImageTextStyleConfigure _ANSI_ARGS_((
-			    Tix_DItemStyle* style, int argc, char ** argv,
+			    Tix_DItemStyle* style, int argc, CONST84 char ** argv,
 			    int flags));
 static Tix_DItemStyle *	Tix_ImageTextStyleCreate _ANSI_ARGS_((
 			    Tcl_Interp *interp, Tk_Window tkwin,
@@ -289,7 +288,7 @@ static Tix_DItem * Tix_ImageTextItemCreate(ddPtr, diTypePtr)
     itPtr->imageW	= 0;
     itPtr->imageH	= 0;
 
-    itPtr->numChars	= 0;
+    itPtr->numChars	= 0;            /* TODO: this is currently not used */
     itPtr->text		= NULL;
     itPtr->textW	= 0;
     itPtr->textH	= 0;
@@ -321,7 +320,7 @@ static void Tix_ImageTextItemFree(iPtr)
 static int Tix_ImageTextItemConfigure(iPtr, argc, argv, flags)
     Tix_DItem * iPtr;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
     int flags;
 {
     TixImageTextItem * itPtr = (TixImageTextItem *) iPtr;
@@ -362,37 +361,75 @@ static int Tix_ImageTextItemConfigure(iPtr, argc, argv, flags)
 
     return TCL_OK;
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tix_ImageTextItemDisplay --
+ *
+ *      Display an imagetext item. {x, y, width, height} specifies a
+ *      region for to display this item in. {xOffset, yOffset} gives
+ *      the offset of the top-left corner of the text item relative
+ *      to the top-left corder of the region.
+ *
+ *      Background and foreground of the item are displayed according
+ *      to the flags parameter.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ * 
+ *----------------------------------------------------------------------
+ */
 
-static void Tix_ImageTextItemDisplay(pixmap, gc, iPtr, x, y,
-	width, height, flags)
-    Pixmap pixmap;
-    GC gc;
-    Tix_DItem * iPtr;
-    int x;
-    int y;
-    int width;
-    int height;
-    int flags;
+static void
+Tix_ImageTextItemDisplay(drawable, iPtr, x, y, width, height,
+        xOffset, yOffset, flags)
+    Drawable drawable;          /* Where to display this item */
+    Tix_DItem * iPtr;           /* Item to display */
+    int x;                      /* x pos of top-left corner of region
+                                 * to display item in */
+    int y;                      /* y pos of top-left corner of region */
+    int width;                  /* width of region */
+    int height;                 /* height of region */
+    int xOffset;                /* X offset of item within region */
+    int yOffset;                /* Y offset of item within region */
+    int flags;                  /* Controls how fg/bg/anchor lines are
+                                 * drawn */
 {
     TixImageTextItem *itPtr = (TixImageTextItem *)iPtr;
-    GC foreGC, backGC;
+    GC foreGC, bitmapGC;
     TixpSubRegion subReg;
+    Display * display = itPtr->ddPtr->display;
 
     if ((width <= 0) || (height <= 0)) {
 	return;
     }
 
-    TixGetColorDItemGC(iPtr, &backGC, &foreGC, flags);
-    TixpStartSubRegionDraw(itPtr->ddPtr->display, pixmap, foreGC,
-	    &subReg, 0, 0, x, y, width, height,
-	    itPtr->size[0], itPtr->size[1]);
-    TixDItemGetAnchor(itPtr->stylePtr->anchor, x, y, width, height,
-	itPtr->size[0], itPtr->size[1], &x, &y);
+    TixGetColorDItemGC(iPtr, NULL, &foreGC, NULL, flags);
 
-    if (backGC != None) {
-	TixpSubRegFillRectangle(itPtr->ddPtr->display, pixmap,
-		backGC, &subReg, x, y, width, height);
-    }
+    TixpStartSubRegionDraw(display, drawable, foreGC,
+	    &subReg, 0, 0, x, y, width, height,
+	    itPtr->size[0] + xOffset, itPtr->size[1] + yOffset);
+
+    Tix_DItemDrawBackground(drawable, &subReg, iPtr, x, y, width, height,
+           xOffset, yOffset, flags);
+
+    /*
+     * Calculate the location of the item body according to anchor settings.
+     */
+
+    TixDItemGetAnchor(iPtr->base.stylePtr->anchor, x, y, width, height,
+	    iPtr->base.size[0], iPtr->base.size[1], &x, &y);
+
+    x += xOffset;
+    y += yOffset;
+
+    /*
+     * Draw the foreground items
+     */
 
     if (itPtr->image != NULL) {
 	int bitY;
@@ -404,15 +441,15 @@ static void Tix_ImageTextItemDisplay(pixmap, gc, iPtr, x, y,
 	} else {
 	    bitY = 0;
 	}
-	if (itPtr->showImage) {
+	if (itPtr->showImage && foreGC != None) {
 	    TixpSubRegDrawImage(&subReg, itPtr->image, 0, 0,
-		    itPtr->imageW, itPtr->imageH, pixmap,
+		    itPtr->imageW, itPtr->imageH, drawable,
 		    x + itPtr->stylePtr->pad[0],
 		    y + itPtr->stylePtr->pad[1] + bitY);
 	}
 	x += itPtr->imageW + itPtr->stylePtr->gap;
     }
-    else if (itPtr->bitmap != None && foreGC != None) {
+    else if (itPtr->bitmap != None) {
 	int bitY;
 
 	bitY = itPtr->size[1] - itPtr->bitmapH - 2*itPtr->stylePtr->pad[1];
@@ -422,8 +459,24 @@ static void Tix_ImageTextItemDisplay(pixmap, gc, iPtr, x, y,
 	    bitY = 0;
 	}
 
-	if (itPtr->showImage) {
-	    TixpSubRegDrawBitmap(itPtr->ddPtr->display, pixmap, foreGC,
+	if (itPtr->showImage && foreGC != None) {
+            if ((flags & TIX_DITEM_ALL_BG) != 0) {
+                /*
+                 * If we draw the background, the bitmap is never
+                 * displayed as selected, so we choose the normal GC.
+                 */
+
+                bitmapGC = itPtr->stylePtr->colors[TIX_DITEM_NORMAL].foreGC;
+            } else {
+                /*
+                 * The caller has already drawn the background. foreGC
+                 * is the most compatible GC to be used with the background.
+                 */
+
+                bitmapGC = foreGC;
+            }
+
+	    TixpSubRegDrawBitmap(display, drawable, bitmapGC,
 		    &subReg, itPtr->bitmap, 0, 0,
 		    itPtr->bitmapW, itPtr->bitmapH,
 		    x + itPtr->stylePtr->pad[0],
@@ -443,8 +496,8 @@ static void Tix_ImageTextItemDisplay(pixmap, gc, iPtr, x, y,
 	    textY = 0;
 	}
 
-	TixpSubRegDisplayText(itPtr->ddPtr->display, pixmap,  foreGC, &subReg,
-		itPtr->stylePtr->font, itPtr->text, itPtr->numChars,
+	TixpSubRegDisplayText(display, drawable, foreGC, &subReg,
+		itPtr->stylePtr->font, itPtr->text, -1,
 		x + itPtr->stylePtr->pad[0],
 		y + itPtr->stylePtr->pad[1] + textY,
 		itPtr->textW,
@@ -452,19 +505,22 @@ static void Tix_ImageTextItemDisplay(pixmap, gc, iPtr, x, y,
 		itPtr->underline);
     }
 
-    TixpEndSubRegionDraw(itPtr->ddPtr->display, pixmap, foreGC,
+    TixpEndSubRegionDraw(display, drawable, foreGC,
 	    &subReg);
 }
 
-static void Tix_ImageTextItemCalculateSize(iPtr)
+static void
+Tix_ImageTextItemCalculateSize(iPtr)
     Tix_DItem * iPtr;
 {
     TixImageTextItem *itPtr = (TixImageTextItem *)iPtr;
+    char * text;
 
     itPtr->size[0] = 0;
     itPtr->size[1] = 0;
 
-    /* Note: the size of the image or the text are used even when
+    /*
+     * Note: the size of the image or the text are used even when
      * the showImage or showText options are off. These two options are 
      * used to "blank" the respective components temporarily without
      * affecting the geometry of the ditem. The main is to indicate
@@ -473,6 +529,7 @@ static void Tix_ImageTextItemCalculateSize(iPtr)
      * If you want the image or text to completely disappear, config them
      * to NULL
      */
+
     if (itPtr->image != NULL) {
 	Tk_SizeOfImage(itPtr->image, &itPtr->imageW, &itPtr->imageH);
 
@@ -487,21 +544,42 @@ static void Tix_ImageTextItemCalculateSize(iPtr)
 	itPtr->size[1] = itPtr->bitmapH;
     }
 
-    if (itPtr->text) {
-	itPtr->numChars = strlen(itPtr->text);
-	TixComputeTextGeometry(itPtr->stylePtr->font, itPtr->text,
-		itPtr->numChars, itPtr->stylePtr->wrapLength,
-		&itPtr->textW, &itPtr->textH);
+    text = itPtr->text;
+    if (text == NULL || text[0] == '\0') {
+        /*
+         * Use one space character so that the height of the item
+         * would be the same as a regular small item, and the width
+         * of the item won't be too tiny.
+         */
 
-	itPtr->size[0] += itPtr->textW;
+        text = " ";
+    }
+
+    TixComputeTextGeometry(itPtr->stylePtr->font, text,
+            -1, itPtr->stylePtr->wrapLength,
+            &itPtr->textW, &itPtr->textH);
+
+    itPtr->size[0] += itPtr->textW;
 	
-	if (itPtr->textH > itPtr->size[1]) {
-	    itPtr->size[1] = itPtr->textH;
-	}
+    if (itPtr->textH > itPtr->size[1]) {
+        itPtr->size[1] = itPtr->textH;
     }
 
     itPtr->size[0] += 2*itPtr->stylePtr->pad[0];
     itPtr->size[1] += 2*itPtr->stylePtr->pad[1];
+
+    itPtr->selX = 0;
+    itPtr->selY = 0;
+    itPtr->selW = itPtr->size[0];
+    itPtr->selH = itPtr->size[1];
+
+    if (itPtr->image != NULL) {
+        itPtr->selX = itPtr->imageW + itPtr->stylePtr->gap;
+        itPtr->selW -= itPtr->selX;
+    } else if (itPtr->bitmap != None) {
+        itPtr->selX = itPtr->bitmapW + itPtr->stylePtr->gap;
+        itPtr->selW -= itPtr->selX;
+    }
 }
 
 static char * Tix_ImageTextItemComponent(iPtr, x, y)
@@ -509,7 +587,7 @@ static char * Tix_ImageTextItemComponent(iPtr, x, y)
     int x;
     int y;
 {
-    /* Unimplemented */
+    /* TODO: Unimplemented */
 #if 0
     TixImageTextItem *itPtr = (TixImageTextItem *)iPtr;
 #endif
@@ -587,6 +665,7 @@ ImageProc(clientData, x, y, width, height, imgWidth, imgHeight)
  *
  *----------------------------------------------------------------------
  */
+
 static Tix_DItemStyle *
 Tix_ImageTextStyleCreate(interp, tkwin, diTypePtr, name)
     Tcl_Interp * interp;
@@ -594,7 +673,6 @@ Tix_ImageTextStyleCreate(interp, tkwin, diTypePtr, name)
     char * name;
     Tix_DItemInfo * diTypePtr;
 {
-    int i;
     TixImageTextStyle * stylePtr =
       (TixImageTextStyle *)ckalloc(sizeof(TixImageTextStyle));
 
@@ -602,16 +680,6 @@ Tix_ImageTextStyleCreate(interp, tkwin, diTypePtr, name)
     stylePtr->gap	 = 0;
     stylePtr->justify	 = TK_JUSTIFY_LEFT;
     stylePtr->wrapLength = 0;
-    stylePtr->pad[0]	 = 0;
-    stylePtr->pad[1]	 = 0;
-    stylePtr->anchor	 = TK_ANCHOR_CENTER;
-
-    for (i=0; i<4; i++) {
-	stylePtr->colors[i].bg = NULL;
-	stylePtr->colors[i].fg = NULL;
-	stylePtr->colors[i].backGC = None;
-	stylePtr->colors[i].foreGC = NULL;
-    }
 
     return (Tix_DItemStyle *)stylePtr;
 }
@@ -620,7 +688,7 @@ static int
 Tix_ImageTextStyleConfigure(style, argc, argv, flags)
     Tix_DItemStyle *style;
     int argc;
-    char ** argv;
+    CONST84 char ** argv;
     int flags;
 {
     TixImageTextStyle * stylePtr = (TixImageTextStyle *)style;
@@ -634,6 +702,10 @@ Tix_ImageTextStyleConfigure(style, argc, argv, flags)
 	isNew = 0;
     }
 
+    /*
+     * TODO: gap, wrapLength, etc changes: need to call TixDItemStyleChanged
+     */
+
     if (!(flags &TIX_DONT_CALL_CONFIG)) {
 	if (Tk_ConfigureWidget(stylePtr->interp, stylePtr->tkwin,
 	    imageTextStyleConfigSpecs,
@@ -646,7 +718,10 @@ Tix_ImageTextStyleConfigure(style, argc, argv, flags)
     gcValues.graphics_exposures = False;
 
     for (i=0; i<4; i++) {
-	/* Foreground */
+	/*
+         * Foreground GC
+         */
+
 	gcValues.background = stylePtr->colors[i].bg->pixel;
 	gcValues.foreground = stylePtr->colors[i].fg->pixel;
 	newGC = Tk_GetGC(stylePtr->tkwin,
@@ -658,7 +733,10 @@ Tix_ImageTextStyleConfigure(style, argc, argv, flags)
 	}
 	stylePtr->colors[i].foreGC = newGC;
 
-	/* Background */
+	/*
+         * Background GC
+         */
+
 	gcValues.foreground = stylePtr->colors[i].bg->pixel;
 	newGC = Tk_GetGC(stylePtr->tkwin,
 	    GCFont|GCForeground|GCGraphicsExposures, &gcValues);
@@ -668,6 +746,19 @@ Tix_ImageTextStyleConfigure(style, argc, argv, flags)
 		stylePtr->colors[i].backGC);
 	}
 	stylePtr->colors[i].backGC = newGC;
+
+        /*
+         * Anchor GC
+         */
+
+        newGC = Tix_GetAnchorGC(stylePtr->tkwin,
+                stylePtr->colors[i].bg);
+
+	if (stylePtr->colors[i].anchorGC != None) {
+	    Tk_FreeGC(Tk_Display(stylePtr->tkwin),
+		stylePtr->colors[i].anchorGC);
+	}
+	stylePtr->colors[i].anchorGC = newGC;
     }
 
     if (!isNew) {
@@ -681,16 +772,6 @@ static void Tix_ImageTextStyleFree(style)
     Tix_DItemStyle *style;
 {
     TixImageTextStyle * stylePtr = (TixImageTextStyle *)style;
-    int i;
-
-    for (i=0; i<4; i++) {
-	if (stylePtr->colors[i].backGC != None) {
-	    Tk_FreeGC(Tk_Display(stylePtr->tkwin), stylePtr->colors[i].backGC);
-	}
-	if (stylePtr->colors[i].foreGC != None) {
-	    Tk_FreeGC(Tk_Display(stylePtr->tkwin), stylePtr->colors[i].foreGC);
-	}
-    }
 
     Tk_FreeOptions(imageTextStyleConfigSpecs, (char *)stylePtr,
 	Tk_Display(stylePtr->tkwin), 0);

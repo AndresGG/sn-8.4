@@ -3,19 +3,22 @@
  *
  *	Implement the Windows specific function calls for drawing.
  *
- * Copyright (c) 1996, Expert Interface Technologies
+ * Copyright (c) 1993-1999 Ioi Kim Lam.
+ * Copyright (c) 2000      Tix Project Group.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
+ * $Id: tixWinDraw.c,v 1.5 2004/03/28 02:44:57 hobbs Exp $
  */
 
-#include <tkInt.h>
 #include <tkWinInt.h>
 #include <tixInt.h>
 #include <tixPort.h>
+
 
 /*----------------------------------------------------------------------
+ *
  * TixpDrawTmpLine --
  *
  *	Draws a "temporarily" line on the desktop window with XOR
@@ -23,6 +26,13 @@
  *	ResizeHandler to draw the rubberband lines. Calling the
  *	function again with the same parameters cancels the temporary
  *	lines without affecting what was originally on the screen.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None
+ *
  *----------------------------------------------------------------------
  */
 
@@ -54,10 +64,19 @@ TixpDrawTmpLine(x1, y1, x2, y2, tkwin)
     ReleaseDC(desktop, hdc);	
 }
 
-/*----------------------------------------------------------------------
+/*
+ *----------------------------------------------------------------------
+ *
  * TixpDrawAnchorLines --
  *
- *	See comments near Tix_DrawAnchorLines.
+ *	See comments near Tix_DrawAnchorLines in tixUtils.c.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None
+ *
  *----------------------------------------------------------------------
  */
 
@@ -73,34 +92,54 @@ TixpDrawAnchorLines(display, drawable, gc, x, y, w, h)
 {
     HDC hdc;
     TkWinDCState state;
-    HPEN hpen;
-    HGDIOBJ old;
+    RECT rect;
+
+    if (w < 2 || h < 2) {
+        /*
+         * Area too small to show effect. Don't bother
+         */
+	return;
+    }
 
     hdc = TkWinGetDrawableDC(display, drawable, &state);
-    hpen = CreatePen(PS_DOT, 1, gc->foreground);
-
-    old = SelectObject(hdc, hpen);
-    MoveToEx(hdc, x, y, NULL);
-    LineTo(hdc, x,     y+h-1);
-    LineTo(hdc, x+w-1, y+h-1);
-    LineTo(hdc, x+w-1, y);
-    LineTo(hdc, x,     y);
-
-    SelectObject(hdc, old);
-    DeleteObject(hpen);
-
+    rect.left   = x;
+    rect.top    = y;
+    rect.right  = x+w;
+    rect.bottom = y+h;
+    DrawFocusRect(hdc, &rect);
     TkWinReleaseDrawableDC(drawable, hdc, &state);
 }
 
-/*----------------------------------------------------------------------
+/*
+ *----------------------------------------------------------------------
+ *
  * TixpStartSubRegionDraw --
  *
- *	Limits the subsequent drawing operations into the prescribed
- *	rectangle region. This takes effect up to a matching
- *	TixEndSubRegionDraw() call.
+ *      This function is used by the Tix DItem code to implement
+ *      clipped rendering -- if a DItem is larger than the region
+ *      where the DItem is displayed (with the Tix_DItemDisplay
+ *      function), we clip the DItem so that all the rendering
+ *      happens inside the region.
  *
- * Return value:
- *	none.
+ *      This Win32 implementation is tricky (which explains why the
+ *      TixpSubRegDrawXXX API looks so arcane.) Tk does not support
+ *      a portable API for setting the clip region of a GC. We could
+ *      hack into Tk's Win32 implementation of GC to get the clipping
+ *      to work, but that may run into future incompatibilities.
+ *
+ *      For a clean and (almost) portable, albeit a bit slow,
+ *      implemetation of clipping, we allocate a pixmap when clipping
+ *      is required. All subsequent drawing goes into this
+ *      pixmap. When TixpEndSubRegionDraw is called we then copy from
+ *      the pixmap back to the destination drawable.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      A Tk pixmap may be created and saved into subRegPtr->pixmap in
+ *      for the clipped drawing operations.
+ *
  *----------------------------------------------------------------------
  */
 
@@ -152,7 +191,7 @@ TixpStartSubRegionDraw(display, drawable, gc, subRegPtr, origX, origY,
 	     * GDI resources.
 	     */
 	    XCopyArea(display, drawable, subRegPtr->pixmap, gc, x, y,
-		    width, height, 0, 0);
+		    (unsigned) width, (unsigned) height, 0, 0);
 	}
     } else {
 	subRegPtr->pixmap = None;
@@ -165,6 +204,7 @@ TixpStartSubRegionDraw(display, drawable, gc, subRegPtr, origX, origY,
  *
  *----------------------------------------------------------------------
  */
+
 void
 TixpEndSubRegionDraw(display, drawable, gc, subRegPtr)
     Display *display;
@@ -174,11 +214,29 @@ TixpEndSubRegionDraw(display, drawable, gc, subRegPtr)
 {
     if (subRegPtr->pixmap != None) {
 	XCopyArea(display, subRegPtr->pixmap, drawable, gc, 0, 0,
-		subRegPtr->width, subRegPtr->height,
+		(unsigned) subRegPtr->width, (unsigned) subRegPtr->height,
 		subRegPtr->x, subRegPtr->y);
 	Tk_FreePixmap(display, subRegPtr->pixmap);
 	subRegPtr->pixmap = None;
     }
+}
+
+void
+TixpSubRegSetClip(display, subRegPtr, gc)
+    Display *display;
+    TixpSubRegion * subRegPtr;
+    GC gc;
+{
+    /* Do nothing */
+}
+
+void
+TixpSubRegUnsetClip(display, subRegPtr, gc)
+    Display *display;
+    TixpSubRegion * subRegPtr;
+    GC gc;
+{
+    /* Do nothing */
 }
 
 /*
@@ -207,7 +265,7 @@ TixpSubRegDisplayText(display, drawable, gc, subRegPtr, font, string,
     TixpSubRegion * subRegPtr;	/* Information about the subregion */
     TixFont font;		/* Font that determines geometry of text
 				 * (should be same as font in gc). */
-    char *string;		/* String to display;  may contain embedded
+    CONST84 char *string;	/* String to display;  may contain embedded
 				 * newlines. */
     int numChars;		/* Number of characters to use from string. */
     int x, y;			/* Pixel coordinates within drawable of
@@ -249,7 +307,7 @@ TixpSubRegFillRectangle(display, drawable, gc, subRegPtr, x, y, width, height)
 {
     if (subRegPtr->pixmap != None) {
 	XFillRectangle(display, subRegPtr->pixmap, gc,
-		x - subRegPtr->x, y - subRegPtr->x, width, height);
+		x - subRegPtr->x, y - subRegPtr->y, width, height);
     } else {
 	XFillRectangle(display, drawable, gc, x, y, width, height);
     }
@@ -275,13 +333,18 @@ TixpSubRegDrawImage(subRegPtr, image, imageX, imageY, width, height,
     int drawableX;
     int drawableY;
 {
+    Drawable dest;
+
     if (subRegPtr->pixmap != None) {
-	Tk_RedrawImage(image, imageX, imageY, width, height, subRegPtr->pixmap,
-	        drawableX - subRegPtr->x, drawableY - subRegPtr->y);
+        dest = subRegPtr->pixmap;
+        drawableX -= subRegPtr->x;
+        drawableY -= subRegPtr->y;
     } else {
-	Tk_RedrawImage(image, imageX, imageY, width, height, drawable,
-	        drawableX, drawableY);
+        dest = drawable;
     }
+
+    Tk_RedrawImage(image, imageX, imageY, width, height, dest,
+	    drawableX, drawableY);
 }
 
 void
@@ -307,4 +370,44 @@ TixpSubRegDrawBitmap(display, drawable, gc, subRegPtr, bitmap, src_x, src_y,
 	        dest_x, dest_y, plane);
     }
     XSetClipOrigin(display, gc, 0, 0);
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TixpSubRegDrawAnchorLines --
+ *
+ *	Draw anchor lines inside the given sub region.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+TixpSubRegDrawAnchorLines(display, drawable, gc, subRegPtr, x, y, w, h)
+    Display *display;           /* Display to draw on. */
+    Drawable drawable;          /* Drawable to draw on. */
+    GC gc;                      /* Use the foreground color of this GC. */
+    TixpSubRegion * subRegPtr;  /* Describes the subregion. */
+    int x;                      /* x pos of top-left corner of anchor rect */
+    int y;                      /* y pos of top-left corner of anchor rect */
+    int w;                      /* width of anchor rect */
+    int h;                      /* height of anchor rect */
+{
+    Drawable dest;
+
+    if (subRegPtr->pixmap != None) {
+        dest = subRegPtr->pixmap;
+        x -= subRegPtr->x;
+        y -= subRegPtr->y;
+    } else {
+        dest = drawable;
+    }
+
+    TixpDrawAnchorLines(display, dest, gc, x, y, w, h);
 }

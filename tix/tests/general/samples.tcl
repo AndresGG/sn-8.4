@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: samples.tcl,v 1.3 2002/11/13 21:12:18 idiscovery Exp $
+#
 # samples.tcl --
 #
 #	Tests all the sample programs in the demo/samples directory.
@@ -29,7 +33,7 @@ proc Test {} {
 	}
     }
 
-    if ![info exists samples_dir] {
+    if {![info exists samples_dir]} {
 	puts "Cannot find demos directory. Sample tests are skipped"
 	return
     } else {
@@ -37,15 +41,15 @@ proc Test {} {
     }
 
     TestBlock samples-1.1 "Running widget demo" {
-	if [file exists $demo_dir/widget] {
-	    uplevel #0 source [list $demo_dir/widget]
-	    Widget:SelfTest
+	if {[file exists [set file [file join $demo_dir tixwidgets.tcl]]]} {
+	    uplevel #0 [list source $file]
+	    tixDemo:SelfTest
 	}
     }
-    if ![file exists $samples_dir/AllSampl.tcl] {
+    if {![file exists [set file [file join $samples_dir AllSampl.tcl]]]} {
 	return
     }
-    uplevel #0 source [list $samples_dir/AllSampl.tcl]
+    uplevel #0 [list source $file]
 
     ForAllSamples root "" Test_Sample
 }

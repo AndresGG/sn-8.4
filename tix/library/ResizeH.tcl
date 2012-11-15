@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: ResizeH.tcl,v 1.3 2001/12/09 05:04:02 idiscovery Exp $
+#
 # ResizeH.tcl --
 #
 #	tixResizeHandle: A general purpose "resizing handle"
@@ -6,7 +10,8 @@
 #	command to attach it to a widget and it will handle all the
 #	events for you.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -185,7 +190,7 @@ proc tixResizeHandle:dragstart {w win depress rootx rooty mrect} {
 #	Delete the bindtag(s) in the args list from the bindtags of the widget
 #
 proc tixDeleteBindTag {w args} {
-    if ![winfo exists $w] {
+    if {![winfo exists $w]} {
 	return
     }
     set newtags ""
@@ -359,9 +364,14 @@ proc tixResizeHandle:BRelease {w isAbort rx ry} {
 proc tixResizeHandle:DrawTmpLines {w} {
     upvar #0 $w data
 
+    # I've seen this error - mike
+    if {![info exists data(hf:x1)]} {return}
     set x1 $data(hf:x1)
+    if {![info exists data(hf:y1)]} {return}
     set y1 $data(hf:y1)
+    if {![info exists data(hf:x2)]} {return}
     set x2 $data(hf:x2)
+    if {![info exists data(hf:y2)]} {return}
     set y2 $data(hf:y2)
 
     tixTmpLine $x1 $y1 $x2 $y1 $w

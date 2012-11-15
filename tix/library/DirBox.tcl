@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: DirBox.tcl,v 1.4 2004/03/28 02:44:57 hobbs Exp $
+#
 # DirBox.tcl --
 #
 #	Implements the tixDirSelectBox widget.
@@ -5,7 +9,9 @@
 # 	   - overrides the -browsecmd and -command options of the
 #	     HList subwidget
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
+# Copyright (c) 2004 ActiveState
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -32,7 +38,7 @@ tixWidgetClass tixDirSelectBox {
 	{*combo*listbox.height 		5}
 	{*combo.label.anchor		w}
 	{*combo.labelSide		top}
-	{*combo.hostory			true}
+	{*combo.history			true}
 	{*combo.historyLimit		20}
     }
 }
@@ -52,8 +58,8 @@ proc tixDirSelectBox:ConstructWidget {w} {
     pack $data(w:dircbx) -side top -fill x -padx 4 -pady 2
     pack $data(w:dirlist) -side top -fill both -expand yes -padx 4 -pady 2
 
-    if ![string comp $data(-value) ""] {
-	set data(-value) [tixFSPWD]
+    if {$data(-value) eq ""} {
+	set data(-value) [pwd]
     }
 }
 
@@ -62,9 +68,9 @@ proc tixDirSelectBox:SetBindings {w} {
 
     tixChainMethod $w SetBindings
 
-    $data(w:dircbx) config -command "tixDirSelectBox:Cmd-DirCbx $w"
-    $data(w:dirlist) config -command "tixDirSelectBox:Cmd-DirList $w"\
-	-browsecmd "tixDirSelectBox:Browse-DirList $w"
+    $data(w:dircbx) config -command [list tixDirSelectBox:Cmd-DirCbx $w]
+    $data(w:dirlist) config -command [list tixDirSelectBox:Cmd-DirList $w]\
+	-browsecmd [list tixDirSelectBox:Browse-DirList $w]
 }
 
 #----------------------------------------------------------------------
@@ -81,60 +87,46 @@ proc tixDirSelectBox:Cmd-DirCbx {w args} {
     set path [lindex $fInfo 0]
 
     if {![file exists $path]} {
-	tk_dialog .tix_error "" "Directory \"$path\" does not exist." \
-	    error 0 Ok
-	$data(w:dircbx) config \
-	    -text [tixFSDisplayName [tixFSNormDir $data(-value)]] \
-	    -directory $data(-value)
-	return
-
-	#
-	# The following code is not used because directories cannot be created
-	# on Windows
-	#
-
 	# 1.1 Check for validity. The pathname cannot contain invalid chars
 	#
-	if ![tixFSIsValid $path] {
-	    tk_dialog .tix_error "Error" \
-		"\"$path\" is not a valid directory name" \
-		error 0 Ok
+	if {![tixFSIsValid $path]} {
+	    tk_messageBox -title "Invalid Directory" \
+		-type ok -icon error \
+		-message "\"$path\" is not a valid directory name"
 	    $data(w:dircbx) config \
-		-text [tixFSDisplayName [tixFSNormDir $data(-value)]] \
+		-text [tixFSDisplayName [file normalize $data(-value)]] \
 		-directory $data(-value)
 	    return
 	}
 
 	# 1.2 Prompt for creation
 	#
-	set choice [tk_dialog .tix_error "" \
-	    "Directory \"$path\" does not exist. Do you want to create it?" \
-	    question 1 Yes No]
-	if {$choice == 1} {
+	set choice [tk_messageBox -title "Create Directory?" \
+			-type yesno -icon question \
+			-message "Directory \"$path\" does not exist.\
+			\nDo you want to create it?"]
+	if {$choice eq "yes"
+	    && [catch {file mkdir [file dirname $path]} err]} {
+	    tk_messageBox -title "Error Creating Directory" \
+		-icon error -type ok \
+		-message "Cannot create directory \"$path\":\n$err"
+	    set choice "no"
+	}
+	if {$choice eq "no"} {
 	    $data(w:dircbx) config \
-		-text [tixFSDisplayName [tixFSNormDir $data(-value)]] \
+		-text [tixFSDisplayName [file normalize $data(-value)]] \
 		-directory $data(-value)
 	    return
-	} else {
-	    if ![tixFSCreateDirs $path] {
-		tk_dialog .tix_error "Error" \
-		    "Cannot create directory \"$path\". Permission denied" \
-		    error 0 Ok
-		$data(w:dircbx) config \
-		    -text [tixFSDisplayName [tixFSNormDir $data(-value)]] \
-		    -directory $data(-value)
-		return
-	    }
-	    tixDirSelectBox:SetValue $w $path 1 1
 	}
+	tixDirSelectBox:SetValue $w $path 1 1
     } elseif {![file isdirectory $path]} {
 	# 2.1: Can't choose a non-directory file
 	#
-	tk_dialog .tix_error "Error" \
-	    "\"$path\" is not a directory." \
-	    error 0 Ok
+	tk_messageBox -title "Invalid Directory" \
+	    -type ok -icon error \
+	    -message "\"$path\" is not a directory"
 	$data(w:dircbx) config \
-	    -text [tixFSDisplayName [tixFSNormDir $data(-value)]] \
+	    -text [tixFSDisplayName [file normalize $data(-value)]] \
 	    -directory $data(-value)
 	return
     } else {
@@ -151,10 +143,8 @@ proc tixDirSelectBox:Cmd-DirList {w args} {
     upvar #0 $w data
 
     set dir $data(-value)
-    catch {
-	set dir [tixEvent flag V]
-    }
-    set dir [tixFSNormDir $dir]
+    catch {set dir [tixEvent flag V]}
+    set dir [tixFSNormalize $dir]
     tixDirSelectBox:SetValue $w $dir 0 0
 }
 
@@ -165,10 +155,8 @@ proc tixDirSelectBox:Browse-DirList {w args} {
     upvar #0 $w data
 
     set dir $data(-value)
-    catch {
-	set dir [tixEvent flag V]
-    }
-    set dir [tixFSNormDir $dir]
+    catch {set dir [tixEvent flag V]}
+    set dir [tixFSNormalize $dir]
     tixDirSelectBox:SetValue $w $dir 0 0
 }
 
@@ -177,8 +165,8 @@ proc tixDirSelectBox:Browse-DirList {w args} {
 #----------------------------------------------------------------------
 proc tixDirSelectBox:config-value {w value} {
     upvar #0 $w data
-    set value [tixFSNormDir $value]
 
+    set value [tixFSNormalize $value]
     tixDirSelectBox:SetValue $w $value 1 1
     return $value
 }
@@ -203,14 +191,13 @@ proc tixDirSelectBox:SetValue {w dir callback setlist} {
     upvar #0 $w data
 
     set data(-value) $dir
-    $data(w:dircbx) config -text [tixFSDisplayName $dir] \
-	-directory [tixFSDisplayName $dir] 
+    $data(w:dircbx) config -text [tixFSDisplayName $dir] -directory $dir
     if {$setlist && [file isdirectory $dir]} {
 	tixSetSilent $data(w:dirlist) $dir
     }
 
     if {$callback} {
-	if {!$data(-disablecallback) && ![tixStrEq $data(-command) ""]} {
+	if {!$data(-disablecallback) && [llength $data(-command)]} {
 	    set bind(specs) {%V}
 	    set bind(%V)    $data(-value)
 

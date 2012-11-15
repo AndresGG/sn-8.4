@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: DirTree.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -6,7 +10,7 @@
 # at the end of this file so that it can be run as a standalone
 # program using tixwish.
 
-# This file demonstrates the use of the tixDirList widget -- you can
+# This file demonstrates the use of the tixDirTree widget -- you can
 # use it for the user to select a directory. For example, an installation
 # program can use the tixDirList widget to ask the user to select the
 # installation directory for an application.
@@ -71,7 +75,7 @@ proc dtree:copy_name {w} {
 proc dtree:okcmd {w} {
     global demo_dtree_dir
 
-    puts "You have selected the directory $demo_dtree_dir"
+    tixDemo:Status "You have selected the directory $demo_dtree_dir"
 
     destroy $w
 }
@@ -82,7 +86,7 @@ proc dtree:okcmd {w} {
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
-    bind .demo <Destroy> "exit"
+    bind $w <Destroy> "exit"
 }

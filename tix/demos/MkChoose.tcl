@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: MkChoose.tcl,v 1.4 2004/03/28 02:44:56 hobbs Exp $
+#
 # MkChoose.tcl --
 #
 #	This file implements the "Choosers" page in the widget demo
@@ -14,8 +18,6 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-
-
 
 proc MkChoosers {nb page} {
     set w [$nb subwidget $page]
@@ -111,10 +113,10 @@ proc stCmd {w by value} {
 
     set index [lsearch $states $value]
     set len   [llength $states]
-    set index [expr $index + $by]
-	       
+    set index [expr {$index + $by}]
+
     if {$index < 0} {
-	set index [expr $len -1]
+	set index [expr {$len -1}]
     }
     if {$index >= $len} {
 	set index 0
@@ -143,9 +145,9 @@ proc MkControl {w} {
     tixControl $w.simple -label Numbers
 
     tixControl $w.spintext -label States \
-	-incrcmd "stCmd $w.spintext 1" \
-	-decrcmd "stCmd $w.spintext -1" \
-	-validatecmd "stValidate .d" \
+	-incrcmd [list stCmd $w.spintext 1] \
+	-decrcmd [list stCmd $w.spintext -1] \
+	-validatecmd [list stValidate .d] \
 	-value "Alabama"
 
     pack $w.simple $w.spintext -side top -padx 5 -pady 3
@@ -207,7 +209,7 @@ proc MkOptMenu {w} {
 proc MkFileEnt {w} {
     set name [tixOptionName $w]
 
-    message $w.msg -font -*-helvetica-bold-r-normal-*-14-*-*-*-*-*-*-*\
+    message $w.msg \
 	-relief flat -width 240 -anchor n\
 	-text {Press the "open file" icon button and a\
 TixFileSelectDialog will popup.}
@@ -221,7 +223,7 @@ TixFileSelectDialog will popup.}
 proc MkFileBox {w} {
     set name [tixOptionName $w]
 
-    message $w.msg -font -*-helvetica-bold-r-normal-*-14-*-*-*-*-*-*-*\
+    message $w.msg \
 	-relief flat -width 240 -anchor n\
 	-text {The TixFileSelectBox is Motif-style file selection\
 box with various enhancements. For example, you can adjust the\
@@ -240,10 +242,9 @@ proc MkToolBar {w} {
     set name [tixOptionName $w]
 
     option add $name*TixSelect*frame.borderWidth 1
-    message $w.msg -font -*-helvetica-bold-r-normal-*-14-*-*-*-*-*-*-*\
-	-relief flat -width 240 -anchor n\
+    message $w.msg -relief flat -width 240 -anchor n\
 	-text {The Select widget is also good for arranging buttons\
-in a tool bar.}
+		   in a tool bar.}
 
     frame $w.bar -bd 2 -relief raised
     tixSelect $w.font -allowzero true  -radio false -label {}
@@ -270,10 +271,10 @@ proc MkTitle {w} {
     set name [tixOptionName $w]
 
     option add $name*TixSelect*frame.borderWidth 1
-    message $w.msg -font -*-helvetica-bold-r-normal-*-14-*-*-*-*-*-*-*\
+    message $w.msg \
 	-relief flat -width 240 -anchor n\
 	-text {There are many types of "choose" widgets that allow\
-the user to input different type of information.}
+		   the user to input different type of information.}
 
     pack $w.msg -side top -expand yes -fill both -padx 3 -pady 3
 }

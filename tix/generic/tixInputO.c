@@ -1,3 +1,6 @@
+
+/*	$Id: tixInputO.c,v 1.4 2008/02/28 04:05:29 hobbs Exp $	*/
+
 /* 
  * tixInputO.c --
  *
@@ -15,6 +18,7 @@
 #include <tixPort.h>
 #include <tix.h>
 
+#ifndef MAC_OSX_TK
 /*
  * A data structure of the following type is kept for each
  * widget managed by this file:
@@ -76,13 +80,13 @@ static Tk_ConfigSpec configSpecs[] = {
 static void		WidgetCmdDeletedProc _ANSI_ARGS_((
 			    ClientData clientData));
 static int		WidgetConfigure _ANSI_ARGS_((Tcl_Interp *interp,
-			    WidgetPtr wPtr, int argc, char **argv,
+			    WidgetPtr wPtr, int argc, CONST84 char **argv,
 			    int flags));
 static void		WidgetDestroy _ANSI_ARGS_((ClientData clientData));
 static void		WidgetEventProc _ANSI_ARGS_((ClientData clientData,
 			    XEvent *eventPtr));
 static int		WidgetCommand _ANSI_ARGS_((ClientData clientData,
-			    Tcl_Interp *, int argc, char **argv));
+			    Tcl_Interp *, int argc, CONST84 char **argv));
 static void		Tix_MakeInputOnlyWindowExist _ANSI_ARGS_((
 			    WidgetPtr wPtr));
 
@@ -178,9 +182,9 @@ Tix_InputOnlyCmd(clientData, interp, argc, argv)
 				 * interpreter. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
-    Tk_Window main = (Tk_Window) clientData;
+    Tk_Window mainwin = (Tk_Window) clientData;
     WidgetPtr wPtr;
     Tk_Window tkwin;
 
@@ -190,7 +194,7 @@ Tix_InputOnlyCmd(clientData, interp, argc, argv)
 	return TCL_ERROR;
     }
 
-    tkwin = Tk_CreateWindowFromPath(interp, main, argv[1], (char *) NULL);
+    tkwin = Tk_CreateWindowFromPath(interp, mainwin, argv[1], (char *) NULL);
     if (tkwin == NULL) {
 	return TCL_ERROR;
     }
@@ -220,7 +224,7 @@ Tix_InputOnlyCmd(clientData, interp, argc, argv)
 	return TCL_ERROR;
     }
 
-    interp->result = Tk_PathName(wPtr->tkwin);
+    Tcl_SetResult(interp, Tk_PathName(wPtr->tkwin), TCL_STATIC);
     return TCL_OK;
 }
 
@@ -246,11 +250,11 @@ WidgetCommand(clientData, interp, argc, argv)
     ClientData clientData;		/* Information about the widget. */
     Tcl_Interp *interp;			/* Current interpreter. */
     int argc;				/* Number of arguments. */
-    char **argv;			/* Argument strings. */
+    CONST84 char **argv;		/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int result = TCL_OK;
-    int length;
+    size_t length;
     char c;
 
     if (argc < 2) {
@@ -306,7 +310,7 @@ WidgetCommand(clientData, interp, argc, argv)
  *
  * Results:
  *	The return value is a standard Tcl result.  If TCL_ERROR is
- *	returned, then interp->result contains an error message.
+ *	returned, then interp's result contains an error message.
  *
  * Side effects:
  *	Configuration information, such as colors, border width,
@@ -320,7 +324,7 @@ WidgetConfigure(interp, wPtr, argc, argv, flags)
     Tcl_Interp *interp;			/* Used for error reporting. */
     WidgetPtr wPtr;			/* Information about widget. */
     int argc;				/* Number of valid entries in argv. */
-    char **argv;			/* Arguments. */
+    CONST84 char **argv;		/* Arguments. */
     int flags;				/* Flags to pass to
 					 * Tk_ConfigureWidget. */
 {
@@ -439,3 +443,4 @@ WidgetCmdDeletedProc(clientData)
 	Tk_DestroyWindow(tkwin);
     }
 }
+#endif

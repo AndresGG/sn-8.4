@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: MkScroll.tcl,v 1.3 2001/12/09 05:34:59 idiscovery Exp $
+#
 # MkScroll.tcl --
 #
 #	This file implements the "Scrolled Widgets" page in the widget demo
@@ -41,7 +45,7 @@ proc MkSList {w} {
     frame $w.top -width 300 -height 330
     frame $w.bot
 
-    message $w.top.msg -font -*-helvetica-bold-r-normal-*-14-*-*-*-*-*-*-*\
+    message $w.top.msg \
 	-relief flat -width 200 -anchor n\
 	-text {This TixScrolledListBox is configured so that it uses\
 scrollbars only when it is necessary. Use the handles to\
@@ -58,7 +62,7 @@ appear and disappear.}
     $list subwidget listbox insert end Pennsylvania
     $list subwidget listbox insert end Washington
 
-    set rh [tixResizeHandle $w.top.r -bg #202060 -relief raised \
+    set rh [tixResizeHandle $w.top.r -relief raised \
 	    -handlesize 8 -gridded true -minwidth 50 -minheight 30]
 
     button $w.bot.btn -text Reset -command "SList:Reset $rh $list"
@@ -85,7 +89,7 @@ proc MkSWindow {w} {
     frame $w.top -width 330 -height 330
     frame $w.bot
 
-    message $w.top.msg -font -*-helvetica-bold-r-normal-*-14-*-*-*-*-*-*-*\
+    message $w.top.msg \
 	-relief flat -width 200 -anchor n\
 	-text {The TixScrolledWindow widget allows you\
 to scroll any kind of TK widget. It is more versatile\
@@ -100,7 +104,7 @@ than a scrolled canvas widget}
     pack $f.b1 -expand yes -fill both
 
     place $win -x 30 -y 150 -width 190 -height 120
-    set rh [tixResizeHandle $w.top.r -bg #202060 -relief raised \
+    set rh [tixResizeHandle $w.top.r -relief raised \
 	    -handlesize 8 -gridded true -minwidth 50 -minheight 30]
 
     button $w.bot.btn -text Reset -command "SWindow:Reset $rh $win"
@@ -126,7 +130,7 @@ proc MkSText {w} {
     frame $w.top -width 330 -height 330
     frame $w.bot
 
-    message $w.top.msg -font -*-helvetica-bold-r-normal-*-14-*-*-*-*-*-*-*\
+    message $w.top.msg \
 	-relief flat -width 200 -anchor n\
 	-text {The TixScrolledWindow widget allows you\
 to scroll any kind of TK widget. It is more versatile\
@@ -136,7 +140,7 @@ than a scrolled canvas widget}
     $win subwidget text config -wrap none
 
     place $win -x 30 -y 150 -width 190 -height 100
-    set rh [tixResizeHandle $w.top.r -bg #202060 -relief raised \
+    set rh [tixResizeHandle $w.top.r -relief raised \
 	    -handlesize 8 -gridded true -minwidth 50 -minheight 30]
 
     button $w.bot.btn -text Reset -command "SText:Reset $rh $win"

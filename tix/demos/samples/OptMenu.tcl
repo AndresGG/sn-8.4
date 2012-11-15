@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: OptMenu.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -81,7 +85,7 @@ proc RunSample {w} {
 proc opt:okcmd {w} {
     global demo_opt_from demo_opt_to opt_labels
 
-    puts "You wanted to convert file from $opt_labels($demo_opt_from) to $opt_labels($demo_opt_to)"
+    tixDemo:Status "You wanted to convert file from $opt_labels($demo_opt_from) to $opt_labels($demo_opt_to)"
 
     destroy $w
 }
@@ -93,7 +97,7 @@ proc opt:okcmd {w} {
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
-	bind $w <Destroy> {if {"%W" == ".demo"} exit}
+    bind $w <Destroy> {if {"%W" == ".demo"} exit}
 }

@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: Select.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -91,12 +95,12 @@ proc RunSample {w} {
 proc sel:cmd {w} {
     global sel_font sel_just
 
-    puts "The justification is $sel_just"
+    tixDemo:Status "The justification is $sel_just"
 
     if {$sel_font == {}} {
-	puts "The font is normal"
+	tixDemo:Status "The font is normal"
     } else {
-	puts "The font is $sel_font"
+	tixDemo:Status "The font is $sel_font"
     }
 
 }
@@ -104,7 +108,7 @@ proc sel:cmd {w} {
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
     bind .demo <Destroy> exit
 }

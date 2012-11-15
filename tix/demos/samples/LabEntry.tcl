@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: LabEntry.tcl,v 1.3 2001/12/09 05:31:07 idiscovery Exp $
+#
 # Tix Demostration Program
 #
 # This sample program is structured in such a way so that it can be
@@ -71,7 +75,7 @@ proc RunSample {w} {
 proc labe:okcmd {w} {
     global lent_demo_maker lent_demo_thrust lent_demo_num_engins
 
-    puts "You selected $lent_demo_num_engins engin(s) of thrust $lent_demo_thrust made \
+    tixDemo:Status "You selected $lent_demo_num_engins engin(s) of thrust $lent_demo_thrust made \
 by $lent_demo_maker"
 
     destroy $w
@@ -84,7 +88,7 @@ by $lent_demo_maker"
 if {![info exists tix_demo_running]} {
     wm withdraw .
     set w .demo
-    toplevel $w
+    toplevel $w; wm transient $w ""
     RunSample $w
-	bind $w <Destroy> exit
+    bind $w <Destroy> exit
 }

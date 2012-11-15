@@ -1,8 +1,13 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: SText.tcl,v 1.4 2001/12/09 05:04:02 idiscovery Exp $
+#
 # SText.tcl --
 #
 #	This file implements Scrolled Text widgets
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -23,16 +28,7 @@ tixWidgetClass tixScrolledText {
     }
     -default {
 	{.scrollbar			both}
-	{*borderWidth			1}
-	{*text.background		#c3c3c3}
-	{*text.highlightBackground	#d9d9d9}
-	{*text.relief			sunken}
-	{*text.takeFocus		1}
-	{*Scrollbar.background		#d9d9d9}
-	{*Scrollbar.relief		sunken}
-	{*Scrollbar.troughColor		#c3c3c3}
 	{*Scrollbar.takeFocus		0}
-	{*Scrollbar.width		15}
     }
     -forcecall {
 	-scrollbar
@@ -53,7 +49,7 @@ proc tixScrolledText:ConstructWidget {w} {
 	[scrollbar $w.vsb -orient vertical]
 
     if {$data(-sizebox) && $tcl_platform(platform) == "windows"} {
-        set data(w:sizebox) [ide_sizebox $w.sizebox]
+#       set data(w:sizebox) [ide_sizebox $w.sizebox]
     }
 
     set data(pw:client) $data(w:text)

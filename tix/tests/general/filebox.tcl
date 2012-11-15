@@ -1,3 +1,7 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: filebox.tcl,v 1.2 2002/11/13 21:12:18 idiscovery Exp $
+#
 # filebox.tcl --
 #
 #	Tests the File selection box and dialog widget.

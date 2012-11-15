@@ -1,9 +1,14 @@
+# -*- mode: TCL; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: SWidget.tcl,v 1.5 2002/01/24 09:13:58 idiscovery Exp $
+#
 # SWidget.tcl --
 #
 # 	tixScrolledWidget: virtual base class. Do not instantiate
 #	This is the core class for all scrolled widgets.
 #
-# Copyright (c) 1996, Expert Interface Technologies
+# Copyright (c) 1993-1999 Ioi Kim Lam.
+# Copyright (c) 2000-2001 Tix Project Group.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -458,50 +463,3 @@ proc tixScrolledWidget:CheckScrollbars {w scbW scbH} {
     return "$needX$needY"
 }
 
-#----------------------------------------------------------------------
-# Following is a bunch of crap. Not needed in TK 4.0.
-#----------------------------------------------------------------------
-
-#----------------------------------------------------------------------
-# Keyboard events -
-#
-#	Raw event handlers: redirect binding events to class methods
-#
-proc tixScrolledWidget:RawUpKey {w} {
-    tixCallMethod $w HandleLineUp
-}
-
-proc tixScrolledWidget:RawDownKey {w} {
-    tixCallMethod $w HandleLineDown
-}
-
-proc tixScrolledWidget:RawLeftKey {w} {
-    tixCallMethod $w HandleLeftKey
-}
-
-proc tixScrolledWidget:RawRightKey {w} {
-    tixCallMethod $w HandleRightKey
-}
-
-proc tixScrolledWidget:RawPriorKey {w} {
-    tixCallMethod $w HandlePageUp
-}
-
-proc tixScrolledWidget:RawNextKey {w} {
-    tixCallMethod $w HandlePageDown
-}
-
-# Virtual event handlers: subclasses can derive from these functions
-#
-
-proc tixScrolledWidget:HandleLineUp {w} {}
-
-proc tixScrolledWidget:HandleLineDown {w} {}
-
-proc tixScrolledWidget:HandlePageUp {w} {}
-
-proc tixScrolledWidget:HandlePageDown {w} {}
-
-proc tixScrolledWidget:HandleLeftKey {w} {}
-
-proc tixScrolledWidget:HandleRightKey {w} {}

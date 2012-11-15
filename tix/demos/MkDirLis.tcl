@@ -1,3 +1,7 @@
+# -*-mode: tcl; fill-column: 75; tab-width: 8; coding: iso-latin-1-unix -*-
+#
+#	$Id: MkDirLis.tcl,v 1.4 2004/03/28 02:44:56 hobbs Exp $
+#
 # MkDirLis.tcl --
 #
 #	This file implements the "Directory List" page in the widget demo
@@ -33,11 +37,11 @@ proc MkDirList {nb page} {
 proc MkDirListWidget {w} {
     set name [tixOptionName $w]
 
-    message $w.msg -font -*-helvetica-bold-r-normal-*-14-*-*-*-*-*-*-*\
+    message $w.msg \
 	-relief flat -width 240 -anchor n\
-	-text {The TixDirList widget gives a graphical representation of \
-the file system directory and makes it easy for the user to choose and \
-access directories.}
+	-text "The TixDirList widget gives a graphical representation of\
+		the file system directory and makes it easy for the user\
+		to choose and access directories."
 
     tixDirList $w.dirlist -options {
 	hlist.padY 1
@@ -52,10 +56,10 @@ access directories.}
 proc MkExFileWidget {w} {
     set name [tixOptionName $w]
 
-    message $w.msg -font -*-helvetica-bold-r-normal-*-14-*-*-*-*-*-*-*\
+    message $w.msg \
 	-relief flat -width 240 -anchor n\
 	-text {The TixExFileSelectBox widget is more user friendly \
-than the Motif style FileSelectBox.}
+		   than the Motif style FileSelectBox.}
 
     tixExFileSelectBox $w.exfsbox -bd 2 -relief raised
 

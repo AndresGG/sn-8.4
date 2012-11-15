@@ -1,3 +1,6 @@
+
+/*	$Id: tixGrSel.c,v 1.2 2004/03/28 02:44:56 hobbs Exp $	*/
+
 /* 
  * tixGrSel.c --
  *
@@ -15,32 +18,23 @@
 #include <tixDef.h>
 #include <tixGrid.h>
 
-#ifdef BUILD_tix
-# undef TCL_STORAGE_CLASS
-# define TCL_STORAGE_CLASS DLLEXPORT
-#endif
-
 EXTERN TIX_DECLARE_SUBCMD(Tix_GrSelection);
 static TIX_DECLARE_SUBCMD(Tix_GrSelIncludes);
 static TIX_DECLARE_SUBCMD(Tix_GrSelModify);
 
 static int		Tix_GrSelIncludes _ANSI_ARGS_((ClientData clientData,
-			    Tcl_Interp *interp, int argc, char **argv));
+			    Tcl_Interp *interp, int argc, CONST84 char **argv));
 static void		Tix_GrAdjustSelection _ANSI_ARGS_((
 			    WidgetPtr wPtr, SelectBlock * sbPtr));
 static void		Tix_GrMergeSelection _ANSI_ARGS_((
 			    WidgetPtr wPtr, SelectBlock * sbPtr));
-static int 		Intersect _ANSI_ARGS_((SelectBlock * s1,
-			    SelectBlock * s2));
-static int 		Include _ANSI_ARGS_((SelectBlock * s1,
-			    SelectBlock * s2));
 
 int
 Tix_GrSelection(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     static Tix_SubCmdInfo subCmdInfo[] = {
 	{TIX_DEFAULT_LEN, "adjust",   2, 4, Tix_GrSelModify,
@@ -67,26 +61,12 @@ Tix_GrSelIncludes(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
 #if 0
     WidgetPtr wPtr = (WidgetPtr) clientData;
 #endif
     return TCL_OK;
-}
-
-static int Intersect(s1, s2)
-    SelectBlock * s1;
-    SelectBlock * s2;
-{
-    return 0;
-}
-
-static int Include(s1, s2)
-    SelectBlock * s1;
-    SelectBlock * s2;
-{
-    return 0;
 }
 
 static void
@@ -203,7 +183,7 @@ Tix_GrSelModify(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    CONST84 char **argv;	/* Argument strings. */
 {
     WidgetPtr wPtr = (WidgetPtr) clientData;
     int type, adjust = 0;
@@ -226,6 +206,7 @@ Tix_GrSelModify(clientData, interp, argc, argv)
 	    return TCL_ERROR;
 	}
 	adjust = 1;
+	type = 0;
     }
     else if (argv[-1][0] == 'c') {
 	type = TIX_GR_CLEAR;
