@@ -4,8 +4,6 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" RCS: @(#) $Id$
-'\" 
 .so man.macros
 .TH Tk_CanvasTkwin 3 4.1 Tk "Tk Library Procedures"
 .BS
@@ -38,7 +36,7 @@ Tk_OptionPrintProc *\fBTk_CanvasTagsPrintProc\fR;
 A token that identifies a canvas widget.
 .AP Tcl_Interp *interp in/out
 Interpreter to use for error reporting.
-.AP char *string in
+.AP "CONST char" *string in
 Textual description of a canvas coordinate.
 .AP double *doublePtr out
 Points to place to store a converted coordinate.
@@ -159,4 +157,3 @@ static Tk_ConfigSpec configSpecs[] = {
 
 .SH KEYWORDS
 canvas, focus, item type, redisplay, selection, type manager
-

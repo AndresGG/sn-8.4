@@ -8,9 +8,12 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
+
+#include <tcl.h>
+#ifndef NULL
+#define NULL 0
+#endif
 
 /*
  *----------------------------------------------------------------------
@@ -64,5 +67,5 @@ strstr(string, substring)
 	}
 	b = substring;
     }
-    return (char *) 0;
+    return NULL;
 }

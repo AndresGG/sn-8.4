@@ -5,24 +5,89 @@
  *	contexts. 
  *
  * Copyright (c) 1995-1996 Sun Microsystems, Inc.
+ * Copyright (c) 2002-2007 Daniel A. Steffen <das@users.sourceforge.net>
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include <tkInt.h>
 
+#if !defined(MAC_TCL) && !defined(MAC_OSX_TK)
+#	include <X11/Xlib.h>
+#endif
 #ifdef MAC_TCL
 #	include <Xlib.h>
 #	include <X.h>
 #	define Cursor XCursor
 #	define Region XRegion
-#else
+#endif
+#ifdef MAC_OSX_TK
+#	include <tkMacOSXInt.h>
 #	include <X11/Xlib.h>
+#	include <X11/X.h>
+#	define Cursor XCursor
+#	define Region XRegion
 #endif
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * AllocClipMask --
+ *
+ *	Static helper proc to allocate new or clear existing TkpClipMask.
+ *
+ * Results:
+ *	Returns ptr to the new/cleared TkpClipMask.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static TkpClipMask *AllocClipMask(GC gc) {
+    TkpClipMask *clip_mask = (TkpClipMask*) gc->clip_mask;
+    
+    if (clip_mask == None) {
+	clip_mask = (TkpClipMask*) ckalloc(sizeof(TkpClipMask));
+	gc->clip_mask = (Pixmap) clip_mask;
+#ifdef MAC_OSX_TK
+    } else if (clip_mask->type == TKP_CLIP_REGION) {
+	TkpReleaseRegion(clip_mask->value.region);
+#endif
+    }
+    return clip_mask;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FreeClipMask --
+ *
+ *	Static helper proc to free TkpClipMask.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void FreeClipMask(GC gc) {
+    if (gc->clip_mask != None) {
+#ifdef MAC_OSX_TK
+	if (((TkpClipMask*) gc->clip_mask)->type == TKP_CLIP_REGION) {
+	    TkpReleaseRegion(((TkpClipMask*) gc->clip_mask)->value.region);
+	}
+#endif
+	ckfree((char*) gc->clip_mask);
+	gc->clip_mask = None;
+    }
+}
 
 /*
  *----------------------------------------------------------------------
@@ -64,9 +129,11 @@ XCreateGC(display, d, mask, values)
 
     gp->function = 	(mask & GCFunction) 	?values->function	:GXcopy;
     gp->plane_mask = 	(mask & GCPlaneMask) 	?values->plane_mask 	:~0;
-    gp->foreground = 	(mask & GCForeground) 	?values->foreground 	:0;
-    gp->background = 	(mask & GCBackground) 	?values->background 	:0xffffff;
-    gp->line_width = 	(mask & GCLineWidth)	?values->line_width	:0;	
+    gp->foreground = 	(mask & GCForeground) 	?values->foreground 	:
+	    BlackPixelOfScreen(DefaultScreenOfDisplay(display));
+    gp->background = 	(mask & GCBackground) 	?values->background 	:
+	    WhitePixelOfScreen(DefaultScreenOfDisplay(display));
+    gp->line_width = 	(mask & GCLineWidth)	?values->line_width	:1;	
     gp->line_style = 	(mask & GCLineStyle)	?values->line_style	:LineSolid;
     gp->cap_style =  	(mask & GCCapStyle)	?values->cap_style	:0;
     gp->join_style = 	(mask & GCJoinStyle)	?values->join_style	:0;
@@ -86,12 +153,12 @@ XCreateGC(display, d, mask, values)
     gp->dashes = 	(mask & GCDashList)	?values->dashes		:4;
     (&(gp->dashes))[1] = 	0;
 
+    gp->clip_mask = None;
     if (mask & GCClipMask) {
-	gp->clip_mask = (Pixmap)ckalloc(sizeof(TkpClipMask));
-	((TkpClipMask*)gp->clip_mask)->type = TKP_CLIP_PIXMAP;
-	((TkpClipMask*)gp->clip_mask)->value.pixmap = values->clip_mask;
-    } else {
-	gp->clip_mask = None;
+	TkpClipMask *clip_mask = AllocClipMask(gp);
+	
+	clip_mask->type = TKP_CLIP_PIXMAP;
+	clip_mask->value.pixmap = values->clip_mask;
     }
 
     return gp;
@@ -167,9 +234,7 @@ void XFreeGC(d, gc)
     GC gc;
 {
     if (gc != None) {
-	if (gc->clip_mask != None) {
-	    ckfree((char*) gc->clip_mask);
-	}
+	FreeClipMask(gc);
 	ckfree((char *) gc);
     }
 }
@@ -331,10 +396,10 @@ XSetClipOrigin(display, gc, clip_x_origin, clip_y_origin)
  *
  *	Sets the clipping region/pixmap for a GC.
  *
- *	Note that unlike the Xlib equivalent, it is not safe to delete
- *	the region after setting it into the GC.  The only use of
- *	TkSetRegion is currently in ImgPhotoDisplay, which uses the GC
- *	immediately.
+ *	Note that unlike the Xlib equivalent, it is not safe to delete the
+ *	region after setting it into the GC (except on Mac OS X). The only
+ *	uses of TkSetRegion are currently in DisplayFrame and in
+ *	ImgPhotoDisplay, which use the GC immediately.
  *
  * Results:
  *	None.
@@ -352,18 +417,16 @@ TkSetRegion(display, gc, r)
     TkRegion r;
 {
     if (r == None) {
-	if (gc->clip_mask) {
-	    ckfree((char*) gc->clip_mask);
-	    gc->clip_mask = None;
-	}
-	return;
-    }
+	FreeClipMask(gc);
+    } else {
+	TkpClipMask *clip_mask = AllocClipMask(gc);
 
-    if (gc->clip_mask == None) {
-	gc->clip_mask = (Pixmap)ckalloc(sizeof(TkpClipMask));
+	clip_mask->type = TKP_CLIP_REGION;
+	clip_mask->value.region = r;
+#ifdef MAC_OSX_TK
+	TkpRetainRegion(r);
+#endif
     }
-    ((TkpClipMask*)gc->clip_mask)->type = TKP_CLIP_REGION;
-    ((TkpClipMask*)gc->clip_mask)->value.region = r;
 }
 
 void
@@ -373,24 +436,20 @@ XSetClipMask(display, gc, pixmap)
     Pixmap pixmap;
 {
     if (pixmap == None) {
-	if (gc->clip_mask) {
-	    ckfree((char*) gc->clip_mask);
-	    gc->clip_mask = None;
-	}
-	return;
-    }
+	FreeClipMask(gc);
+    } else {
+	TkpClipMask *clip_mask = AllocClipMask(gc);
 
-    if (gc->clip_mask == None) {
-	gc->clip_mask = (Pixmap)ckalloc(sizeof(TkpClipMask));
+	clip_mask->type = TKP_CLIP_PIXMAP;
+	clip_mask->value.pixmap = pixmap;
     }
-    ((TkpClipMask*)gc->clip_mask)->type = TKP_CLIP_PIXMAP;
-    ((TkpClipMask*)gc->clip_mask)->value.pixmap = pixmap;
 }
 
 /*
  * Some additional dummy functions (hopefully implemented soon).
  */
 
+#if 0
 Cursor
 XCreateFontCursor(display, shape)
     Display* display;
@@ -410,6 +469,7 @@ XDrawImageString(display, d, gc, x, y, string, length)
     int length;
 {
 }
+#endif
 
 void
 XDrawPoint(display, d, gc, x, y)
@@ -438,7 +498,7 @@ XDrawPoints(display, d, gc, points, npoints, mode)
     }
 }
 
-#ifndef MAC_TCL
+#if !defined(MAC_TCL) && !defined(MAC_OSX_TK)
 void
 XDrawSegments(display, d, gc, segments, nsegments)
     Display* display;
@@ -450,6 +510,7 @@ XDrawSegments(display, d, gc, segments, nsegments)
 }
 #endif
 
+#if 0
 char *
 XFetchBuffer(display, nbytes_return, buffer)
     Display* display;
@@ -497,7 +558,8 @@ XPutImage(display, d, gc, image, src_x, src_y, dest_x, dest_y, width, height)
 {
 }
 
-void XQueryTextExtents(display, font_ID, string, nchars, direction_return,
+void
+XQueryTextExtents(display, font_ID, string, nchars, direction_return,
 	font_ascent_return, font_descent_return, overall_return)
     Display* display;
     XID font_ID;
@@ -542,4 +604,4 @@ XUndefineCursor(display, w)
     Window w;
 {
 }
-
+#endif

@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tclInt.h"
@@ -174,7 +172,7 @@ InitTimer()
  *	None.
  *
  * Side effects:
- *	Removes the timer and idle event sources.
+ *	Removes the timer and idle event sources and remaining events.
  *
  *----------------------------------------------------------------------
  */
@@ -183,7 +181,19 @@ static void
 TimerExitProc(clientData)
     ClientData clientData;	/* Not used. */
 {
+    ThreadSpecificData *tsdPtr =
+	(ThreadSpecificData *) TclThreadDataKeyGet(&dataKey);
+
     Tcl_DeleteEventSource(TimerSetupProc, TimerCheckProc, NULL);
+    if (tsdPtr != NULL) {
+	register TimerHandler *timerHandlerPtr;
+	timerHandlerPtr = tsdPtr->firstTimerHandlerPtr;
+	while (timerHandlerPtr != NULL) {
+	    tsdPtr->firstTimerHandlerPtr = timerHandlerPtr->nextPtr;
+	    ckfree((char *) timerHandlerPtr);
+	    timerHandlerPtr = tsdPtr->firstTimerHandlerPtr;
+	}
+    }
 }
 
 /*
@@ -224,7 +234,7 @@ Tcl_CreateTimerHandler(milliseconds, proc, clientData)
      * Compute when the event should fire.
      */
 
-    TclpGetTime(&time);
+    Tcl_GetTime(&time);
     timerHandlerPtr->time.sec = time.sec + milliseconds/1000;
     timerHandlerPtr->time.usec = time.usec + (milliseconds%1000)*1000;
     if (timerHandlerPtr->time.usec >= 1000000) {
@@ -291,9 +301,12 @@ Tcl_DeleteTimerHandler(token)
 				 * Tcl_DeleteTimerHandler. */
 {
     register TimerHandler *timerHandlerPtr, *prevPtr;
-    ThreadSpecificData *tsdPtr;
+    ThreadSpecificData *tsdPtr = InitTimer();
 
-    tsdPtr = InitTimer();
+    if (token == NULL) {
+	return;
+    }
+
     for (timerHandlerPtr = tsdPtr->firstTimerHandlerPtr, prevPtr = NULL;
 	    timerHandlerPtr != NULL; prevPtr = timerHandlerPtr,
 	    timerHandlerPtr = timerHandlerPtr->nextPtr) {
@@ -350,7 +363,7 @@ TimerSetupProc(data, flags)
 	 * Compute the timeout for the next timer on the list.
 	 */
 
-	TclpGetTime(&blockTime);
+	Tcl_GetTime(&blockTime);
 	blockTime.sec = tsdPtr->firstTimerHandlerPtr->time.sec - blockTime.sec;
 	blockTime.usec = tsdPtr->firstTimerHandlerPtr->time.usec -
 		blockTime.usec;
@@ -401,7 +414,7 @@ TimerCheckProc(data, flags)
 	 * Compute the timeout for the next timer on the list.
 	 */
 
-	TclpGetTime(&blockTime);
+	Tcl_GetTime(&blockTime);
 	blockTime.sec = tsdPtr->firstTimerHandlerPtr->time.sec - blockTime.sec;
 	blockTime.usec = tsdPtr->firstTimerHandlerPtr->time.usec -
 		blockTime.usec;
@@ -500,7 +513,7 @@ TimerHandlerEventProc(evPtr, flags)
 
     tsdPtr->timerPending = 0;
     currentTimerId = tsdPtr->lastTimerId;
-    TclpGetTime(&time);
+    Tcl_GetTime(&time);
     while (1) {
 	nextPtrPtr = &tsdPtr->firstTimerHandlerPtr;
 	timerHandlerPtr = tsdPtr->firstTimerHandlerPtr;
@@ -720,22 +733,21 @@ TclServiceIdle()
 	/* ARGSUSED */
 int
 Tcl_AfterObjCmd(clientData, interp, objc, objv)
-    ClientData clientData;	/* Points to the "tclAfter" assocData for
-				 * this interpreter, or NULL if the assocData
-				 * hasn't been created yet.*/
+    ClientData clientData;	/* Unused */
     Tcl_Interp *interp;		/* Current interpreter. */
     int objc;			/* Number of arguments. */
     Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
     int ms;
     AfterInfo *afterPtr;
-    AfterAssocData *assocPtr = (AfterAssocData *) clientData;
-    Tcl_CmdInfo cmdInfo;
+    AfterAssocData *assocPtr;
     int length;
     char *argString;
     int index;
     char buf[16 + TCL_INTEGER_SPACE];
-    static char *afterSubCmds[] = {"cancel", "idle", "info", (char *) NULL};
+    static CONST char *afterSubCmds[] = {
+	"cancel", "idle", "info", (char *) NULL
+    };
     enum afterSubCmds {AFTER_CANCEL, AFTER_IDLE, AFTER_INFO};
     ThreadSpecificData *tsdPtr = InitTimer();
 
@@ -746,25 +758,16 @@ Tcl_AfterObjCmd(clientData, interp, objc, objv)
 
     /*
      * Create the "after" information associated for this interpreter,
-     * if it doesn't already exist.  Associate it with the command too,
-     * so that it will be passed in as the ClientData argument in the
-     * future.
+     * if it doesn't already exist.  
      */
 
+    assocPtr = Tcl_GetAssocData( interp, "tclAfter", NULL );
     if (assocPtr == NULL) {
 	assocPtr = (AfterAssocData *) ckalloc(sizeof(AfterAssocData));
 	assocPtr->interp = interp;
 	assocPtr->firstAfterPtr = NULL;
 	Tcl_SetAssocData(interp, "tclAfter", AfterCleanupProc,
 		(ClientData) assocPtr);
-	cmdInfo.proc = NULL;
-	cmdInfo.clientData = (ClientData) NULL;
-	cmdInfo.objProc = Tcl_AfterObjCmd;
-	cmdInfo.objClientData = (ClientData) assocPtr;
-	cmdInfo.deleteProc = NULL;
-	cmdInfo.deleteData = (ClientData) assocPtr;
-	Tcl_SetCommandInfo(interp, Tcl_GetStringFromObj(objv[0], &length),
-		&cmdInfo);
     }
 
     /*
@@ -776,7 +779,8 @@ Tcl_AfterObjCmd(clientData, interp, objc, objv)
 	goto processInteger;
     }
     argString = Tcl_GetStringFromObj(objv[1], &length);
-    if (isdigit(UCHAR(argString[0]))) {	/* INTL: digit */
+    if (argString[0] == '+' || argString[0] == '-'
+	|| isdigit(UCHAR(argString[0]))) {	/* INTL: digit */
 	if (Tcl_GetIntFromObj(interp, objv[1], &ms) != TCL_OK) {
 	    return TCL_ERROR;
 	}

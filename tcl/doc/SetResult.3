@@ -5,8 +5,6 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" RCS: @(#) $Id$
-'\" 
 .so man.macros
 .TH Tcl_SetResult 3 8.0 Tcl "Tcl Library Procedures"
 .BS
@@ -23,7 +21,7 @@ Tcl_Obj *
 .sp
 \fBTcl_SetResult\fR(\fIinterp, string, freeProc\fR)
 .sp
-char *
+CONST char *
 \fBTcl_GetStringResult\fR(\fIinterp\fR)
 .sp
 \fBTcl_AppendResult\fR(\fIinterp, string, string, ... , \fB(char *) NULL\fR)
@@ -223,4 +221,3 @@ Tcl_AddErrorInfo, Tcl_CreateObjCommand, Tcl_SetErrorCode, Tcl_Interp
 
 .SH KEYWORDS
 append, command, element, list, object, result, return value, interpreter
-

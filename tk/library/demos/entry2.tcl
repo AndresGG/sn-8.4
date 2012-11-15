@@ -2,8 +2,6 @@
 #
 # This demonstration script is the same as the entry1.tcl script
 # except that it creates scrollbars for the entries.
-#
-# RCS: @(#) $Id$
 
 if {![info exists widgetDemo]} {
     error "This script should be run from the \"widget\" demo."
@@ -46,4 +44,3 @@ $w.frame.e1 insert 0 "Initial value"
 $w.frame.e2 insert end "This entry contains a long value, much too long "
 $w.frame.e2 insert end "to fit in the window at one time, so long in fact "
 $w.frame.e2 insert end "that you'll have to scan or scroll to see the end."
-

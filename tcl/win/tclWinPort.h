@@ -9,8 +9,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #ifndef _TCLWINPORT
@@ -21,17 +19,13 @@
 #endif
 
 #ifdef CHECK_UNICODE_CALLS
-
-#define _UNICODE
-#define UNICODE
-
-#define __TCHAR_DEFINED
-typedef float *_TCHAR;
-
-#define _TCHAR_DEFINED
-typedef float *TCHAR;
-
-#endif
+#   define _UNICODE
+#   define UNICODE
+#   define __TCHAR_DEFINED
+    typedef float *_TCHAR;
+#   define _TCHAR_DEFINED
+    typedef float *TCHAR;
+#endif /* CHECK_UNICODE_CALLS */
 
 /*
  *---------------------------------------------------------------------------
@@ -60,147 +54,158 @@ typedef float *TCHAR;
 #ifndef __MWERKS__
 #include <sys/stat.h>
 #include <sys/timeb.h>
-#include <sys/utime.h>
-#endif
+#   ifdef __BORLANDC__
+#	include <utime.h>
+#   else
+#	include <sys/utime.h>
+#   endif /* __BORLANDC__ */
+#endif /* __MWERKS__ */
 
 #include <time.h>
 
-#include <winsock2.h>
-
-
 #define WIN32_LEAN_AND_MEAN
-#define __USE_W32_SOCKETS
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
 
+/*
+ * Ask for the winsock function typedefs, also.
+ */
+#define INCL_WINSOCK_API_TYPEDEFS   1
+#include <winsock2.h>
+
 #ifdef BUILD_tcl
-# undef TCL_STORAGE_CLASS
-# define TCL_STORAGE_CLASS DLLEXPORT
-#endif
+#   undef TCL_STORAGE_CLASS
+#   define TCL_STORAGE_CLASS DLLEXPORT
+#endif /* BUILD_tcl */
 
 /*
  * Define EINPROGRESS in terms of WSAEINPROGRESS.
  */
 
-#ifndef	EINPROGRESS
-#define EINPROGRESS WSAEINPROGRESS
-#endif
+#undef	EINPROGRESS
+#define EINPROGRESS	WSAEINPROGRESS
 
 /*
- * If ENOTSUP is not defined, define it to a value that will never occur.
+ * Define ENOTSUP to a value that will never occur.
  */
 
-#ifndef ENOTSUP
-#define	ENOTSUP		-1030507
+#undef ENOTSUP
+#define ENOTSUP	-1030507
+
+/*
+ * Not all mingw32 versions have this struct.
+ */
+#if !defined(__BORLANDC__) && !defined(_MSC_VER) && !defined(_WIN64) && defined(HAVE_NO_STRUCT_STAT32I64)
+  struct _stat32i64 {
+    dev_t st_dev;
+    ino_t st_ino;
+    unsigned short st_mode;
+    short st_nlink;
+    short st_uid;
+    short st_gid;
+    dev_t st_rdev;
+    __int64 st_size;
+#ifdef __CYGWIN__
+    struct {long tv_sec;} st_atim;
+    struct {long tv_sec;} st_mtim;
+    struct {long tv_sec;} st_ctim;
+#else
+    long st_atime;
+    long st_mtime;
+    long st_ctime;
 #endif
+  };
+#endif
+
+/* Those codes, from Visual Studio 2010, conflict with other values */
+#undef ENODATA
+#undef ENOMSG
+#undef ENOSR
+#undef ENOSTR
+#undef EPROTO
 
 /*
  * The following defines redefine the Windows Socket errors as
  * BSD errors so Tcl_PosixError can do the right thing.
  */
 
-#ifndef EWOULDBLOCK
-#define EWOULDBLOCK             EAGAIN
-#endif
-#ifndef EALREADY
+#undef EWOULDBLOCK
+#define EWOULDBLOCK	EAGAIN
+#undef EALREADY
 #define EALREADY	149	/* operation already in progress */
-#endif
-#ifndef ENOTSOCK
+#undef ENOTSOCK
 #define ENOTSOCK	95	/* Socket operation on non-socket */
-#endif
-#ifndef EDESTADDRREQ
+#undef EDESTADDRREQ
 #define EDESTADDRREQ	96	/* Destination address required */
-#endif
-#ifndef EMSGSIZE
+#undef EMSGSIZE
 #define EMSGSIZE	97	/* Message too long */
-#endif
-#ifndef EPROTOTYPE
+#undef EPROTOTYPE
 #define EPROTOTYPE	98	/* Protocol wrong type for socket */
-#endif
-#ifndef ENOPROTOOPT
+#undef ENOPROTOOPT
 #define ENOPROTOOPT	99	/* Protocol not available */
-#endif
-#ifndef EPROTONOSUPPORT
-#define EPROTONOSUPPORT	120	/* Protocol not supported */
-#endif
-#ifndef ESOCKTNOSUPPORT
-#define ESOCKTNOSUPPORT	121	/* Socket type not supported */
-#endif
-#ifndef EOPNOTSUPP
+#undef EPROTONOSUPPORT
+#define EPROTONOSUPPORT 120	/* Protocol not supported */
+#undef ESOCKTNOSUPPORT
+#define ESOCKTNOSUPPORT 121	/* Socket type not supported */
+#undef EOPNOTSUPP
 #define EOPNOTSUPP	122	/* Operation not supported on socket */
-#endif
-#ifndef EPFNOSUPPORT
+#undef EPFNOSUPPORT
 #define EPFNOSUPPORT	123	/* Protocol family not supported */
-#endif
-#ifndef EAFNOSUPPORT
+#undef EAFNOSUPPORT
 #define EAFNOSUPPORT	124	/* Address family not supported */
-#endif
-#ifndef EADDRINUSE
+#undef EADDRINUSE
 #define EADDRINUSE	125	/* Address already in use */
-#endif
-#ifndef EADDRNOTAVAIL
-#define EADDRNOTAVAIL	126	/* Can't assign requested address */
-#endif
-#ifndef ENETDOWN
+#undef EADDRNOTAVAIL
+#define EADDRNOTAVAIL 126	/* Can't assign requested address */
+#undef ENETDOWN
 #define ENETDOWN	127	/* Network is down */
-#endif
-#ifndef ENETUNREACH
+#undef ENETUNREACH
 #define ENETUNREACH	128	/* Network is unreachable */
-#endif
-#ifndef ENETRESET
+#undef ENETRESET
 #define ENETRESET	129	/* Network dropped connection on reset */
-#endif
-#ifndef ECONNABORTED
+#undef ECONNABORTED
 #define ECONNABORTED	130	/* Software caused connection abort */
-#endif
-#ifndef ECONNRESET
+#undef ECONNRESET
 #define ECONNRESET	131	/* Connection reset by peer */
-#endif
-#ifndef ENOBUFS
-#define ENOBUFS		132	/* No buffer space available */
-#endif
-#ifndef EISCONN
-#define EISCONN		133	/* Socket is already connected */
-#endif
-#ifndef ENOTCONN
+#undef ENOBUFS
+#define ENOBUFS	132	/* No buffer space available */
+#undef EISCONN
+#define EISCONN	133	/* Socket is already connected */
+#undef ENOTCONN
 #define ENOTCONN	134	/* Socket is not connected */
-#endif
-#ifndef ESHUTDOWN
+#undef ESHUTDOWN
 #define ESHUTDOWN	143	/* Can't send after socket shutdown */
-#endif
-#ifndef ETOOMANYREFS
+#undef ETOOMANYREFS
 #define ETOOMANYREFS	144	/* Too many references: can't splice */
-#endif
-#ifndef ETIMEDOUT
+#undef ETIMEDOUT
 #define ETIMEDOUT	145	/* Connection timed out */
-#endif
-#ifndef ECONNREFUSED
+#undef ECONNREFUSED
 #define ECONNREFUSED	146	/* Connection refused */
-#endif
-#ifndef ELOOP
-#define ELOOP		90	/* Symbolic link loop */
-#endif
-#ifndef EHOSTDOWN
+#undef ELOOP
+#define ELOOP	90	/* Symbolic link loop */
+#undef EHOSTDOWN
 #define EHOSTDOWN	147	/* Host is down */
-#endif
-#ifndef EHOSTUNREACH
+#undef EHOSTUNREACH
 #define EHOSTUNREACH	148	/* No route to host */
-#endif
-#ifndef ENOTEMPTY
+#undef ENOTEMPTY
 #define ENOTEMPTY 	93	/* directory not empty */
-#endif
-#ifndef EUSERS
-#define EUSERS		94	/* Too many users (for UFS) */
-#endif
-#ifndef EDQUOT
-#define EDQUOT		49	/* Disc quota exceeded */
-#endif
-#ifndef ESTALE
-#define ESTALE		151	/* Stale NFS file handle */
-#endif
-#ifndef EREMOTE
-#define EREMOTE		66	/* The object is remote */
-#endif
+#undef EUSERS
+#define EUSERS	94	/* Too many users (for UFS) */
+#undef EDQUOT
+#define EDQUOT	69	/* Disc quota exceeded */
+#undef ESTALE
+#define ESTALE	151	/* Stale NFS file handle */
+#undef EREMOTE
+#define EREMOTE	66	/* The object is remote */
+
+/*
+ * It is very hard to determine how Windows reacts to attempting to
+ * set a file pointer outside the input datatype's representable
+ * region.  So we fake the error code ourselves.
+ */
+
+#undef EOVERFLOW
+#define EOVERFLOW	EFBIG	/* The object couldn't fit in the datatype */
 
 /* On cygwin, we just use the supplied malloc and free, rather than
    using tclAlloc.c.  The cygwin32 malloc is derived from the same
@@ -227,18 +232,18 @@ typedef float *TCHAR;
 #   define WAIT_STATUS_TYPE union wait
 #else
 #   define WAIT_STATUS_TYPE int
-#endif
+#endif /* TCL_UNION_WAIT */
 
 #ifndef WIFEXITED
-#   define WIFEXITED(stat)  (((*((int *) &(stat))) & 0xff) == 0)
+#   define WIFEXITED(stat)  (((*((int *) &(stat))) & 0xC0000000) == 0)
 #endif
 
 #ifndef WEXITSTATUS
-#   define WEXITSTATUS(stat) (((*((int *) &(stat))) >> 8) & 0xff)
+#   define WEXITSTATUS(stat) (*((int *) &(stat)))
 #endif
 
 #ifndef WIFSIGNALED
-#   define WIFSIGNALED(stat) (((*((int *) &(stat)))) && ((*((int *) &(stat))) == ((*((int *) &(stat))) & 0x00ff)))
+#   define WIFSIGNALED(stat) ((*((int *) &(stat))) & 0xC0000000)
 #endif
 
 #ifndef WTERMSIG
@@ -246,7 +251,7 @@ typedef float *TCHAR;
 #endif
 
 #ifndef WIFSTOPPED
-#   define WIFSTOPPED(stat)  (((*((int *) &(stat))) & 0xff) == 0177)
+#   define WIFSTOPPED(stat)  0
 #endif
 
 #ifndef WSTOPSIG
@@ -287,41 +292,53 @@ typedef float *TCHAR;
  * defined.
  */
 
+#ifndef S_IFLNK
+#define S_IFLNK        0120000  /* Symbolic Link */
+#endif
+
 #ifndef S_ISREG
 #   ifdef S_IFREG
 #       define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
 #   else
 #       define S_ISREG(m) 0
 #   endif
-# endif
+#endif /* !S_ISREG */
 #ifndef S_ISDIR
 #   ifdef S_IFDIR
 #       define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #   else
 #       define S_ISDIR(m) 0
 #   endif
-# endif
+#endif /* !S_ISDIR */
 #ifndef S_ISCHR
 #   ifdef S_IFCHR
 #       define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
 #   else
 #       define S_ISCHR(m) 0
 #   endif
-# endif
+#endif /* !S_ISCHR */
 #ifndef S_ISBLK
 #   ifdef S_IFBLK
 #       define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
 #   else
 #       define S_ISBLK(m) 0
 #   endif
-# endif
+#endif /* !S_ISBLK */
 #ifndef S_ISFIFO
 #   ifdef S_IFIFO
 #       define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
 #   else
 #       define S_ISFIFO(m) 0
 #   endif
-# endif
+#endif /* !S_ISFIFO */
+#ifndef S_ISLNK
+#   ifdef S_IFLNK
+#       define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
+#   else
+#       define S_ISLNK(m) 0
+#   endif
+#endif /* !S_ISLNK */
+
 
 /*
  * Define MAXPATHLEN in terms of MAXPATH if available
@@ -341,10 +358,10 @@ typedef float *TCHAR;
 
 #if ! TCL_PID_T
 #   define pid_t int
-#endif
+#endif /* !TCL_PID_T */
 #if ! TCL_UID_T
 #   define uid_t int
-#endif
+#endif /* !TCL_UID_T */
 
 /*
  * Visual C++ has some odd names for common functions, so we need to
@@ -354,13 +371,38 @@ typedef float *TCHAR;
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #    define environ _environ
-#    define hypot _hypot
+#    if defined(_MSC_VER) && (_MSC_VER < 1600)
+#	define hypot _hypot
+#    endif
 #    define exception _exception
 #    undef EDEADLOCK
 #    if defined(__MINGW32__) && !defined(__MSVCRT__)
 #	define timezone _timezone
 #    endif
 #endif /* _MSC_VER || __MINGW32__ */
+
+/*
+ * Borland's timezone and environ functions.
+ */
+
+#ifdef  __BORLANDC__
+#   define timezone _timezone
+#   define environ  _environ
+#endif /* __BORLANDC__ */
+
+#ifdef __CYGWIN__
+/* On Cygwin, the environment is imported from the Cygwin DLL. */
+     DLLIMPORT extern char **__cygwin_environ;
+#    define environ __cygwin_environ
+#    define putenv TclCygwinPutenv
+#    define timezone _timezone
+#endif /* __CYGWIN__ */
+
+/*
+ * There is no platform-specific panic routine for Windows in the Tcl internals.
+ */
+
+#define TclpPanic ((Tcl_PanicProc *) NULL)
 
 #ifdef __CYGWIN__
 /* On cygwin32, the environment is imported from the cygwin32 DLL.  */
@@ -388,8 +430,9 @@ extern int chdir (const char*);
 /*
  * Declare dynamic loading extension macro.
  */
-
+#ifndef TCL_SHLIB_EXT
 #define TCL_SHLIB_EXT ".dll"
+#endif
 
 /*
  * The following define ensures that we use the native putenv
@@ -397,19 +440,34 @@ extern int chdir (const char*);
  * the C level environment in synch with the system level environment.
  */
 
-#define USE_PUTENV	1
+#define USE_PUTENV		1
+#define USE_PUTENV_FOR_UNSET	1
+
+/*
+ * Msvcrt's putenv() copies the string rather than takes ownership of it.
+ */
+
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#   define HAVE_PUTENV_THAT_COPIES 1
+#endif
 
 /*
  * The following defines wrap the system memory allocation routines for
  * use by tclAlloc.c.
  */
 
-#define TclpSysAlloc(size, isBin)	((void*)HeapAlloc(GetProcessHeap(), \
+#ifdef __CYGWIN__
+#   define TclpSysAlloc(size, isBin)	malloc((size))
+#   define TclpSysFree(ptr)		free((ptr))
+#   define TclpSysRealloc(ptr, size)	realloc((ptr), (size))
+#else
+#   define TclpSysAlloc(size, isBin)	((void*)HeapAlloc(GetProcessHeap(), \
 					    (DWORD)0, (DWORD)size))
-#define TclpSysFree(ptr)		(HeapFree(GetProcessHeap(), \
+#   define TclpSysFree(ptr)		(HeapFree(GetProcessHeap(), \
 					    (DWORD)0, (HGLOBAL)ptr))
-#define TclpSysRealloc(ptr, size)	((void*)HeapReAlloc(GetProcessHeap(), \
+#   define TclpSysRealloc(ptr, size)	((void*)HeapReAlloc(GetProcessHeap(), \
 					    (DWORD)0, (LPVOID)ptr, (DWORD)size))
+#endif
 
 /*
  * The following defines map from standard socket names to our internal
@@ -421,6 +479,9 @@ extern int chdir (const char*);
 #define getsockopt	TclWinGetSockOpt
 #define ntohs		TclWinNToHS
 #define setsockopt	TclWinSetSockOpt
+/* This type is not defined in the Windows headers */
+#define socklen_t       int
+
 
 /*
  * The following macros have trivial definitions, allowing generic code to 
@@ -435,11 +496,13 @@ extern int chdir (const char*);
  */
 
 #define TclpExit		exit
-#define TclpLstat		TclpStat
 
 /*
  * Declarations for Windows-only functions.
  */
+
+EXTERN HANDLE	    TclWinSerialReopen _ANSI_ARGS_(( HANDLE handle,
+			CONST TCHAR *name, DWORD access));
 
 EXTERN Tcl_Channel  TclWinOpenSerialChannel _ANSI_ARGS_((HANDLE handle,
                         char *channelName, int permissions));
@@ -464,18 +527,28 @@ typedef CRITICAL_SECTION TclpMutex;
 EXTERN void	TclpMutexInit _ANSI_ARGS_((TclpMutex *mPtr));
 EXTERN void	TclpMutexLock _ANSI_ARGS_((TclpMutex *mPtr));
 EXTERN void	TclpMutexUnlock _ANSI_ARGS_((TclpMutex *mPtr));
-#else
+#else /* !TCL_THREADS */
 typedef int TclpMutex;
 #define	TclpMutexInit(a)
 #define	TclpMutexLock(a)
 #define	TclpMutexUnlock(a)
 #endif /* TCL_THREADS */
 
+#ifdef TCL_WIDE_INT_TYPE
+EXTERN Tcl_WideInt	strtoll _ANSI_ARGS_((CONST char *string,
+					     char **endPtr, int base));
+EXTERN Tcl_WideUInt	strtoull _ANSI_ARGS_((CONST char *string,
+					      char **endPtr, int base));
+#endif /* TCL_WIDE_INT_TYPE */
+
+#ifndef INVALID_SET_FILE_POINTER
+#define INVALID_SET_FILE_POINTER 0xFFFFFFFF
+#endif /* INVALID_SET_FILE_POINTER */
+
 #include "tclPlatDecls.h"
 #include "tclIntPlatDecls.h"
 
-# undef TCL_STORAGE_CLASS
-# define TCL_STORAGE_CLASS DLLIMPORT
+#undef TCL_STORAGE_CLASS
+#define TCL_STORAGE_CLASS DLLIMPORT
 
 #endif /* _TCLWINPORT */
-

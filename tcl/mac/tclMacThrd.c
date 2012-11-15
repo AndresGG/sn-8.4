@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * SCCS:  @(#) tclMacThrd.c 1.2 98/02/23 16:48:07
  */
 
 #include "tclInt.h"
@@ -51,6 +49,12 @@ static int keyCounter = 0;
  
 TclMacThrdData *GetThreadDataStruct(Tcl_ThreadDataKey keyVal);
 TclMacThrdData *RemoveThreadDataStruct(Tcl_ThreadDataKey keyVal);
+
+/*
+ * Note: The race evoked by the emulation layer for joinable threads
+ * (see ../win/tclWinThrd.c) cannot occur on this platform due to
+ * the cooperative implementation of multithreading.
+ */
 
 /*
  *----------------------------------------------------------------------
@@ -112,7 +116,6 @@ Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
     int flags;				/* Flags controlling behaviour of
 					 * the new thread */
 {
-
     if (!TclMacHaveThreads()) {
         return TCL_ERROR;
     }
@@ -124,7 +127,7 @@ Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
 #if TARGET_CPU_68K && TARGET_RT_MAC_CFM
     {
         ThreadEntryProcPtr entryProc;
-        entryProc = NewThreadEntryProc(proc);
+        entryProc = NewThreadEntryUPP(proc);
         
         NewThread(kCooperativeThread, entryProc, (void *) clientData, 
             stackSize, kCreateIfNeeded, NULL, (ThreadID *) idPtr);
@@ -136,9 +139,44 @@ Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
     if ((ThreadID) *idPtr == kNoThreadID) {
         return TCL_ERROR;
     } else {
+        if (flags & TCL_THREAD_JOINABLE) {
+	    TclRememberJoinableThread (*idPtr);
+	}
+
         return TCL_OK;
     }
 
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_JoinThread --
+ *
+ *	This procedure waits upon the exit of the specified thread.
+ *
+ * Results:
+ *	TCL_OK if the wait was successful, TCL_ERROR else.
+ *
+ * Side effects:
+ *	The result area is set to the exit code of the thread we
+ *	waited upon.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Tcl_JoinThread(threadId, result)
+    Tcl_ThreadId threadId; /* Id of the thread to wait upon */
+    int*     result;	   /* Reference to the storage the result
+			    * of the thread we wait upon will be
+			    * written into. */
+{
+    if (!TclMacHaveThreads()) {
+        return TCL_ERROR;
+    }
+
+    return TclJoinThread (threadId, result);
 }
 
 /*
@@ -168,6 +206,8 @@ TclpThreadExit(status)
     }
     
     GetCurrentThread(&curThread);
+    TclSignalExitThread ((Tcl_ThreadId) curThread, status);
+
     DisposeThread(curThread, NULL, false);
 }
 

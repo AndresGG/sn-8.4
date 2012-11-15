@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tclWinInt.h"
@@ -79,9 +77,15 @@ typedef struct ConsoleInfo {
     HANDLE startWriter;		/* Auto-reset event used by the main thread to
 				 * signal when the writer thread should attempt
 				 * to write to the console. */
+    HANDLE stopWriter;		/* Auto-reset event used by the main thread to
+				 * signal when the writer thread should exit.
+				 */
     HANDLE startReader;		/* Auto-reset event used by the main thread to
 				 * signal when the reader thread should attempt
 				 * to read from the console. */
+    HANDLE stopReader;		/* Auto-reset event used by the main thread to
+				 * signal when the reader thread should exit.
+				 */
     DWORD writeError;		/* An error caused by the last background
 				 * write.  Set to 0 if no error has been
 				 * detected.  This word is shared with the
@@ -142,17 +146,20 @@ static int		ConsoleEventProc(Tcl_Event *evPtr, int flags);
 static void		ConsoleExitHandler(ClientData clientData);
 static int		ConsoleGetHandleProc(ClientData instanceData,
 			    int direction, ClientData *handlePtr);
-static ThreadSpecificData *ConsoleInit(void);
+static void             ConsoleInit(void);
 static int		ConsoleInputProc(ClientData instanceData, char *buf,
 			    int toRead, int *errorCode);
-static int		ConsoleOutputProc(ClientData instanceData, char *buf,
-			    int toWrite, int *errorCode);
+static int		ConsoleOutputProc(ClientData instanceData,
+			    CONST char *buf, int toWrite, int *errorCode);
 static DWORD WINAPI	ConsoleReaderThread(LPVOID arg);
 static void		ConsoleSetupProc(ClientData clientData, int flags);
 static void		ConsoleWatchProc(ClientData instanceData, int mask);
 static DWORD WINAPI	ConsoleWriterThread(LPVOID arg);
 static void		ProcExitHandler(ClientData clientData);
 static int		WaitForRead(ConsoleInfo *infoPtr, int blocking);
+
+static void             ConsoleThreadActionProc _ANSI_ARGS_ ((
+			   ClientData instanceData, int action));
 
 /*
  * This structure describes the channel type structure for command console
@@ -161,7 +168,7 @@ static int		WaitForRead(ConsoleInfo *infoPtr, int blocking);
 
 static Tcl_ChannelType consoleChannelType = {
     "console",			/* Type name. */
-    TCL_CHANNEL_VERSION_2,	/* v2 channel */
+    TCL_CHANNEL_VERSION_4,	/* v4 channel */
     ConsoleCloseProc,		/* Close proc. */
     ConsoleInputProc,		/* Input proc. */
     ConsoleOutputProc,		/* Output proc. */
@@ -174,6 +181,8 @@ static Tcl_ChannelType consoleChannelType = {
     ConsoleBlockModeProc,	/* Set blocking or non-blocking mode.*/
     NULL,			/* flush proc. */
     NULL,			/* handler proc. */
+    NULL,                       /* wide seek proc */
+    ConsoleThreadActionProc,    /* thread action proc */
 };
 
 /*
@@ -192,7 +201,7 @@ static Tcl_ChannelType consoleChannelType = {
  *----------------------------------------------------------------------
  */
 
-static ThreadSpecificData *
+static void
 ConsoleInit()
 {
     ThreadSpecificData *tsdPtr;
@@ -218,7 +227,6 @@ ConsoleInit()
 	Tcl_CreateEventSource(ConsoleSetupProc, ConsoleCheckProc, NULL);
 	Tcl_CreateThreadExitHandler(ConsoleExitHandler, NULL);
     }
-    return tsdPtr;
 }
 
 /*
@@ -458,6 +466,7 @@ ConsoleCloseProc(
     int errorCode;
     ConsoleInfo *infoPtr, **nextPtrPtr;
     ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKey);
+    DWORD exitCode;
 
     errorCode = 0;
     
@@ -468,30 +477,50 @@ ConsoleCloseProc(
      */
     
     if (consolePtr->readThread) {
-	/*
-	 * Forcibly terminate the background thread.  We cannot rely on the
-	 * thread to cleanly terminate itself because we have no way of
-	 * closing the handle without blocking in the case where the
-	 * thread is in the middle of an I/O operation.  Note that we need
-	 * to guard against terminating the thread while it is in the
-	 * middle of Tcl_ThreadAlert because it won't be able to release
-	 * the notifier lock.
-	 */
-
-	Tcl_MutexLock(&consoleMutex);
-	TerminateThread(consolePtr->readThread, 0);
 
 	/*
-	 * Wait for the thread to terminate.  This ensures that we are
-	 * completely cleaned up before we leave this function. 
+	 * The thread may already have closed on it's own.  Check it's
+	 * exit code.
 	 */
 
-	WaitForSingleObject(consolePtr->readThread, INFINITE);
-	Tcl_MutexUnlock(&consoleMutex);
+	GetExitCodeThread(consolePtr->readThread, &exitCode);
+
+	if (exitCode == STILL_ACTIVE) {
+
+	    /*
+	     * Set the stop event so that if the reader thread is blocked
+	     * in ConsoleReaderThread on WaitForMultipleEvents, it will exit
+	     * cleanly.
+	     */
+
+	    SetEvent(consolePtr->stopReader);
+
+	    /*
+	     * Wait at most 20 milliseconds for the reader thread to close.
+	     */
+
+	    if (WaitForSingleObject(consolePtr->readThread, 20)
+		    == WAIT_TIMEOUT) {
+		/*
+		 * Forcibly terminate the background thread as a last
+		 * resort.  Note that we need to guard against
+		 * terminating the thread while it is in the middle of
+		 * Tcl_ThreadAlert because it won't be able to release
+		 * the notifier lock.
+		 */
+
+		Tcl_MutexLock(&consoleMutex);
+
+		/* BUG: this leaks memory. */
+		TerminateThread(consolePtr->readThread, 0);
+		Tcl_MutexUnlock(&consoleMutex);
+	    }
+	}
 
 	CloseHandle(consolePtr->readThread);
 	CloseHandle(consolePtr->readable);
 	CloseHandle(consolePtr->startReader);
+	CloseHandle(consolePtr->stopReader);
 	consolePtr->readThread = NULL;
     }
     consolePtr->validMask &= ~TCL_READABLE;
@@ -503,32 +532,56 @@ ConsoleCloseProc(
      */
     
     if (consolePtr->writeThread) {
-	WaitForSingleObject(consolePtr->writable, INFINITE);
+	if (consolePtr->toWrite) {
+	    /*
+	     * We only need to wait if there is something to write.
+	     * This may prevent infinite wait on exit. [python bug 216289]
+	     */
+	    WaitForSingleObject(consolePtr->writable, INFINITE);
+	}
 
 	/*
-	 * Forcibly terminate the background thread.  We cannot rely on the
-	 * thread to cleanly terminate itself because we have no way of
-	 * closing the handle without blocking in the case where the
-	 * thread is in the middle of an I/O operation.  Note that we need
-	 * to guard against terminating the thread while it is in the
-	 * middle of Tcl_ThreadAlert because it won't be able to release
-	 * the notifier lock.
+	 * The thread may already have closed on it's own.  Check it's
+	 * exit code.
 	 */
 
-	Tcl_MutexLock(&consoleMutex);
-	TerminateThread(consolePtr->writeThread, 0);
+	GetExitCodeThread(consolePtr->writeThread, &exitCode);
 
-	/*
-	 * Wait for the thread to terminate.  This ensures that we are
-	 * completely cleaned up before we leave this function. 
-	 */
+	if (exitCode == STILL_ACTIVE) {
+	    /*
+	     * Set the stop event so that if the reader thread is blocked
+	     * in ConsoleWriterThread on WaitForMultipleEvents, it will
+	     * exit cleanly.
+	     */
 
-	WaitForSingleObject(consolePtr->writeThread, INFINITE);
-	Tcl_MutexUnlock(&consoleMutex);
+	    SetEvent(consolePtr->stopWriter);
+
+	    /*
+	     * Wait at most 20 milliseconds for the writer thread to close.
+	     */
+
+	    if (WaitForSingleObject(consolePtr->writeThread, 20)
+		    == WAIT_TIMEOUT) {
+		/*
+		 * Forcibly terminate the background thread as a last
+		 * resort.  Note that we need to guard against
+		 * terminating the thread while it is in the middle of
+		 * Tcl_ThreadAlert because it won't be able to release
+		 * the notifier lock.
+		 */
+
+		Tcl_MutexLock(&consoleMutex);
+
+		/* BUG: this leaks memory. */
+		TerminateThread(consolePtr->writeThread, 0);
+		Tcl_MutexUnlock(&consoleMutex);
+	    }
+	}
 
 	CloseHandle(consolePtr->writeThread);
 	CloseHandle(consolePtr->writable);
 	CloseHandle(consolePtr->startWriter);
+	CloseHandle(consolePtr->stopWriter);
 	consolePtr->writeThread = NULL;
     }
     consolePtr->validMask &= ~TCL_WRITABLE;
@@ -536,11 +589,11 @@ ConsoleCloseProc(
 
     /*
      * Don't close the Win32 handle if the handle is a standard channel
-     * during the exit process.  Otherwise, one thread may kill the stdio
-     * of another.
+     * during the thread exit process.  Otherwise, one thread may kill
+     * the stdio of another.
      */
 
-    if (!TclInExit() 
+    if (!TclInThreadExit() 
 	    || ((GetStdHandle(STD_INPUT_HANDLE) != consolePtr->handle)
 		&& (GetStdHandle(STD_OUTPUT_HANDLE) != consolePtr->handle)
 		&& (GetStdHandle(STD_ERROR_HANDLE) != consolePtr->handle))) {
@@ -626,11 +679,11 @@ ConsoleInputProc(
 	 */
 
 	if (bufSize < (infoPtr->bytesRead - infoPtr->offset)) {
-	    memcpy(buf, &infoPtr->buffer[infoPtr->offset], bufSize);
+	    memcpy(buf, &infoPtr->buffer[infoPtr->offset], (size_t) bufSize);
 	    bytesRead = bufSize;
 	    infoPtr->offset += bufSize;
 	} else {
-	    memcpy(buf, &infoPtr->buffer[infoPtr->offset], bufSize);
+	    memcpy(buf, &infoPtr->buffer[infoPtr->offset], (size_t) bufSize);
 	    bytesRead = infoPtr->bytesRead - infoPtr->offset;
 
 	    /*
@@ -651,7 +704,7 @@ ConsoleInputProc(
      */
 
     if (ReadConsole(infoPtr->handle, (LPVOID) buf, (DWORD) bufSize, &count,
-		    (LPOVERLAPPED) NULL) == TRUE) {
+		    NULL) == TRUE) {
 	buf[count] = '\0';
 	return count;
     }
@@ -680,7 +733,7 @@ ConsoleInputProc(
 static int
 ConsoleOutputProc(
     ClientData instanceData,		/* Console state. */
-    char *buf,				/* The data buffer. */
+    CONST char *buf,			/* The data buffer. */
     int toWrite,			/* How many bytes to write? */
     int *errorCode)			/* Where to store error code. */
 {
@@ -724,9 +777,9 @@ ConsoleOutputProc(
 		ckfree(infoPtr->writeBuf);
 	    }
 	    infoPtr->writeBufLen = toWrite;
-	    infoPtr->writeBuf = ckalloc(toWrite);
+	    infoPtr->writeBuf = ckalloc((unsigned int) toWrite);
 	}
-	memcpy(infoPtr->writeBuf, buf, toWrite);
+	memcpy(infoPtr->writeBuf, buf, (size_t) toWrite);
 	infoPtr->toWrite = toWrite;
 	ResetEvent(infoPtr->writable);
 	SetEvent(infoPtr->startWriter);
@@ -819,7 +872,7 @@ ConsoleEventProc(
     mask = 0;
     if (infoPtr->watchMask & TCL_WRITABLE) {
 	if (WaitForSingleObject(infoPtr->writable, 0) != WAIT_TIMEOUT) {
-	  mask = TCL_WRITABLE;
+	    mask = TCL_WRITABLE;
 	}
     }
 
@@ -1060,23 +1113,35 @@ ConsoleReaderThread(LPVOID arg)
 {
     ConsoleInfo *infoPtr = (ConsoleInfo *)arg;
     HANDLE *handle = infoPtr->handle;
-    DWORD count;
+    DWORD waitResult;
+    HANDLE wEvents[2];
+
+    /* The first event takes precedence. */
+    wEvents[0] = infoPtr->stopReader;
+    wEvents[1] = infoPtr->startReader;
 
     for (;;) {
 	/*
 	 * Wait for the main thread to signal before attempting to wait.
 	 */
 
-	WaitForSingleObject(infoPtr->startReader, INFINITE);
+	waitResult = WaitForMultipleObjects(2, wEvents, FALSE, INFINITE);
 
-	count = 0;
+	if (waitResult != (WAIT_OBJECT_0 + 1)) {
+	    /*
+	     * The start event was not signaled.  It must be the stop event
+	     * or an error, so exit this thread.
+	     */
+
+	    break;
+	}
 
 	/* 
 	 * Look for data on the console, but first ignore any events
 	 * that are not KEY_EVENTs 
 	 */
-	if (ReadConsole(handle, infoPtr->buffer, CONSOLE_BUFFER_SIZE,
-		&infoPtr->bytesRead, NULL) != FALSE) {
+	if (ReadConsoleA(handle, infoPtr->buffer, CONSOLE_BUFFER_SIZE,
+		(LPDWORD) &infoPtr->bytesRead, NULL) != FALSE) {
 	    /*
 	     * Data was stored in the buffer.
 	     */
@@ -1086,7 +1151,7 @@ ConsoleReaderThread(LPVOID arg)
 	    DWORD err;
 	    err = GetLastError();
 	    
-	    if (err == EOF) {
+	    if (err == (DWORD)EOF) {
 		infoPtr->readFlags = CONSOLE_EOF;
 	    }
 	}
@@ -1105,10 +1170,14 @@ ConsoleReaderThread(LPVOID arg)
 	 */
 
 	Tcl_MutexLock(&consoleMutex);
-	Tcl_ThreadAlert(infoPtr->threadId);
+	if (infoPtr->threadId != NULL) {
+	    /* TIP #218. When in flight ignore the event, no one will receive it anyway */
+	    Tcl_ThreadAlert(infoPtr->threadId);
+	}
 	Tcl_MutexUnlock(&consoleMutex);
     }
-    return 0;			/* NOT REACHED */
+
+    return 0;
 }
 
 /*
@@ -1135,15 +1204,29 @@ ConsoleWriterThread(LPVOID arg)
 
     ConsoleInfo *infoPtr = (ConsoleInfo *)arg;
     HANDLE *handle = infoPtr->handle;
-    DWORD count, toWrite;
+    DWORD count, toWrite, waitResult;
     char *buf;
+    HANDLE wEvents[2];
+
+    /* The first event takes precedence. */
+    wEvents[0] = infoPtr->stopWriter;
+    wEvents[1] = infoPtr->startWriter;
 
     for (;;) {
 	/*
 	 * Wait for the main thread to signal before attempting to write.
 	 */
 
-	WaitForSingleObject(infoPtr->startWriter, INFINITE);
+	waitResult = WaitForMultipleObjects(2, wEvents, FALSE, INFINITE);
+
+	if (waitResult != (WAIT_OBJECT_0 + 1)) {
+	    /*
+	     * The start event was not signaled.  It must be the stop event
+	     * or an error, so exit this thread.
+	     */
+
+	    break;
+	}
 
 	buf = infoPtr->writeBuf;
 	toWrite = infoPtr->toWrite;
@@ -1153,7 +1236,7 @@ ConsoleWriterThread(LPVOID arg)
 	 */
 
 	while (toWrite > 0) {
-	    if (WriteFile(handle, buf, toWrite, &count, NULL) == FALSE) {
+	    if (WriteConsoleA(handle, buf, toWrite, &count, NULL) == FALSE) {
 		infoPtr->writeError = GetLastError();
 		break;
 	    } else {
@@ -1176,10 +1259,14 @@ ConsoleWriterThread(LPVOID arg)
 	 */
 
 	Tcl_MutexLock(&consoleMutex);
-	Tcl_ThreadAlert(infoPtr->threadId);
+	if (infoPtr->threadId != NULL) {
+	    /* TIP #218. When in flight ignore the event, no one will receive it anyway */
+	    Tcl_ThreadAlert(infoPtr->threadId);
+	}
 	Tcl_MutexUnlock(&consoleMutex);
     }
-    return 0;			/* NOT REACHED */
+
+    return 0;
 }
 
 
@@ -1210,10 +1297,9 @@ TclWinOpenConsoleChannel(handle, channelName, permissions)
 {
     char encoding[4 + TCL_INTEGER_SPACE];
     ConsoleInfo *infoPtr;
-    ThreadSpecificData *tsdPtr;
-    DWORD id;
+    DWORD id, modes;
 
-    tsdPtr = ConsoleInit();
+    ConsoleInit();
 
     /*
      * See if a channel with this handle already exists.
@@ -1224,9 +1310,12 @@ TclWinOpenConsoleChannel(handle, channelName, permissions)
 
     infoPtr->validMask = permissions;
     infoPtr->handle = handle;
+    infoPtr->channel = (Tcl_Channel) NULL;
 
     wsprintfA(encoding, "cp%d", GetConsoleCP());
-    
+
+    infoPtr->threadId = Tcl_GetCurrentThread();
+
     /*
      * Use the pointer for the name of the result channel.
      * This keeps the channel names unique, since some may share
@@ -1238,21 +1327,33 @@ TclWinOpenConsoleChannel(handle, channelName, permissions)
     infoPtr->channel = Tcl_CreateChannel(&consoleChannelType, channelName,
             (ClientData) infoPtr, permissions);
 
-    infoPtr->threadId = Tcl_GetCurrentThread();
-
     if (permissions & TCL_READABLE) {
+	/*
+	 * Make sure the console input buffer is ready for only character
+	 * input notifications and the buffer is set for line buffering.
+	 * IOW, we only want to catch when complete lines are ready for
+	 * reading.
+	 */
+	GetConsoleMode(infoPtr->handle, &modes);
+	modes &= ~(ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT);
+	modes |= ENABLE_LINE_INPUT;
+	SetConsoleMode(infoPtr->handle, modes);
+
 	infoPtr->readable = CreateEvent(NULL, TRUE, TRUE, NULL);
 	infoPtr->startReader = CreateEvent(NULL, FALSE, FALSE, NULL);
-	infoPtr->readThread = CreateThread(NULL, 8000, ConsoleReaderThread,
+	infoPtr->stopReader = CreateEvent(NULL, FALSE, FALSE, NULL);
+	infoPtr->readThread = CreateThread(NULL, 256, ConsoleReaderThread,
 	        infoPtr, 0, &id);
-	SetThreadPriority(infoPtr->readThread, THREAD_PRIORITY_HIGHEST); 
+	SetThreadPriority(infoPtr->readThread, THREAD_PRIORITY_HIGHEST);
     }
 
     if (permissions & TCL_WRITABLE) {
 	infoPtr->writable = CreateEvent(NULL, TRUE, TRUE, NULL);
 	infoPtr->startWriter = CreateEvent(NULL, FALSE, FALSE, NULL);
-	infoPtr->writeThread = CreateThread(NULL, 8000, ConsoleWriterThread,
+	infoPtr->stopWriter = CreateEvent(NULL, FALSE, FALSE, NULL);
+	infoPtr->writeThread = CreateThread(NULL, 256, ConsoleWriterThread,
 	        infoPtr, 0, &id);
+	SetThreadPriority(infoPtr->writeThread, THREAD_PRIORITY_HIGHEST);
     }
 
     /*
@@ -1266,4 +1367,51 @@ TclWinOpenConsoleChannel(handle, channelName, permissions)
 
     return infoPtr->channel;
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ConsoleThreadActionProc --
+ *
+ *	Insert or remove any thread local refs to this channel.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Changes thread local list of valid channels.
+ *
+ *----------------------------------------------------------------------
+ */
 
+static void
+ConsoleThreadActionProc (instanceData, action)
+     ClientData instanceData;
+     int action;
+{
+    ConsoleInfo *infoPtr = (ConsoleInfo *) instanceData;
+
+    /* We do not access firstConsolePtr in the thread structures. This is
+     * not for all serials managed by the thread, but only those we are
+     * watching. Removal of the filevent handlers before transfer thus
+     * takes care of this structure.
+     */
+
+    Tcl_MutexLock(&consoleMutex);
+    if (action == TCL_CHANNEL_THREAD_INSERT) {
+        /* We can't copy the thread information from the channel when
+	 * the channel is created. At this time the channel back
+	 * pointer has not been set yet. However in that case the
+	 * threadId has already been set by TclpCreateCommandChannel
+	 * itself, so the structure is still good.
+	 */
+
+        ConsoleInit ();
+        if (infoPtr->channel != NULL) {
+	    infoPtr->threadId = Tcl_GetChannelThread (infoPtr->channel);
+	}
+    } else {
+	infoPtr->threadId = NULL;
+    }
+    Tcl_MutexUnlock(&consoleMutex);
+}

@@ -9,8 +9,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkScale.h"
@@ -271,7 +269,7 @@ DisplayVerticalValue(scalePtr, drawable, value, rightEdge)
     Tk_GetFontMetrics(scalePtr->tkfont, &fm);
     y = TkScaleValueToPixel(scalePtr, value) + fm.ascent/2;
     sprintf(valueString, scalePtr->format, value);
-    length = strlen(valueString);
+    length = (int) strlen(valueString);
     width = Tk_TextWidth(scalePtr->tkfont, valueString, length);
 
     /*
@@ -488,7 +486,7 @@ DisplayHorizontalValue(scalePtr, drawable, value, top)
     Tk_GetFontMetrics(scalePtr->tkfont, &fm);
     y = top + fm.ascent;
     sprintf(valueString, scalePtr->format, value);
-    length = strlen(valueString);
+    length = (int) strlen(valueString);
     width = Tk_TextWidth(scalePtr->tkfont, valueString, length);
 
     /*
@@ -500,7 +498,11 @@ DisplayHorizontalValue(scalePtr, drawable, value, top)
     if (x < (scalePtr->inset + SPACING)) {
 	x = scalePtr->inset + SPACING;
     }
-    if (x > (Tk_Width(tkwin) - scalePtr->inset)) {
+    /*
+     * Check the right border so use starting point +text width
+     * for the check.
+     */
+    if (x + width >= (Tk_Width(tkwin) - scalePtr->inset)) {
 	x = Tk_Width(tkwin) - scalePtr->inset - SPACING - width;
     }
     Tk_DrawChars(scalePtr->display, drawable, scalePtr->textGC,
@@ -559,10 +561,11 @@ TkpDisplayScale(clientData)
     scalePtr->flags &= ~INVOKE_COMMAND;
     if (scalePtr->flags & SCALE_DELETED) {
 	Tcl_Release((ClientData) scalePtr);
-	goto done;
+	return;
     }
     Tcl_Release((ClientData) scalePtr);
 
+#ifndef TK_NO_DOUBLE_BUFFERING
     /*
      * In order to avoid screen flashes, this procedure redraws
      * the scale in a pixmap, then copies the pixmap to the
@@ -572,6 +575,9 @@ TkpDisplayScale(clientData)
 
     pixmap = Tk_GetPixmap(scalePtr->display, Tk_WindowId(tkwin),
 	    Tk_Width(tkwin), Tk_Height(tkwin), Tk_Depth(tkwin));
+#else
+    pixmap = Tk_WindowId(tkwin);
+#endif /* TK_NO_DOUBLE_BUFFERING */
     drawnArea.x = 0;
     drawnArea.y = 0;
     drawnArea.width = Tk_Width(tkwin);
@@ -616,6 +622,7 @@ TkpDisplayScale(clientData)
 	}
     }
 
+#ifndef TK_NO_DOUBLE_BUFFERING
     /*
      * Copy the information from the off-screen pixmap onto the screen,
      * then delete the pixmap.
@@ -625,6 +632,7 @@ TkpDisplayScale(clientData)
 	    scalePtr->copyGC, drawnArea.x, drawnArea.y, drawnArea.width,
 	    drawnArea.height, drawnArea.x, drawnArea.y);
     Tk_FreePixmap(scalePtr->display, pixmap);
+#endif /* TK_NO_DOUBLE_BUFFERING */
 
     done:
     scalePtr->flags &= ~REDRAW_ALL;

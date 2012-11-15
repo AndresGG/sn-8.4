@@ -11,8 +11,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include <Files.h>
@@ -74,7 +72,7 @@ Tcl_EchoCmd(
     ClientData dummy,			/* Not used. */
     Tcl_Interp *interp,			/* Current interpreter. */
     int argc,				/* Number of arguments. */
-    char **argv)			/* Argument strings. */
+    CONST char **argv)			/* Argument strings. */
 {
     Tcl_Channel chan;
     int mode, result, i;
@@ -206,7 +204,7 @@ Tcl_LsObjCmd(
 
     resultObjPtr = Tcl_GetObjResult(interp);
     Tcl_IncrRefCount(resultObjPtr);
-    if (Tcl_ListObjGetElements(interp, resultObjPtr, &objc, &objv) != TCL_OK) {
+    if (Tcl_ListObjGetElements(interp, resultObjPtr, &objc, (Tcl_Obj ***)&objv) != TCL_OK) {
     	Tcl_DecrRefCount(resultObjPtr);
     	return TCL_ERROR;
     }

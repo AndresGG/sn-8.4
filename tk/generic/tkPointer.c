@@ -10,8 +10,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkInt.h"
@@ -20,7 +18,13 @@
 #include "tkWinInt.h"
 #endif
 
-#ifdef MAC_TCL
+#if defined(MAC_TCL)
+#include "tkMacInt.h"
+#define Cursor XCursor
+#endif
+
+#if defined(MAC_OSX_TK)
+#include "tkMacOSXInt.h"
 #define Cursor XCursor
 #endif
 
@@ -311,14 +315,12 @@ Tk_UpdatePointer(tkwin, x, y, state)
 
 	        /*
 		 * ButtonRelease - Release the mouse capture and clear the
-		 * restrict window when the last button is released and we
-		 * aren't in a global grab.
+		 * restrict window when the last button is released. If we
+		 * are in a global grab, restore the grab window capture.
 		 */
 
 		if ((tsdPtr->lastState & ALL_BUTTONS) == mask) {
-		    if (!tsdPtr->grabWinPtr) {
-			TkpSetCapture(NULL);
-		    }
+		    TkpSetCapture(tsdPtr->grabWinPtr);
 		}
 
 		/*
@@ -561,7 +563,7 @@ UpdateCursor(winPtr)
 	if (winPtr->atts.cursor != None) {
 	    cursor = winPtr->atts.cursor;
 	    break;
-	} else if (winPtr->flags & TK_TOP_LEVEL) {
+	} else if (winPtr->flags & TK_TOP_HIERARCHY) {
 	    break;
 	}
 	winPtr = winPtr->parentPtr;
@@ -645,4 +647,3 @@ TkGenerateActivateEvents(winPtr, active)
     TkQueueEventForAllChildren(winPtr, &event);
     
 }
-

@@ -13,8 +13,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tclInt.h"
@@ -48,6 +46,7 @@ extern pascal QHdrPtr GetEventQueue(void)
  */
  
 extern TclStubs tclStubs;
+extern Tcl_NotifierProcs tclOriginalNotifier;
 
 /*
  * The follwing static indicates whether this module has been initialized.
@@ -266,7 +265,7 @@ HandleMacEvents(void)
      * system event queue unless we call WaitNextEvent.
      */
 
-    GetGlobalMouse(&currentMouse);
+    GetGlobalMouseTcl(&currentMouse);
     if ((notifier.eventProcPtr != NULL) &&
 	    !EqualPt(currentMouse, notifier.lastMousePosition)) {
 	notifier.lastMousePosition = currentMouse;
@@ -296,7 +295,7 @@ HandleMacEvents(void)
      */
 
     while (needsUpdate || (GetEvQHdr()->qHead != NULL)) {
-	GetGlobalMouse(&currentMouse);
+	GetGlobalMouseTcl(&currentMouse);
 	SetRect(&mouseRect, currentMouse.h, currentMouse.v,
 		currentMouse.h + 1, currentMouse.v + 1);
 	RectRgn(notifier.utilityRgn, &mouseRect);
@@ -339,7 +338,7 @@ Tcl_SetTimer(
      * on the Mac, but mirrors the UNIX hook.
      */
 
-    if (tclStubs.tcl_SetTimer != Tcl_SetTimer) {
+    if (tclStubs.tcl_SetTimer != tclOriginalNotifier.setTimerProc) {
 	tclStubs.tcl_SetTimer(timePtr);
 	return;
     }
@@ -351,7 +350,7 @@ Tcl_SetTimer(
 	 * Compute when the timer should fire.
 	 */
 	
-	TclpGetTime(&notifier.timer);
+	Tcl_GetTime(&notifier.timer);
 	notifier.timer.sec += timePtr->sec;
 	notifier.timer.usec += timePtr->usec;
 	if (notifier.timer.usec >= 1000000) {
@@ -420,7 +419,7 @@ Tcl_WaitForEvent(
      * sense on the Mac, but mirrors the UNIX hook.
      */
 
-    if (tclStubs.tcl_WaitForEvent != Tcl_WaitForEvent) {
+    if (tclStubs.tcl_WaitForEvent != tclOriginalNotifier.waitForEventProc) {
 	return tclStubs.tcl_WaitForEvent(timePtr);
     }
 
@@ -481,7 +480,7 @@ Tcl_WaitForEvent(
 	     * the current mouse position.
 	     */
 
-	    GetGlobalMouse(&currentMouse);
+	    GetGlobalMouseTcl(&currentMouse);
 	    SetRect(&mouseRect, currentMouse.h, currentMouse.v,
 		    currentMouse.h + 1, currentMouse.v + 1);
 	    RectRgn(notifier.utilityRgn, &mouseRect);

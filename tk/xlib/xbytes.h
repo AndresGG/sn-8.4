@@ -7,8 +7,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #ifndef _XBYTES
@@ -56,4 +54,3 @@ static unsigned char xBitReverseTable[256] = {
 };
 
 #endif /* _XBYTES */
-

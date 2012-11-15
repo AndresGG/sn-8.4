@@ -5,8 +5,6 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" RCS: @(#) $Id$
-'\" 
 .so man.macros
 .TH Tk_MaintainGeometry 3 4.0 Tk "Tk Library Procedures"
 .BS
@@ -64,7 +62,8 @@ is unmapped, the slave is automatically removed by the screen
 by X.
 .PP
 \fBTk_MaintainGeometry\fR deals with these problems for slaves
-whose masters aren't their parents.
+whose masters aren't their parents, as well as handling the simpler
+case of slaves whose masters are their parents.
 \fBTk_MaintainGeometry\fR is typically called by a window manager
 once it has decided where a slave should be positioned relative
 to its master.
@@ -100,4 +99,3 @@ pair that is isn't currently managed, the call has no effect.
 
 .SH KEYWORDS
 geometry manager, map, master, parent, position, slave, unmap
-

@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * SCCS: @(#) tclMacTclCode.r 1.1 98/01/21 22:22:38
  */
 
 #include <Types.r>
@@ -29,9 +27,9 @@
  * will load the TEXT resource named "Init".
  */
 
-read 'TEXT' (TCL_LIBRARY_RESOURCES, "Init", purgeable) "::library:init.tcl";
-read 'TEXT' (TCL_LIBRARY_RESOURCES + 1, "Auto", purgeable) "::library:auto.tcl";
-read 'TEXT' (TCL_LIBRARY_RESOURCES + 2, "Package", purgeable,preload) "::library:package.tcl";
-read 'TEXT' (TCL_LIBRARY_RESOURCES + 3, "History", purgeable) "::library:history.tcl";
-read 'TEXT' (TCL_LIBRARY_RESOURCES + 4, "Word", purgeable,preload) "::library:word.tcl";
-read 'TEXT' (TCL_LIBRARY_RESOURCES + 5, "Parray", purgeable,preload) "::library:parray.tcl";
+read 'TEXT' (TCL_LIBRARY_RESOURCES, "init", purgeable) "::library:init.tcl";
+read 'TEXT' (TCL_LIBRARY_RESOURCES + 1, "auto", purgeable) "::library:auto.tcl";
+read 'TEXT' (TCL_LIBRARY_RESOURCES + 2, "package", purgeable,preload) "::library:package.tcl";
+read 'TEXT' (TCL_LIBRARY_RESOURCES + 3, "history", purgeable) "::library:history.tcl";
+read 'TEXT' (TCL_LIBRARY_RESOURCES + 4, "word", purgeable,preload) "::library:word.tcl";
+read 'TEXT' (TCL_LIBRARY_RESOURCES + 5, "parray", purgeable,preload) "::library:parray.tcl";

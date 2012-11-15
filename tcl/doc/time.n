@@ -5,8 +5,6 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" RCS: @(#) $Id$
-'\" 
 .so man.macros
 .TH time n "" Tcl "Tcl Built-In Commands"
 .BS
@@ -28,6 +26,19 @@ specified).  It will then return a string of the form
 which indicates the average amount of time required per iteration,
 in microseconds.
 Time is measured in elapsed time, not CPU time.
+.SH EXAMPLE
+Estimate how long it takes for a simple Tcl \fBfor\fR loop to count to
+a thousand:
+.CS
+time {
+    for {set i 0} {$i<1000} {incr i} {
+        # empty body
+    }
+}
+.CE
+
+.SH "SEE ALSO"
+clock(n)
 
 .SH KEYWORDS
 script, time

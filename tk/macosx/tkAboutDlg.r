@@ -1,76 +1,65 @@
 /*
  * tkAboutDlg.r --
  *
- *	This file creates resources for use in most Tk applications.
- *	This is designed to be an example of using the Tcl/Tk 
- *	libraries in a Macintosh Application.
+ *	This file creates resources for the Tk "About Box" dialog.
  *
  * Copyright (c) 1996 Sun Microsystems, Inc.
+ * Copyright (c) 2006-2008 Daniel A. Steffen <das@users.sourceforge.net>
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
-
-
-
-/*
- * New style DLOG templates have an extra field for the positioning
- * options for the Dialog Box.  We will not use this, for now, so we
- * turn it off here.
- */
- 
-#define DLOG_RezTemplateVersion 0
 
 /*
  * The folowing include and defines help construct
  * the version string for Tcl.
  */
 
-#define RESOURCE_INCLUDED
+#define RC_INVOKED
 #include <Carbon.r>
 #include <tcl.h>
 #include "tk.h"
 
-#if (TK_RELEASE_LEVEL == 0)
-#   define RELEASE_LEVEL alpha
-#elif (TK_RELEASE_LEVEL == 1)
-#   define RELEASE_LEVEL beta
-#elif (TK_RELEASE_LEVEL == 2)
-#   define RELEASE_LEVEL final
-#endif
-
-#if (TK_RELEASE_LEVEL == 2)
-#   define MINOR_VERSION (TK_MINOR_VERSION * 16) + TK_RELEASE_SERIAL
-#else
-#   define MINOR_VERSION TK_MINOR_VERSION * 16
-#endif
-
-#define RELEASE_CODE 0x00
-
 /*
  * The following two resources define the default "About Box" for Mac Tk.
  * This dialog appears if the "About Tk..." menu item is selected from
- * the Apple menu.  This dialog may be overridden by defining a Tcl procedure
- * with the name of "tkAboutDialog".  If this procedure is defined the
+ * the Apple menu. This dialog may be overridden by defining a Tcl procedure
+ * with the name of "tkAboutDialog". If this procedure is defined the
  * default dialog will not be shown and the Tcl procedure is expected to
  * create and manage an About Dialog box.
  */
- 
-data 'DLOG' (128, "Default About Box", purgeable) {
-	$"0055 006B 00F3 0196 0001 0100 0100 0000"
-	$"0000 0081 0000 280A"
+
+resource 'DLOG' (128, "About Box", purgeable) {
+    {60, 40, 332, 404},
+    kWindowMovableModalDialogProc,
+    visible,
+    noGoAway,
+    0x0,
+    128,
+    "About Tcl & Tk",
+    centerMainScreen
 };
 
-resource 'DITL' (129, "About Box", purgeable) {
+resource 'DITL' (128, "About Box", purgeable) {
     {
-	{128, 128, 148, 186}, Button	    {enabled, "Ok"},
-	{ 14, 108, 117, 298}, StaticText    {disabled, 
-	    "Wish - Windowing Shell" "\n" "based on Tcl " 
-	    TCL_PATCH_LEVEL " & Tk " TK_PATCH_LEVEL "\n\n" "Jim Ingham & Ray Johnson"
-	    "Scriptics Inc." "\n" "jingham@cygnus.com"},	    
-        { 11,  24, 111,  92}, Picture  {enabled, 128}
+	{232, 147, 252, 217}, Button	    {enabled, "Ok"},
+	{ 20, 108, 212, 344}, StaticText    {disabled,
+	    "Tcl " TCL_PATCH_LEVEL " & Tk " TK_PATCH_LEVEL "\n\n"
+	    "© 2002-2009 Tcl Core Team." "\n\n"
+	    "© 2002-2009 Daniel A. Steffen." "\n\n"
+	    "Jim Ingham & Ian Reid" "\n"
+	    "© 2001-2002 Apple Computer, Inc." "\n\n"
+	    "Jim Ingham & Ray Johnson" "\n"
+	    "© 1998-2000 Scriptics Inc." "\n"
+	    "© 1996-1997 Sun Microsystems Inc."},
+	{ 20,  24, 120, 92}, Picture  {enabled, 128}
+    }
+};
+
+resource 'dlgx' (128, "About Box", purgeable) {
+    versionZero {
+	kDialogFlagsUseThemeBackground | kDialogFlagsUseControlHierarchy
+	| kDialogFlagsHandleMovableModal | kDialogFlagsUseThemeControls
     }
 };
 

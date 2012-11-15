@@ -1,28 +1,27 @@
 '\"
 '\" Copyright (c) 1995-1997 Sun Microsystems, Inc.
 '\" Copyright (c) 1998-2000 by Ajuba Solutions.
+'\" Copyright (c) 2004 ActiveState Corporation.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" RCS: @(#) $Id$
-'\" 
 .so man.macros
-.TH "Http" n 8.3 Tcl "Tcl Built-In Commands"
+.TH "http" n 2.5 http "Tcl Bundled Packages"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Http \- Client-side implementation of the HTTP/1.0 protocol.
+http \- Client-side implementation of the HTTP/1.0 protocol.
 .SH SYNOPSIS
-\fBpackage require http ?2.3?\fP
+\fBpackage require http ?2.5?\fR
 .sp
 \fB::http::config \fI?options?\fR
 .sp
 \fB::http::geturl \fIurl ?options?\fR
 .sp
-\fB::http::formatQuery \fIlist\fR
+\fB::http::formatQuery\fP \fIkey value\fP ?\fIkey value\fP ...?
 .sp
-\fB::http::reset \fItoken\fR
+\fB::http::reset\fP \fItoken\fP ?\fIwhy\fP?
 .sp
 \fB::http::wait \fItoken\fR
 .sp
@@ -33,6 +32,8 @@ Http \- Client-side implementation of the HTTP/1.0 protocol.
 \fB::http::code \fItoken\fR
 .sp
 \fB::http::ncode \fItoken\fR
+.sp
+\fB::http::meta \fItoken\fR
 .sp
 \fB::http::data \fItoken\fR
 .sp
@@ -52,9 +53,9 @@ protocol.  The package implements the GET, POST, and HEAD operations
 of HTTP/1.0.  It allows configuration of a proxy host to get through
 firewalls.  The package is compatible with the \fBSafesock\fR security
 policy, so it can be used by untrusted applets to do URL fetching from
-a restricted set of hosts. This package can be extened to support
+a restricted set of hosts. This package can be extended to support
 additional HTTP transport protocols, such as HTTPS, by providing
-a custom \fBsocket\fR command, via \fBhttp::register\fR.
+a custom \fBsocket\fR command, via \fB::http::register\fR.
 .PP
 The \fB::http::geturl\fR procedure does a HTTP transaction.
 Its \fIoptions \fR determine whether a GET, POST, or HEAD transaction
@@ -87,7 +88,7 @@ flags and values that define the configuration:
 \fB\-accept\fP \fImimetypes\fP
 The Accept header of the request.  The default is */*, which means that
 all types of documents are accepted.  Otherwise you can supply a 
-comma separated list of mime type patterns that you are
+comma-separated list of mime type patterns that you are
 willing to receive.  For example, "image/gif, image/jpeg, text/*".
 .TP
 \fB\-proxyhost\fP \fIhostname\fP
@@ -102,19 +103,28 @@ The command is a callback that is made during
 \fB::http::geturl\fR
 to determine if a proxy is required for a given host.  One argument, a
 host name, is added to \fIcommand\fR when it is invoked.  If a proxy
-is required, the callback should return a two element list containing
+is required, the callback should return a two-element list containing
 the proxy server and proxy port.  Otherwise the filter should return
 an empty list.  The default filter returns the values of the
 \fB\-proxyhost\fR and \fB\-proxyport\fR settings if they are
 non-empty.
 .TP
+\fB\-urlencoding\fP \fIencoding\fP
+The \fIencoding\fR used for creating the x-url-encoded URLs with
+\fB::http::formatQuery\fR.  The default is \fButf-8\fR, as specified by RFC
+2718.  Prior to http 2.5 this was unspecified, and that behavior can be
+returned by specifying the empty string (\fB{}\fR), although
+\fIiso8859-1\fR is recommended to restore similar behavior but without the
+\fB::http::formatQuery\fR throwing an error processing non-latin-1
+characters.
+.TP
 \fB\-useragent\fP \fIstring\fP
 The value of the User-Agent header in the HTTP request.  The default
-is \fB"Tcl http client package 2.2."\fR
+is \fB"Tcl http client package 2.4."\fR
 .RE
 .TP
 \fB::http::geturl\fP \fIurl\fP ?\fIoptions\fP? 
-The \fB::http::geturl \fR command is the main procedure in the package.
+The \fB::http::geturl\fR command is the main procedure in the package.
 The \fB\-query\fR option causes a POST operation and
 the \fB\-validate\fR option causes a HEAD operation;
 otherwise, a GET operation is performed.  The \fB::http::geturl\fR command
@@ -126,13 +136,16 @@ that is invoked when the HTTP transaction completes.
 \fB::http::geturl\fR takes several options:
 .RS
 .TP
+\fB\-binary\fP \fIboolean\fP
+Specifies whether to force interpreting the URL data as binary.  Normally
+this is auto-detected (anything not beginning with a \fBtext\fR content
+type or whose content encoding is \fBgzip\fR or \fBcompress\fR is
+considered binary data).
+.TP
 \fB\-blocksize\fP \fIsize\fP
-The blocksize used when reading the URL.
-At most 
-\fIsize\fR
-bytes are read at once.  After each block, a call to the
-\fB\-progress\fR
-callback is made (if that option is specified).
+The block size used when reading the URL.
+At most \fIsize\fR bytes are read at once.  After each block, a call to the
+\fB\-progress\fR callback is made (if that option is specified).
 .TP
 \fB\-channel\fP \fIname\fP
 Copy the URL contents to channel \fIname\fR instead of saving it in
@@ -204,12 +217,12 @@ proc httpProgress {token total current} {
 .TP
 \fB\-query\fP \fIquery\fP
 This flag causes \fB::http::geturl\fR to do a POST request that passes the
-\fIquery\fR to the server. The \fIquery\fR must be a x-url-encoding
+\fIquery\fR to the server. The \fIquery\fR must be an x-url-encoding
 formatted query.  The \fB::http::formatQuery\fR procedure can be used to
 do the formatting.
 .TP
 \fB\-queryblocksize\fP \fIsize\fP
-The blocksize used when posting query data to the URL.
+The block size used when posting query data to the URL.
 At most 
 \fIsize\fR
 bytes are written at once.  After each block, a call to the
@@ -218,7 +231,8 @@ callback is made (if that option is specified).
 .TP
 \fB\-querychannel\fP \fIchannelID\fP
 This flag causes \fB::http::geturl\fR to do a POST request that passes the
-data contained in \fIchannelID\fR to the server. The data contained in \fIchannelID\fR must be a x-url-encoding
+data contained in \fIchannelID\fR to the server. The data contained in
+\fIchannelID\fR must be an x-url-encoding
 formatted query unless the \fB\-type\fP option below is used.
 If a Content-Length header is not specified via the \fB\-headers\fR options,
 \fB::http::geturl\fR attempts to determine the size of the post data
@@ -296,6 +310,11 @@ This is a convenience procedure that returns the \fBcurrentsize\fP
 element of the state array, which represents the number of bytes
 received from the URL in the \fB::http::geturl\fP call.
 .TP
+\fB::http::meta\fP \fItoken\fP
+This is a convenience procedure that returns the \fBmeta\fP
+element of the state array which contains the HTTP response
+headers. See below for an explanation of this element.
+.TP
 \fB::http::cleanup\fP \fItoken\fP
 This procedure cleans up the state associated with the connection
 identified by \fItoken\fP.  After this call, the procedures
@@ -315,18 +334,18 @@ command to execute to create the Tcl \fBchannel\fR. E.g.:
 package require http
 package require tls
 
-http::register https 443 ::tls::socket
+::http::register https 443 ::tls::socket
 
-set token [http::geturl https://my.secure.site/]
+set token [::http::geturl https://my.secure.site/]
 .CE
 .RE
 .TP
 \fB::http::unregister\fP \fIproto\fP
 This procedure unregisters a protocol handler that was previously
-registered via \fBhttp::register\fR.
+registered via \fB::http::register\fR.
 
 .SH "ERRORS"
-The \fBhttp::geturl\fP procedure will raise errors in the following cases:
+The \fB::http::geturl\fP procedure will raise errors in the following cases:
 invalid command line options,
 an invalid URL,
 a URL on a non-existent host,
@@ -349,7 +368,7 @@ HTTP reply headers or data, no exception is thrown.  This is because
 after writing the HTTP headers, \fB::http::geturl\fP returns, and the
 rest of the HTTP transaction occurs in the background.  The command
 callback can check if any error occurred during the read by calling
-\fB::http::status\fP to check the status and if it's \fIerror\fP,
+\fB::http::status\fP to check the status and if its \fIerror\fP,
 calling \fB::http::error\fP to get the error message.
 .PP
 Alternatively, if the main program flow reaches a point where it needs
@@ -358,17 +377,17 @@ to know the result of the asynchronous HTTP request, it can call
 callback does.
 .PP
 In any case, you must still call
-\fBhttp::cleanup\fP to delete the state array when you're done.
+\fB::http::cleanup\fP to delete the state array when you're done.
 .PP
 There are other possible results of the HTTP transaction
-determined by examining the status from \fBhttp::status\fP.
+determined by examining the status from \fB::http::status\fP.
 These are described below.
 .TP
 ok
 If the HTTP transaction completes entirely, then status will be \fBok\fP.
-However, you should still check the \fBhttp::code\fP value to get
-the HTTP status.  The \fBhttp::ncode\fP procedure provides just
-the numeric error (e.g., 200, 404 or 500) while the \fBhttp::code\fP
+However, you should still check the \fB::http::code\fP value to get
+the HTTP status.  The \fB::http::ncode\fP procedure provides just
+the numeric error (e.g., 200, 404 or 500) while the \fB::http::code\fP
 procedure returns a value like "HTTP 404 File not found".
 .TP
 eof
@@ -379,11 +398,11 @@ error
 The error message will also be stored in the \fBerror\fP status
 array element, accessible via \fB::http::error\fP.
 .PP
-Another error possibility is that \fBhttp::geturl\fP is unable to
+Another error possibility is that \fB::http::geturl\fP is unable to
 write all the post query data to the server before the server
 responds and closes the socket.
 The error message is saved in the \fBposterror\fP status array
-element and then  \fBhttp::geturl\fP attempts to complete the
+element and then  \fB::http::geturl\fP attempts to complete the
 transaction.
 If it can read the server's response
 it will end up with an \fBok\fP status, otherwise it will have
@@ -396,9 +415,9 @@ Use this construct to create an easy-to-use array variable:
 .CS
 upvar #0 $token state
 .CE
-Once the data associated with the url is no longer needed, the state
+Once the data associated with the URL is no longer needed, the state
 array should be unset to free up storage.
-The \fBhttp::cleanup\fP procedure is provided for that purpose.
+The \fB::http::cleanup\fP procedure is provided for that purpose.
 The following elements of
 the array are supported:
 .RS
@@ -406,6 +425,15 @@ the array are supported:
 \fBbody\fR
 The contents of the URL.  This will be empty if the \fB\-channel\fR
 option has been specified.  This value is returned by the \fB::http::data\fP command.
+.TP
+\fBcharset\fR
+The value of the charset attribute from the \fBContent-Type\fR meta-data
+value.  If none was specified, this defaults to the RFC standard
+\fBiso8859-1\fR, or the value of \fB$::http::defaultCharset\fR.  Incoming
+text data will be automatically converted from this charset to utf-8.
+.TP
+\fBcoding\fR
+A copy of the \fBContent-Encoding\fR meta-data value.
 .TP
 \fBcurrentsize\fR
 The current number of bytes fetched from the URL.
@@ -474,43 +502,44 @@ A copy of the \fBContent-Type\fR meta-data value.
 The requested URL.
 .RE
 .SH EXAMPLE
-.DS
+.CS
 # Copy a URL to a file and print meta-data
-proc ::http::copy { url file {chunk 4096} } {
-    set out [open $file w]
-    set token [geturl $url -channel $out -progress ::http::Progress \\
-	-blocksize $chunk]
-    close $out
-    # This ends the line started by http::Progress
-    puts stderr ""
-    upvar #0 $token state
-    set max 0
-    foreach {name value} $state(meta) {
-	if {[string length $name] > $max} {
-	    set max [string length $name]
-	}
-	if {[regexp -nocase ^location$ $name]} {
-	    # Handle URL redirects
-	    puts stderr "Location:$value"
-	    return [copy [string trim $value] $file $chunk]
-	}
-    }
-    incr max
-    foreach {name value} $state(meta) {
-	puts [format "%-*s %s" $max $name: $value]
-    }
+proc httpcopy { url file {chunk 4096} } {
+   set out [open $file w]
+   set token [\fB::http::geturl\fR $url -channel $out \\
+          -progress httpCopyProgress -blocksize $chunk]
+   close $out
 
-    return $token
-}
-proc ::http::Progress {args} {
-    puts -nonewline stderr . ; flush stderr
-}
+   # This ends the line started by httpCopyProgress
+   puts stderr ""
 
-.DE
+   upvar #0 $token state
+   set max 0
+   foreach {name value} $state(meta) {
+      if {[string length $name] > $max} {
+         set max [string length $name]
+      }
+      if {[regexp -nocase ^location$ $name]} {
+         # Handle URL redirects
+         puts stderr "Location:$value"
+         return [httpcopy [string trim $value] $file $chunk]
+      }
+   }
+   incr max
+   foreach {name value} $state(meta) {
+      puts [format "%-*s %s" $max $name: $value]
+   }
+
+   return $token
+}
+proc httpCopyProgress {args} {
+   puts -nonewline stderr .
+   flush stderr
+}
+.CE
+
 .SH "SEE ALSO"
 safe(n), socket(n), safesock(n)
+
 .SH KEYWORDS
 security policy, socket
-
-
-

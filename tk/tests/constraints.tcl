@@ -127,6 +127,8 @@ namespace eval tk {
 namespace import -force tk::test::*
 
 namespace import -force tcltest::testConstraint
+testConstraint notAqua [expr {[tk windowingsystem] ne "aqua"}]
+testConstraint aqua [expr {[tk windowingsystem] eq "aqua"}]
 testConstraint userInteraction 0
 testConstraint nonUnixUserInteraction [expr {[testConstraint userInteraction]
                                                 || [testConstraint unix]}]
@@ -159,6 +161,7 @@ testConstraint pseudocolor8 [expr {([catch {
                         toplevel .t -visual {pseudocolor 8} -colormap new
                         }] == 0) && ([winfo depth .t] == 8)}]
 destroy .t
+testConstraint haveTruecolor24 [expr {[lsearch [winfo visualsavailable .] {truecolor 24}] != -1}]
 setupbg
 set app [dobg {tk appname}]
 testConstraint secureserver 0

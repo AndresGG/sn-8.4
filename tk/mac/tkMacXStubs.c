@@ -10,8 +10,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkInt.h"
@@ -90,7 +88,7 @@ int _XInitImageFuncPtrs _ANSI_ARGS_((XImage *image));
 
 TkDisplay *
 TkpOpenDisplay(
-    char *display_name)
+    CONST char *display_name)
 {
     Display *display;
     Screen *screen;
@@ -106,6 +104,7 @@ TkpOpenDisplay(
 
     graphicsDevice = GetMainDevice();
     display = (Display *) ckalloc(sizeof(Display));
+    memset(display, 0, sizeof(Display));
     display->resource_alloc = MacXIdAlloc;
     screen = (Screen *) ckalloc(sizeof(Screen) * 2);
     display->default_screen = 0;
@@ -138,6 +137,7 @@ TkpOpenDisplay(
     screen->root_visual->map_entries = 2 ^ 8;
 
     gMacDisplay = (TkDisplay *) ckalloc(sizeof(TkDisplay));
+    memset(gMacDisplay, 0, sizeof(TkDisplay));
     gMacDisplay->display = display;
     return gMacDisplay;
 }
@@ -167,13 +167,6 @@ TkpCloseDisplay(
         panic("TkpCloseDisplay: tried to call TkpCloseDisplay on bad display");
     }
 
-    /*
-     * Make sure that the local scrap is transfered to the global
-     * scrap if needed.
-     */
-
-    TkSuspendClipboard();
-
     gMacDisplay = NULL;
     if (display->screens != (Screen *) NULL) {
         if (display->screens->root_visual != (Visual *) NULL) {
@@ -182,7 +175,49 @@ TkpCloseDisplay(
         ckfree((char *) display->screens);
     }
     ckfree((char *) display);
-    ckfree((char *) displayPtr);
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TkClipCleanup --
+ *
+ *	This procedure is called to cleanup resources associated with
+ *	claiming clipboard ownership and for receiving selection get
+ *	results.  This function is called in tkWindow.c.  This has to be
+ *	called by the display cleanup function because we still need the
+ *	access display elements.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Resources are freed - the clipboard may no longer be used.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+TkClipCleanup(dispPtr)
+    TkDisplay *dispPtr;	/* display associated with clipboard */
+{
+    /*
+     * Make sure that the local scrap is transfered to the global
+     * scrap if needed.
+     */
+
+    TkSuspendClipboard();
+
+    if (dispPtr->clipWindow != NULL) {
+	Tk_DeleteSelHandler(dispPtr->clipWindow, dispPtr->clipboardAtom,
+		dispPtr->applicationAtom);
+	Tk_DeleteSelHandler(dispPtr->clipWindow, dispPtr->clipboardAtom,
+		dispPtr->windowAtom);
+
+	Tk_DestroyWindow(dispPtr->clipWindow);
+	Tcl_Release((ClientData) dispPtr->clipWindow);
+	dispPtr->clipWindow = NULL;
+    }
 }
 
 /*
@@ -524,6 +559,19 @@ XQueryColors(
 {
 }
 
+int   
+XQueryTree(display, w, root_return, parent_return, children_return,
+        nchildren_return)
+    Display* display;
+    Window w;
+    Window* root_return;
+    Window* parent_return;
+    Window** children_return;
+    unsigned int* nchildren_return;
+{
+    return 0;
+}
+
 int
 XGetWindowProperty(
     Display *display,
@@ -793,14 +841,35 @@ XCreateIC(
  *----------------------------------------------------------------------
  */
 
-char *
+CONST char *
 TkGetDefaultScreenName(
     Tcl_Interp *interp,		/* Not used. */
-    char *screenName)		/* If NULL, use default string. */
+    CONST char *screenName)	/* If NULL, use default string. */
 {
     if ((screenName == NULL) || (screenName[0] == '\0')) {
 	screenName = macScreenName;
     }
     return screenName;
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tk_SetCaretPos --
+ *
+ *	This indicates the cursor position to Tk.
+ *	This is currently a noop stub for MacX.
+ *
+ *----------------------------------------------------------------------
+ */
 
+void
+Tk_SetCaretPos(Tk_Window tkwin, int x, int y, int height)
+{
+    TkCaret *caretPtr = &(((TkWindow *) tkwin)->dispPtr->caret);
+
+    caretPtr->winPtr = ((TkWindow *) tkwin);
+    caretPtr->x = x;
+    caretPtr->y = y;
+    caretPtr->height = height;
+}

@@ -3,15 +3,13 @@
 # This file defines several procedures for managing the input
 # focus.
 #
-# RCS: @(#) $Id$
-#
 # Copyright (c) 1994-1995 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
 
-# tk_focusNext --
+# ::tk_focusNext --
 # This procedure returns the name of the next window after "w" in
 # "focus order" (the window that should receive the focus next if
 # Tab is typed in w).  "Next" is defined by a pre-order search
@@ -22,7 +20,7 @@
 # Arguments:
 # w -		Name of a window.
 
-proc tk_focusNext w {
+proc ::tk_focusNext w {
     set cur $w
     while {1} {
 
@@ -38,7 +36,7 @@ proc tk_focusNext w {
 	    incr i
 	    if {$i < [llength $children]} {
 		set cur [lindex $children $i]
-              if {[string equal [winfo toplevel $cur] $cur]} {
+              if {[winfo toplevel $cur] eq $cur} {
 		    continue
 		} else {
 		    break
@@ -50,20 +48,20 @@ proc tk_focusNext w {
 	    # look for its next sibling.
 
 	    set cur $parent
-	    if {[string equal [winfo toplevel $cur] $cur]} {
+	    if {[winfo toplevel $cur] eq $cur} {
 		break
 	    }
 	    set parent [winfo parent $parent]
 	    set children [winfo children $parent]
 	    set i [lsearch -exact $children $cur]
 	}
-	if {[string equal $w $cur] || [tkFocusOK $cur]} {
+	if {$w eq $cur || [tk::FocusOK $cur]} {
 	    return $cur
 	}
     }
 }
 
-# tk_focusPrev --
+# ::tk_focusPrev --
 # This procedure returns the name of the previous window before "w" in
 # "focus order" (the window that should receive the focus next if
 # Shift-Tab is typed in w).  "Next" is defined by a pre-order search
@@ -74,7 +72,7 @@ proc tk_focusNext w {
 # Arguments:
 # w -		Name of a window.
 
-proc tk_focusPrev w {
+proc ::tk_focusPrev w {
     set cur $w
     while {1} {
 
@@ -82,7 +80,7 @@ proc tk_focusPrev w {
 	# among its siblings.  Also, if the window is a top-level,
 	# then reposition to just after the last child of the window.
 
-	if {[string equal [winfo toplevel $cur] $cur]}  {
+	if {[winfo toplevel $cur] eq $cur}  {
 	    set parent $cur
 	    set children [winfo children $cur]
 	    set i [llength $children]
@@ -100,7 +98,7 @@ proc tk_focusPrev w {
 	while {$i > 0} {
 	    incr i -1
 	    set cur [lindex $children $i]
-	    if {[string equal [winfo toplevel $cur] $cur]} {
+	    if {[winfo toplevel $cur] eq $cur} {
 		continue
 	    }
 	    set parent $cur
@@ -108,13 +106,13 @@ proc tk_focusPrev w {
 	    set i [llength $children]
 	}
 	set cur $parent
-	if {[string equal $w $cur] || [tkFocusOK $cur]} {
+	if {$w eq $cur || [tk::FocusOK $cur]} {
 	    return $cur
 	}
     }
 }
 
-# tkFocusOK --
+# ::tk::FocusOK --
 #
 # This procedure is invoked to decide whether or not to focus on
 # a given window.  It returns 1 if it's OK to focus on the window,
@@ -128,16 +126,16 @@ proc tk_focusPrev w {
 # Arguments:
 # w -		Name of a window.
 
-proc tkFocusOK w {
+proc ::tk::FocusOK w {
     set code [catch {$w cget -takefocus} value]
-    if {($code == 0) && ($value != "")} {
+    if {($code == 0) && ($value ne "")} {
 	if {$value == 0} {
 	    return 0
 	} elseif {$value == 1} {
 	    return [winfo viewable $w]
 	} else {
 	    set value [uplevel #0 $value [list $w]]
-	    if {$value != ""} {
+	    if {$value ne ""} {
 		return $value
 	    }
 	}
@@ -146,13 +144,13 @@ proc tkFocusOK w {
 	return 0
     }
     set code [catch {$w cget -state} value]
-    if {($code == 0) && [string equal $value "disabled"]} {
+    if {($code == 0) && $value eq "disabled"} {
 	return 0
     }
     regexp Key|Focus "[bind $w] [bind [winfo class $w]]"
 }
 
-# tk_focusFollowsMouse --
+# ::tk_focusFollowsMouse --
 #
 # If this procedure is invoked, Tk will enter "focus-follows-mouse"
 # mode, where the focus is always on whatever window contains the
@@ -162,22 +160,20 @@ proc tkFocusOK w {
 # Arguments:
 # None.
 
-proc tk_focusFollowsMouse {} {
+proc ::tk_focusFollowsMouse {} {
     set old [bind all <Enter>]
     set script {
-	if {[string equal "%d" "NotifyAncestor"] \
-		|| [string equal "%d" "NotifyNonlinear"] \
-		|| [string equal "%d" "NotifyInferior"]} {
-	    if {[tkFocusOK %W]} {
+	if {"%d" eq "NotifyAncestor" \
+		|| "%d" eq "NotifyNonlinear" \
+		|| "%d" eq "NotifyInferior"} {
+	    if {[tk::FocusOK %W]} {
 		focus %W
 	    }
 	}
     }
-    if {[string compare $old ""]} {
+    if {$old ne ""} {
 	bind all <Enter> "$old; $script"
     } else {
 	bind all <Enter> $script
     }
 }
-
-

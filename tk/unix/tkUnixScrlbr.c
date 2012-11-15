@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkScrollbar.h"
@@ -32,13 +30,13 @@ typedef struct UnixScrollbar {
 } UnixScrollbar;
 
 /*
- * The class procedure table for the scrollbar widget.
+ * The class procedure table for the scrollbar widget.  All fields except
+ * size are left initialized to NULL, which should happen automatically
+ * since the variable is declared at this scope.
  */
 
-TkClassProcs tkpScrollbarProcs = { 
-    NULL,			/* createProc. */
-    NULL,			/* geometryProc. */
-    NULL			/* modalProc. */
+Tk_ClassProcs tkpScrollbarProcs = {
+    sizeof(Tk_ClassProcs)	/* size */
 };
 
 
@@ -302,8 +300,8 @@ TkpComputeScrollbarGeometry(scrollPtr)
      * a minimal width (so it can be grabbed with the mouse).
      */
 
-    if (scrollPtr->sliderFirst > (fieldLength - 2*scrollPtr->borderWidth)) {
-	scrollPtr->sliderFirst = fieldLength - 2*scrollPtr->borderWidth;
+    if (scrollPtr->sliderFirst > (fieldLength - MIN_SLIDER_LENGTH)) {
+	scrollPtr->sliderFirst = fieldLength - MIN_SLIDER_LENGTH;
     }
     if (scrollPtr->sliderFirst < 0) {
 	scrollPtr->sliderFirst = 0;
@@ -474,4 +472,3 @@ TkpScrollbarPosition(scrollPtr, x, y)
     }
     return BOTTOM_GAP;
 }
-

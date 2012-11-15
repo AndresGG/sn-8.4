@@ -7,8 +7,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkWinInt.h"
@@ -177,4 +175,28 @@ TkRectInRegion(r, x, y, width, height)
     rect.right = x+width;
     return RectInRegion((HRGN)r, &rect) ? RectanglePart : RectangleOut;
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TkSubtractRegion --
+ *
+ *	Compute the set-difference of two regions.
+ *
+ * Results:
+ *	Returns the result in the dr_return region.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
 
+void
+TkSubtractRegion(sra, srb, dr_return)
+    TkRegion sra;
+    TkRegion srb;
+    TkRegion dr_return;
+{
+    CombineRgn((HRGN) dr_return, (HRGN) sra, (HRGN) srb, RGN_DIFF);
+}

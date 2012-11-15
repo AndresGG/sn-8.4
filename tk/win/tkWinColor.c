@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkWinInt.h"
@@ -40,33 +38,33 @@ typedef struct {
 
 
 static SystemColorEntry sysColors[] = {
-    "3dDarkShadow",		COLOR_3DDKSHADOW,
-    "3dLight",			COLOR_3DLIGHT,
-    "ActiveBorder",		COLOR_ACTIVEBORDER,
-    "ActiveCaption",		COLOR_ACTIVECAPTION,
-    "AppWorkspace",		COLOR_APPWORKSPACE,
-    "Background",		COLOR_BACKGROUND,
-    "ButtonFace",		COLOR_BTNFACE,
-    "ButtonHighlight",		COLOR_BTNHIGHLIGHT,
-    "ButtonShadow",		COLOR_BTNSHADOW,
-    "ButtonText",		COLOR_BTNTEXT,
-    "CaptionText",		COLOR_CAPTIONTEXT,
-    "DisabledText",		COLOR_GRAYTEXT,
-    "GrayText",			COLOR_GRAYTEXT,
-    "Highlight",		COLOR_HIGHLIGHT,
-    "HighlightText",		COLOR_HIGHLIGHTTEXT,
-    "InactiveBorder",		COLOR_INACTIVEBORDER,
-    "InactiveCaption",		COLOR_INACTIVECAPTION,
-    "InactiveCaptionText",	COLOR_INACTIVECAPTIONTEXT,
-    "InfoBackground",		COLOR_INFOBK,
-    "InfoText",			COLOR_INFOTEXT,
-    "Menu",			COLOR_MENU,
-    "MenuText",			COLOR_MENUTEXT,
-    "Scrollbar",		COLOR_SCROLLBAR,
-    "Window",			COLOR_WINDOW,
-    "WindowFrame",		COLOR_WINDOWFRAME,
-    "WindowText",		COLOR_WINDOWTEXT,
-    NULL,			0
+    {"3dDarkShadow",		COLOR_3DDKSHADOW},
+    {"3dLight",			COLOR_3DLIGHT},
+    {"ActiveBorder",		COLOR_ACTIVEBORDER},
+    {"ActiveCaption",		COLOR_ACTIVECAPTION},
+    {"AppWorkspace",		COLOR_APPWORKSPACE},
+    {"Background",		COLOR_BACKGROUND},
+    {"ButtonFace",		COLOR_BTNFACE},
+    {"ButtonHighlight",		COLOR_BTNHIGHLIGHT},
+    {"ButtonShadow",		COLOR_BTNSHADOW},
+    {"ButtonText",		COLOR_BTNTEXT},
+    {"CaptionText",		COLOR_CAPTIONTEXT},
+    {"DisabledText",		COLOR_GRAYTEXT},
+    {"GrayText",			COLOR_GRAYTEXT},
+    {"Highlight",		COLOR_HIGHLIGHT},
+    {"HighlightText",		COLOR_HIGHLIGHTTEXT},
+    {"InactiveBorder",		COLOR_INACTIVEBORDER},
+    {"InactiveCaption",		COLOR_INACTIVECAPTION},
+    {"InactiveCaptionText",	COLOR_INACTIVECAPTIONTEXT},
+    {"InfoBackground",		COLOR_INFOBK},
+    {"InfoText",			COLOR_INFOTEXT},
+    {"Menu",			COLOR_MENU},
+    {"MenuText",			COLOR_MENUTEXT},
+    {"Scrollbar",		COLOR_SCROLLBAR},
+    {"Window",			COLOR_WINDOW},
+    {"WindowFrame",		COLOR_WINDOWFRAME},
+    {"WindowText",		COLOR_WINDOWTEXT},
+    {NULL,			0}
 };
 
 typedef struct ThreadSpecificData { 
@@ -80,8 +78,6 @@ static Tcl_ThreadDataKey dataKey;
 
 static int	FindSystemColor _ANSI_ARGS_((const char *name,
 		    XColor *colorPtr, int *indexPtr));
-static int	GetColorByName _ANSI_ARGS_((char *name, XColor *color));
-static int	GetColorByValue _ANSI_ARGS_((char *value, XColor *color));
 
 /*
  *----------------------------------------------------------------------

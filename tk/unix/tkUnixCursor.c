@@ -7,8 +7,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkPort.h"
@@ -154,7 +152,7 @@ TkGetCursorByName(interp, tkwin, string)
     TkUnixCursor *cursorPtr = NULL;
     Cursor cursor = None;
     int argc;
-    char **argv = NULL;
+    CONST char **argv = NULL;
     Pixmap source = None;
     Pixmap mask = None;
     Display *display = Tk_Display(tkwin);
@@ -352,8 +350,8 @@ TkCursor *
 TkCreateCursorFromData(tkwin, source, mask, width, height, xHot, yHot,
 	fgColor, bgColor)
     Tk_Window tkwin;		/* Window in which cursor will be used. */
-    char *source;		/* Bitmap data for cursor shape. */
-    char *mask;			/* Bitmap data for cursor mask. */
+    CONST char *source;		/* Bitmap data for cursor shape. */
+    CONST char *mask;		/* Bitmap data for cursor mask. */
     int width, height;		/* Dimensions of cursor. */
     int xHot, yHot;		/* Location of hot-spot in cursor. */
     XColor fgColor;		/* Foreground color for cursor. */
@@ -408,4 +406,3 @@ TkpFreeCursor(cursorPtr)
     XFreeCursor(unixCursorPtr->display, (Cursor) unixCursorPtr->info.cursor);
     Tk_FreeXId(unixCursorPtr->display, (XID) unixCursorPtr->info.cursor);
 }
-

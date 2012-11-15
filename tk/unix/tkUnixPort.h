@@ -10,8 +10,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #ifndef _UNIXPORT
@@ -37,7 +35,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <fcntl.h>
-#ifdef HAVE_LIMITS_H
+#ifndef NO_LIMITS_H
 #   include <limits.h>
 #else
 #   include "../compat/limits.h"
@@ -75,7 +73,7 @@
 #       include <time.h>
 #   endif
 #endif
-#ifdef HAVE_UNISTD_H
+#ifndef NO_UNISTD_H
 #   include <unistd.h>
 #else
 #   include "../compat/unistd.h"
@@ -126,13 +124,6 @@
 #define MASK_SIZE howmany(FD_SETSIZE, NFDBITS)
 
 /*
- * Not all systems declare the errno variable in errno.h. so this
- * file does it explicitly.
- */
-
-extern int errno;
-
-/*
  * Define "NBBY" (number of bits per byte) if it's not already defined.
  */
 
@@ -151,6 +142,8 @@ extern int errno;
 	(Region) b, (Region) r)
 #define TkRectInRegion(r, x, y, w, h) XRectInRegion((Region) r, x, y, w, h)
 #define TkSetRegion(d, gc, rgn) XSetRegion(d, gc, (Region) rgn)
+#define TkSubtractRegion(a, b, r) XSubtractRegion((Region) a, \
+	(Region) b, (Region) r)
 #define TkUnionRectWithRegion(rect, src, ret) XUnionRectWithRegion(rect, \
 	(Region) src, (Region) ret)
 
@@ -206,24 +199,11 @@ extern int errno;
 
 /*
  * This macro stores a representation of the window handle in a string.
+ * This should perhaps use the real size of an XID.
  */
 
 #define TkpPrintWindowId(buf,w) \
-	sprintf((buf), "0x%x", (unsigned int) (w))
-	    
-/*
- * TkpScanWindowId is just an alias for Tcl_GetInt on Unix.
- */
-
-#define TkpScanWindowId(i,s,wp) \
-	Tcl_GetInt((i),(s),(wp))
-	    
-/*
- * This macro indicates that entry and text widgets should display
- * the selection highlight regardless of which window has the focus.
- */
-
-#define ALWAYS_SHOW_SELECTION
+	sprintf((buf), "%#08lx", (unsigned long) (w))
 
 /*
  * The following declaration is used to get access to a private Tcl interface
@@ -235,4 +215,3 @@ extern int errno;
 #endif
 
 #endif /* _UNIXPORT */
-

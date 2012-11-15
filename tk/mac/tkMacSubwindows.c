@@ -7,8 +7,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkInt.h"
@@ -724,14 +722,14 @@ TkMacUpdateClipRgn(
 	 * This is not currently enforced, however.
 	 */
 	
-	if (!Tk_IsTopLevel(winPtr)) { 
+	if (!Tk_TopWinHierarchy(winPtr)) { 
 	    TkMacUpdateClipRgn(winPtr->parentPtr);
 	    SectRgn(rgn, 
 		    winPtr->parentPtr->privatePtr->aboveClipRgn, rgn);
 				
 	    win2Ptr = winPtr->nextPtr;
 	    while (win2Ptr != NULL) {
-		if (Tk_IsTopLevel(win2Ptr) || !Tk_IsMapped(win2Ptr)) {
+		if (Tk_TopWinHierarchy(win2Ptr) || !Tk_IsMapped(win2Ptr)) {
 		    win2Ptr = win2Ptr->nextPtr;
 		    continue;
 		}
@@ -776,7 +774,7 @@ TkMacUpdateClipRgn(
 		
 	win2Ptr = winPtr->childList;
 	while (win2Ptr != NULL) {
-	    if (Tk_IsTopLevel(win2Ptr) || !Tk_IsMapped(win2Ptr)) {
+	    if (Tk_TopWinHierarchy(win2Ptr) || !Tk_IsMapped(win2Ptr)) {
 		win2Ptr = win2Ptr->nextPtr;
 		continue;
 	    }
@@ -1000,7 +998,7 @@ TkMacInvalClipRgns(
      */
     childPtr = winPtr->childList;
     while (childPtr != NULL) {
-	if (!Tk_IsTopLevel(childPtr) && Tk_IsMapped(childPtr)) {
+	if (!Tk_TopWinHierarchy(childPtr) && Tk_IsMapped(childPtr)) {
 	    TkMacInvalClipRgns(childPtr);
 	}
 	childPtr = childPtr->nextPtr;
@@ -1133,7 +1131,7 @@ UpdateOffsets(
 
     childPtr = winPtr->childList;
     while (childPtr != NULL) {
-	if (!Tk_IsTopLevel(childPtr)) {
+	if (!Tk_TopWinHierarchy(childPtr)) {
 	    UpdateOffsets(childPtr, deltaX, deltaY);
 	}
 	childPtr = childPtr->nextPtr;
@@ -1256,4 +1254,3 @@ Tk_FreePixmap(
     ckfree((char *) macPix);
 }
 
-

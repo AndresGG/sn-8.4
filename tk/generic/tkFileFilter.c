@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkInt.h"
@@ -17,7 +15,7 @@
 
 static int		AddClause _ANSI_ARGS_((
 			    Tcl_Interp * interp, FileFilter * filterPtr,
-			    char * patternsStr, char * ostypesStr,
+			    CONST char * patternsStr, CONST char * ostypesStr,
 			    int isWindows));
 static void		FreeClauses _ANSI_ARGS_((FileFilter * filterPtr));
 static void		FreeGlobPatterns _ANSI_ARGS_((
@@ -25,7 +23,7 @@ static void		FreeGlobPatterns _ANSI_ARGS_((
 static void		FreeMacFileTypes _ANSI_ARGS_((
 			    FileFilterClause * clausePtr));
 static FileFilter *	GetFilter _ANSI_ARGS_((FileFilterList * flistPtr,
-			    char * name));
+			    CONST char * name));
 
 /*
  *----------------------------------------------------------------------
@@ -86,8 +84,8 @@ TkGetFileFilters(interp, flistPtr, string, isWindows)
     int isWindows;		/* True if we are running on Windows. */
 {
     int listArgc;
-    char ** listArgv = NULL;
-    char ** typeInfo = NULL;
+    CONST char ** listArgv = NULL;
+    CONST char ** typeInfo = NULL;
     int code = TCL_OK;
     int i;
 
@@ -206,16 +204,16 @@ TkFreeFileFilters(flistPtr)
 static int AddClause(interp, filterPtr, patternsStr, ostypesStr, isWindows)
     Tcl_Interp * interp;	/* Interpreter to use for error reporting. */
     FileFilter * filterPtr;	/* Stores the new filter clause */
-    char * patternsStr;		/* A TCL list of glob patterns. */
-    char * ostypesStr;		/* A TCL list of Mac OSType strings. */
+    CONST char * patternsStr;		/* A TCL list of glob patterns. */
+    CONST char * ostypesStr;		/* A TCL list of Mac OSType strings. */
     int isWindows;		/* True if we are running on Windows; False
 				 * if we are running on the Mac; Glob
 				 * patterns need to be processed differently
 				 * on these two platforms */
 {
-    char ** globList = NULL;
+    CONST char ** globList = NULL;
     int globCount;
-    char ** ostypeList = NULL;
+    CONST char ** ostypeList = NULL;
     int ostypeCount;
     FileFilterClause * clausePtr;
     int i;
@@ -270,7 +268,7 @@ static int AddClause(interp, filterPtr, patternsStr, ostypesStr, isWindows)
 		/*
 		 * Prepend a "*" to patterns that do not have a leading "*"
 		 */
-		globPtr->pattern = (char*)ckalloc(len+1);
+		globPtr->pattern = (char*)ckalloc((unsigned int) len+1);
 		globPtr->pattern[0] = '*';
 		strcpy(globPtr->pattern+1, globList[i]);
 	    }
@@ -289,11 +287,11 @@ static int AddClause(interp, filterPtr, patternsStr, ostypesStr, isWindows)
 		    strcpy(globPtr->pattern, "*.");
 		}
 		else {
-		    globPtr->pattern = (char*)ckalloc(len);
+		    globPtr->pattern = (char*)ckalloc((unsigned int) len);
 		    strcpy(globPtr->pattern, globList[i]);
 		}
 	    } else {
-		globPtr->pattern = (char*)ckalloc(len);
+		globPtr->pattern = (char*)ckalloc((unsigned int) len);
 		strcpy(globPtr->pattern, globList[i]);
 	    }
 
@@ -313,12 +311,15 @@ static int AddClause(interp, filterPtr, patternsStr, ostypesStr, isWindows)
     if (ostypeCount > 0 && ostypeList != NULL) {
 	for (i=0; i<ostypeCount; i++) {
 	    MacFileType * mfPtr = (MacFileType*)ckalloc(sizeof(MacFileType));
+	    CONST char *string = ostypeList[i];
 
-	    memcpy(&mfPtr->type, ostypeList[i], sizeof(OSType));
+	    mfPtr->type = (OSType) string[0] << 24 | (OSType) string[1] << 16 |
+		    (OSType) string[2] <<  8 | (OSType) string[3];
 
 	    /*
 	     * Add the Mac type pattern into the list of Mac types
 	     */
+
 	    if (clausePtr->macTypes == NULL) {
 		clausePtr->macTypes = clausePtr->macTypesTail = mfPtr;
 	    } else {
@@ -358,7 +359,7 @@ static int AddClause(interp, filterPtr, patternsStr, ostypesStr, isWindows)
 static FileFilter * GetFilter(flistPtr, name)
     FileFilterList * flistPtr;	/* The FileFilterList that contains the
 				 * newly created filter */
-    char * name;		/* Name of the filter. It is usually displayed
+    CONST char * name;		/* Name of the filter. It is usually displayed
 				 * in the "File Types" listbox in the file
 				 * dialogs. */
 {
@@ -483,4 +484,3 @@ FreeMacFileTypes(clausePtr)
     }
     clausePtr->macTypes = NULL;
 }
-

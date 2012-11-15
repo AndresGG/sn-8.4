@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #ifndef _TKCOLOR
@@ -87,7 +85,7 @@ typedef struct TkColor {
 				 * Tk_GetColorByValue) this field is always
 				 * NULL. */
     /* CYGNUS LOCAL */
-    TkGCList *gcList;		/* List of GCs which use this color.  */
+    TkGCList *gcList;          /* List of GCs which use this color.  */
 } TkColor;
 
 /*
@@ -101,13 +99,12 @@ EXTERN TkColor *	TkpGetColor _ANSI_ARGS_((Tk_Window tkwin,
 			    Tk_Uid name));
 EXTERN TkColor *	TkpGetColorByValue _ANSI_ARGS_((Tk_Window tkwin,
 			    XColor *colorPtr));	
-
-/* CYGNUS LOCAL.  */
-EXTERN void		TkMapOverColors _ANSI_ARGS_((void (*) (TkColor *)));
-EXTERN void		TkColorChanged _ANSI_ARGS_((TkColor *)); 
+                            
+/* CYGNUS LOCAL.  */                            
+EXTERN void            TkMapOverColors _ANSI_ARGS_((void (*) (TkColor *)));
+EXTERN void            TkColorChanged _ANSI_ARGS_((TkColor *)); 
 
 # undef TCL_STORAGE_CLASS
 # define TCL_STORAGE_CLASS DLLIMPORT
 
 #endif /* _TKCOLOR */
-

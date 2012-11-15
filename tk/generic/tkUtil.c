@@ -10,8 +10,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkInt.h"
@@ -22,7 +20,7 @@
  * Tcl object, used for quickly finding a mapping in a TkStateMap.
  */
 
-static Tcl_ObjType stateKeyType = {
+Tcl_ObjType tkStateKeyObjType = {
     "statekey",				/* name */
     (Tcl_FreeInternalRepProc *) NULL,	/* freeIntRepProc */
     (Tcl_DupInternalRepProc *) NULL,	/* dupIntRepProc */
@@ -630,7 +628,7 @@ int
 Tk_GetScrollInfo(interp, argc, argv, dblPtr, intPtr)
     Tcl_Interp *interp;			/* Used for error reporting. */
     int argc;				/* # arguments for command. */
-    char **argv;			/* Arguments for command. */
+    CONST char **argv;			/* Arguments for command. */
     double *dblPtr;			/* Filled in with argument "moveto"
 					 * option, if any. */
     int *intPtr;			/* Filled in with number of pages
@@ -794,7 +792,7 @@ TkComputeAnchor(anchor, tkwin, padX, padY, innerWidth, innerHeight, xPtr, yPtr)
 	case TK_ANCHOR_NW:
 	case TK_ANCHOR_W:
 	case TK_ANCHOR_SW:
-	    *xPtr = Tk_InternalBorderWidth(tkwin) + padX;
+	    *xPtr = Tk_InternalBorderLeft(tkwin) + padX;
 	    break;
 
 	case TK_ANCHOR_N:
@@ -804,7 +802,7 @@ TkComputeAnchor(anchor, tkwin, padX, padY, innerWidth, innerHeight, xPtr, yPtr)
 	    break;
 
 	default:
-	    *xPtr = Tk_Width(tkwin) - (Tk_InternalBorderWidth(tkwin) + padX)
+	    *xPtr = Tk_Width(tkwin) - (Tk_InternalBorderRight(tkwin) + padX)
 		    - innerWidth;
 	    break;
     }
@@ -813,7 +811,7 @@ TkComputeAnchor(anchor, tkwin, padX, padY, innerWidth, innerHeight, xPtr, yPtr)
 	case TK_ANCHOR_NW:
 	case TK_ANCHOR_N:
 	case TK_ANCHOR_NE:
-	    *yPtr = Tk_InternalBorderWidth(tkwin) + padY;
+	    *yPtr = Tk_InternalBorderTop(tkwin) + padY;
 	    break;
 
 	case TK_ANCHOR_W:
@@ -823,7 +821,7 @@ TkComputeAnchor(anchor, tkwin, padX, padY, innerWidth, innerHeight, xPtr, yPtr)
 	    break;
 
 	default:
-	    *yPtr = Tk_Height(tkwin) - Tk_InternalBorderWidth(tkwin) - padY
+	    *yPtr = Tk_Height(tkwin) - Tk_InternalBorderBottom(tkwin) - padY
 		    - innerHeight;
 	    break;
     }
@@ -920,7 +918,7 @@ TkFindStateNumObj(interp, optionPtr, mapPtr, keyPtr)
     CONST char *key;
     CONST Tcl_ObjType *typePtr;
 
-    if ((keyPtr->typePtr == &stateKeyType)
+    if ((keyPtr->typePtr == &tkStateKeyObjType)
 	    && (keyPtr->internalRep.twoPtrValue.ptr1 == (VOID *) mapPtr)) {
 	return (int) keyPtr->internalRep.twoPtrValue.ptr2;
     }
@@ -934,7 +932,7 @@ TkFindStateNumObj(interp, optionPtr, mapPtr, keyPtr)
 	    }
 	    keyPtr->internalRep.twoPtrValue.ptr1 = (VOID *) mapPtr;
 	    keyPtr->internalRep.twoPtrValue.ptr2 = (VOID *) mPtr->numKey;
-	    keyPtr->typePtr = &stateKeyType;	    
+	    keyPtr->typePtr = &tkStateKeyObjType;	    
 	    return mPtr->numKey;
 	}
     }
@@ -952,4 +950,148 @@ TkFindStateNumObj(interp, optionPtr, mapPtr, keyPtr)
     return mPtr->numKey;
 }
 
+/*
+ * For each exit handler created with a call to TkCreateExitHandler
+ * there is a structure of the following type:
+ */
 
+typedef struct ExitHandler {
+    Tcl_ExitProc *proc;		/* Procedure to call when process exits. */
+    ClientData clientData;	/* One word of information to pass to proc. */
+    struct ExitHandler *nextPtr;/* Next in list of all exit handlers for
+				 * this application, or NULL for end of list. */
+} ExitHandler;
+
+/*
+ * There is both per-process and per-thread exit handlers.
+ * The first list is controlled by a mutex.  The other is in
+ * thread local storage.
+ */
+
+static ExitHandler *firstExitPtr = NULL;
+				/* First in list of all exit handlers for
+				 * application. */
+TCL_DECLARE_MUTEX(exitMutex)
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * TkCreateExitHandler --
+ *
+ *	Same as Tcl_CreateExitHandler, but private to Tk.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects.
+ *	Sets a handler with Tcl_CreateExitHandler if this is the first call.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+void
+TkCreateExitHandler (proc, clientData)
+    Tcl_ExitProc *proc;		/* Procedure to invoke. */
+    ClientData clientData;	/* Arbitrary value to pass to proc. */
+{
+    ExitHandler *exitPtr;
+
+    exitPtr = (ExitHandler *) ckalloc(sizeof(ExitHandler));
+    exitPtr->proc = proc;
+    exitPtr->clientData = clientData;
+    Tcl_MutexLock(&exitMutex);
+    if (firstExitPtr == NULL) {
+	Tcl_CreateExitHandler(TkFinalize, NULL);
+    }
+    exitPtr->nextPtr = firstExitPtr;
+    firstExitPtr = exitPtr;
+    Tcl_MutexUnlock(&exitMutex);
+}
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * TkDeleteExitHandler --
+ *
+ *	Same as Tcl_DeleteExitHandler, but private to Tk.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects.
+ *	None.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+void
+TkDeleteExitHandler (proc, clientData)
+    Tcl_ExitProc *proc;		/* Procedure that was previously registered. */
+    ClientData clientData;	/* Arbitrary value to pass to proc. */
+{
+    ExitHandler *exitPtr, *prevPtr;
+
+    Tcl_MutexLock(&exitMutex);
+    for (prevPtr = NULL, exitPtr = firstExitPtr; exitPtr != NULL;
+	    prevPtr = exitPtr, exitPtr = exitPtr->nextPtr) {
+	if ((exitPtr->proc == proc)
+		&& (exitPtr->clientData == clientData)) {
+	    if (prevPtr == NULL) {
+		firstExitPtr = exitPtr->nextPtr;
+	    } else {
+		prevPtr->nextPtr = exitPtr->nextPtr;
+	    }
+	    ckfree((char *) exitPtr);
+	    break;
+	}
+    }
+    Tcl_MutexUnlock(&exitMutex);
+    return;
+}
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * TkFinalize --
+ *
+ *	Runs our private exit handlers and removes itself from Tcl. This is
+ *	benificial should we want to protect from dangling pointers should
+ *	the Tk shared library be unloaded prior to Tcl which can happen on
+ *	windows should the process be forcefully exiting from an exception
+ *	handler.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects.
+ *	None.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+void
+TkFinalize (clientData)
+    ClientData clientData;	/* Arbitrary value to pass to proc. */
+{
+    ExitHandler *exitPtr;
+
+    Tcl_DeleteExitHandler(TkFinalize, NULL);
+
+    Tcl_MutexLock(&exitMutex);
+    for (exitPtr = firstExitPtr; exitPtr != NULL; exitPtr = firstExitPtr) {
+	/*
+	 * Be careful to remove the handler from the list before
+	 * invoking its callback.  This protects us against
+	 * double-freeing if the callback should call
+	 * Tcl_DeleteExitHandler on itself.
+	 */
+
+	firstExitPtr = exitPtr->nextPtr;
+	Tcl_MutexUnlock(&exitMutex);
+	(*exitPtr->proc)(exitPtr->clientData);
+	ckfree((char *) exitPtr);
+	Tcl_MutexLock(&exitMutex);
+    }    
+    firstExitPtr = NULL;
+    Tcl_MutexUnlock(&exitMutex);
+}

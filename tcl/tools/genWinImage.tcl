@@ -4,8 +4,6 @@
 #
 # Copyright (c) 1999 by Scriptics Corporation.
 # All rights reserved.
-# 
-# RCS: @(#) $Id$
 
 
 # This file is insensitive to the directory from which it is invoked.
@@ -155,4 +153,3 @@ proc genWinImage::generateInstallers {} {
 }
 
 genWinImage::init
-

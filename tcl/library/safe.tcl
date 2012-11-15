@@ -11,8 +11,6 @@
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
-#
-# RCS: @(#) $Id$
 
 #
 # The implementation is based on namespaces. These naming conventions
@@ -36,6 +34,10 @@ namespace eval ::safe {
     # Setup the arguments parsing
     #
     ####
+
+    # Make sure that our temporary variable is local to this
+    # namespace.  [Bug 981733]
+    variable temp
 
     # Share the descriptions
     set temp [::tcl::OptKeyRegister {
@@ -73,7 +75,7 @@ namespace eval ::safe {
 	    upvar $v $v
 	}
 	set flag [::tcl::OptProcArgGiven -noStatics];
-	if {$flag && ($noStatics == $statics) 
+	if {$flag && (!$noStatics == !$statics) 
 	          && ([::tcl::OptProcArgGiven -statics])} {
 	    return -code error\
 		    "conflicting values given for -statics and -noStatics"
@@ -94,7 +96,7 @@ namespace eval ::safe {
 	set flag [::tcl::OptProcArgGiven -nestedLoadOk];
 	# note that the test here is the opposite of the "InterpStatics"
 	# one (it is not -noNested... because of the wanted default value)
-	if {$flag && ($nestedLoadOk != $nested) 
+	if {$flag && (!$nestedLoadOk != !$nested) 
 	          && ([::tcl::OptProcArgGiven -nested])} {
 	    return -code error\
 		    "conflicting values given for -nested and -nestedLoadOk"
@@ -294,7 +296,7 @@ namespace eval ::safe {
 	deletehook
     } {
 	# Create the slave.
-	if {[string compare "" $slave]} {
+	if {$slave ne ""} {
 	    ::interp create -safe $slave
 	} else {
 	    # empty argument: generate slave name
@@ -320,8 +322,8 @@ namespace eval ::safe {
 	    nestedok deletehook} {
 
 	# determine and store the access path if empty
-	if {[string equal "" $access_path]} {
-	    set access_path [uplevel #0 set auto_path]
+	if {$access_path eq ""} {
+	    set access_path [uplevel \#0 set auto_path]
 	    # Make sure that tcl_library is in auto_path
 	    # and at the first position (needed by setAccessPath)
 	    set where [lsearch -exact $access_path [info library]]
@@ -496,7 +498,7 @@ proc ::safe::interpAddToAccessPath {slave path} {
 		if {[lsearch -exact $res $dir]<0} {
 		    lappend res $dir
 		}
-		foreach sub [glob -nocomplain -- [file join $dir *]] {
+		foreach sub [glob -directory $dir -nocomplain *] {
 		    if {([file isdirectory $sub]) \
 			    && ([lsearch -exact $res $sub]<0) } {
 			# new sub dir, add it !
@@ -601,7 +603,7 @@ proc ::safe::setLogCmd {args} {
     # if the slave argument is given, 
     # it will return the corresponding master global variable name
     proc PathToken {n {slave ""}} {
-	if {[string compare "" $slave]} {
+	if {$slave ne ""} {
 	    return "[InterpStateName $slave](access_path,$n)"
 	} else {
 	    # We need to have a ":" in the token string so
@@ -636,15 +638,15 @@ proc ::safe::setLogCmd {args} {
     }
     # set/get values
     proc Set {args} {
-	eval Toplevel set $args
+	eval [linsert $args 0 Toplevel set]
     }
     # lappend on toplevel vars
     proc Lappend {args} {
-	eval Toplevel lappend $args
+	eval [linsert $args 0 Toplevel lappend]
     }
     # unset a var/token (currently just an global level eval)
     proc Unset {args} {
-	eval Toplevel unset $args
+	eval [linsert $args 0 Toplevel unset]
     }
     # test existance 
     proc Exists {varname} {
@@ -695,24 +697,14 @@ proc ::safe::setLogCmd {args} {
 	}
     }
 
-    
+
     # file name control (limit access to files/ressources that should be
     # a valid tcl source file)
     proc CheckFileName {slave file} {
-	# limit what can be sourced to .tcl
-	# and forbid files with more than 1 dot and
-	# longer than 14 chars
-	set ftail [file tail $file]
-	if {[string length $ftail]>14} {
-	    error "$ftail: filename too long"
-	}
-	if {[regexp {\..*\.} $ftail]} {
-	    error "$ftail: more than one dot is forbidden"
-	}
-	if {[string compare $ftail "tclIndex"] && \
-		[string compare -nocase [file extension $ftail]	".tcl"]} {
-	    error "$ftail: must be a *.tcl or tclIndex"
-	}
+	# This used to limit what can be sourced to ".tcl" and forbid files
+	# with more than 1 dot and longer than 14 chars, but I changed that
+	# for 8.4 as a safe interp has enough internal protection already
+	# to allow sourcing anything. - hobbs
 
 	if {![file exists $file]} {
 	    # don't tell the file path
@@ -784,7 +776,7 @@ proc ::safe::setLogCmd {args} {
 	# Determine where to load. load use a relative interp path
 	# and {} means self, so we can directly and safely use passed arg.
 	set target [lindex $args 1]
-	if {[string length $target]} {
+	if {$target ne ""} {
 	    # we will try to load into a sub sub interp
 	    # check that we want to authorize that.
 	    if {![NestedOk $slave]} {
@@ -796,9 +788,9 @@ proc ::safe::setLogCmd {args} {
 	}
 
 	# Determine what kind of load is requested
-	if {[string length $file] == 0} {
+	if {$file eq ""} {
 	    # static package loading
-	    if {[string length $package] == 0} {
+	    if {$package eq ""} {
 		set msg "load error: empty filename and no package name"
 		Log $slave $msg
 		return -code error $msg
@@ -847,7 +839,15 @@ proc ::safe::setLogCmd {args} {
 	    error "\"$file\": is a directory"
 	}
 	set parent [file dirname $file]
-	if {[lsearch -exact $access_path $parent] == -1} {
+
+	# Normalize paths for comparison since lsearch knows nothing of
+	# potential pathname anomalies.
+	set norm_parent [file normalize $parent]
+	foreach path $access_path {
+	    lappend norm_access_path [file normalize $path]
+	}
+
+	if {[lsearch -exact $norm_access_path $norm_parent] == -1} {
 	    error "\"$file\": not in access_path"
 	}
     }
@@ -858,7 +858,7 @@ proc ::safe::setLogCmd {args} {
     proc Subset {slave command okpat args} {
 	set subcommand [lindex $args 0]
 	if {[regexp $okpat $subcommand]} {
-	    return [eval {$command $subcommand} [lrange $args 1 end]]
+	    return [eval [linsert $args 0 $command]]
 	}
 	set msg "not allowed to invoke subcommand $subcommand of $command"
 	Log $slave $msg
@@ -893,11 +893,11 @@ proc ::safe::setLogCmd {args} {
 	set subcommand [lindex $args 0]
 
 	if {[regexp $okpat $subcommand]} {
-	    return [eval ::interp invokehidden $slave encoding $subcommand \
-		    [lrange $args 1 end]]
+	    return [eval [linsert $args 0 \
+		    ::interp invokehidden $slave encoding]]
 	}
 
-	if {[string match $subcommand system]} {
+	if {[string first $subcommand system] == 0} {
 	    if {$argc == 1} {
 		# passed all the tests , lets source it:
 		if {[catch {::interp invokehidden \

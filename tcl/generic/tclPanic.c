@@ -2,8 +2,8 @@
  * tclPanic.c --
  *
  *	Source code for the "Tcl_Panic" library procedure for Tcl;
- *	individual applications will probably override this with
- *	an application-specific panic procedure.
+ *	individual applications will probably call Tcl_SetPanicProc()
+ *	to set an application-specific panic procedure.
  *
  * Copyright (c) 1988-1993 The Regents of the University of California.
  * Copyright (c) 1994 Sun Microsystems, Inc.
@@ -11,18 +11,26 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tclInt.h"
+#include "tclPort.h"
 
 /*
  * The panicProc variable contains a pointer to an application
  * specific panic procedure.
  */
 
-void (*panicProc) _ANSI_ARGS_(TCL_VARARGS(char *,format)) = NULL;
+static Tcl_PanicProc *panicProc = NULL;
+
+/*
+ * The platformPanicProc variable contains a pointer to a platform
+ * specific panic procedure, if any.  ( TclpPanic may be NULL via
+ * a macro. )
+ */
+
+static Tcl_PanicProc * CONST platformPanicProc = TclpPanic;
+
 
 /*
  *----------------------------------------------------------------------
@@ -42,7 +50,7 @@ void (*panicProc) _ANSI_ARGS_(TCL_VARARGS(char *,format)) = NULL;
 
 void
 Tcl_SetPanicProc(proc)
-    void (*proc) _ANSI_ARGS_(TCL_VARARGS(char *,format));
+    Tcl_PanicProc *proc;
 {
     panicProc = proc;
 }
@@ -65,7 +73,7 @@ Tcl_SetPanicProc(proc)
 
 void
 Tcl_PanicVA (format, argList)
-    char *format;		/* Format string, suitable for passing to
+    CONST char *format;		/* Format string, suitable for passing to
 				 * fprintf. */
     va_list argList;		/* Variable argument list. */
 {
@@ -85,6 +93,9 @@ Tcl_PanicVA (format, argList)
     if (panicProc != NULL) {
 	(void) (*panicProc)(format, arg1, arg2, arg3, arg4,
 		arg5, arg6, arg7, arg8);
+    } else if (platformPanicProc != NULL) {
+	(void) (*platformPanicProc)(format, arg1, arg2, arg3, arg4,
+		arg5, arg6, arg7, arg8);
     } else {
 	(void) fprintf(stderr, format, arg1, arg2, arg3, arg4, arg5, arg6,
 		arg7, arg8);
@@ -97,7 +108,7 @@ Tcl_PanicVA (format, argList)
 /*
  *----------------------------------------------------------------------
  *
- * panic --
+ * Tcl_Panic --
  *
  *	Print an error message and kill the process.
  *
@@ -112,12 +123,12 @@ Tcl_PanicVA (format, argList)
 
 	/* VARARGS ARGSUSED */
 void
-panic TCL_VARARGS_DEF(char *,arg1)
+Tcl_Panic TCL_VARARGS_DEF(CONST char *,arg1)
 {
     va_list argList;
-    char *format;
+    CONST char *format;
 
-    format = TCL_VARARGS_START(char *,arg1,argList);
+    format = TCL_VARARGS_START(CONST char *,arg1,argList);
     Tcl_PanicVA(format, argList);
     va_end (argList);
 }

@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkWinInt.h"
@@ -31,7 +29,7 @@
  *
  * Results:
  *	A standard Tcl completion code (TCL_OK or TCL_ERROR).  Also
- *	leaves information in interp->result.
+ *	leaves information in the interp's result.
  *
  * Side effects:
  *	Sets "tk_library" Tcl variable, runs "tk.tcl" script.
@@ -44,11 +42,10 @@ TkpInit(interp)
     Tcl_Interp *interp;
 {
     /*
-     * This is necessary for static initialization, and is ok
-     * otherwise because TkWinXInit flips a static bit to do
-     * its work just once.
+     * This is necessary for static initialization, and is ok otherwise
+     * because TkWinXInit flips a static bit to do its work just once.
      */
-    TkWinXInit(GetModuleHandle(NULL));
+    TkWinXInit(Tk_GetHINSTANCE());
     return Tcl_Eval(interp, initScript);
 }
 
@@ -75,17 +72,18 @@ TkpGetAppName(interp, namePtr)
     Tcl_Interp *interp;
     Tcl_DString *namePtr;	/* A previously initialized Tcl_DString. */
 {
-    int argc;
-    char **argv = NULL, *name, *p;
+    int argc, namelength;
+    CONST char **argv = NULL, *name, *p;
 
     name = Tcl_GetVar(interp, "argv0", TCL_GLOBAL_ONLY);
+    namelength = -1;
     if (name != NULL) {
 	Tcl_SplitPath(name, &argc, &argv);
 	if (argc > 0) {
 	    name = argv[argc-1];
 	    p = strrchr(name, '.');
 	    if (p != NULL) {
-		*p = '\0';
+		namelength = p - name;
 	    }
 	} else {
 	    name = NULL;
@@ -93,8 +91,9 @@ TkpGetAppName(interp, namePtr)
     }
     if ((name == NULL) || (*name == 0)) {
 	name = "tk";
+	namelength = -1;
     }
-    Tcl_DStringAppend(namePtr, name, -1);
+    Tcl_DStringAppend(namePtr, name, namelength);
     if (argv != NULL) {
 	ckfree((char *)argv);
     }
@@ -119,22 +118,27 @@ TkpGetAppName(interp, namePtr)
 
 void
 TkpDisplayWarning(msg, title)
-    char *msg;			/* Message to be displayed. */
-    char *title;		/* Title of warning. */
+    CONST char *msg;		/* Message to be displayed. */
+    CONST char *title;		/* Title of warning. */
 {
-    int l;
+    Tcl_DString msgString, titleString;
+    Tcl_Encoding unicodeEncoding = TkWinGetUnicodeEncoding();
 
-    if ( GetStdHandle(STD_ERROR_HANDLE)  != INVALID_HANDLE_VALUE &&
-         GetFileType(GetStdHandle(STD_ERROR_HANDLE)) != FILE_TYPE_UNKNOWN ) {
-        WriteFile(GetStdHandle(STD_ERROR_HANDLE), title, strlen(title), &l, NULL);
-        WriteFile(GetStdHandle(STD_ERROR_HANDLE), ": " , 2            , &l, NULL);
-        WriteFile(GetStdHandle(STD_ERROR_HANDLE), msg  , strlen(msg)  , &l, NULL);
-        WriteFile(GetStdHandle(STD_ERROR_HANDLE), "\n" , 1            , &l, NULL);
-        FlushFileBuffers(GetStdHandle(STD_ERROR_HANDLE));
-    } else {
-        MessageBox(NULL, msg, title, MB_OK | MB_ICONEXCLAMATION | MB_SYSTEMMODAL
-		    | MB_SETFOREGROUND | MB_TOPMOST);
+    /*
+     * Truncate MessageBox string if it is too long to not overflow
+     * the screen and cause possible oversized window error.
+     */
+#define TK_MAX_WARN_LEN (1024 * sizeof(WCHAR))
+    Tcl_UtfToExternalDString(unicodeEncoding, msg, -1, &msgString);
+    Tcl_UtfToExternalDString(unicodeEncoding, title, -1, &titleString);
+    if (Tcl_DStringLength(&msgString) > TK_MAX_WARN_LEN) {
+	Tcl_DStringSetLength(&msgString, TK_MAX_WARN_LEN);
+	Tcl_DStringAppend(&msgString, (char *) L" ...", 4 * sizeof(WCHAR));
     }
+    MessageBoxW(NULL, (WCHAR *) Tcl_DStringValue(&msgString),
+	    (WCHAR *) Tcl_DStringValue(&titleString),
+	    MB_OK | MB_ICONEXCLAMATION | MB_SYSTEMMODAL
+	    | MB_SETFOREGROUND | MB_TOPMOST);
+    Tcl_DStringFree(&msgString);
+    Tcl_DStringFree(&titleString);
 }
-
-

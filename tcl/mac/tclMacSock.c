@@ -7,8 +7,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tclInt.h"
@@ -75,7 +73,7 @@ typedef struct TcpState {
 				    * TCL_WRITABLE as set by an asynchronous
 				    * event handler. */
     int watchMask;		   /* OR'ed combination of TCL_READABLE and
-				    * TCL_WRITABLE as set by Tcl_WatchFile. */
+				    * TCL_WRITABLE as set by TcpWatch. */
     Tcl_TcpAcceptProc *acceptProc; /* Proc to call on accept. */
     ClientData acceptProcData;	   /* The data for the accept proc. */
     wdsEntry dataSegment[2];       /* List of buffers to be written async. */
@@ -138,14 +136,14 @@ static pascal void	CleanUpExitProc _ANSI_ARGS_((void));
 static void		ClearZombieSockets _ANSI_ARGS_((void));
 static void		CloseCompletionRoutine _ANSI_ARGS_((TCPiopb *pb));
 static TcpState *	CreateSocket _ANSI_ARGS_((Tcl_Interp *interp,
-			    int port, char *host, char *myAddr,  int myPort,
-			    int server, int async));
+			    int port, CONST char *host, CONST char *myAddr,
+			    int myPort, int server, int async));
 static pascal void	DNRCompletionRoutine _ANSI_ARGS_((
 			    struct hostInfo *hostinfoPtr,
 			    DNRState *dnrStatePtr));
 static void		FreeSocketInfo _ANSI_ARGS_((TcpState *statePtr));
 static long		GetBufferSize _ANSI_ARGS_((void));
-static OSErr		GetHostFromString _ANSI_ARGS_((char *name,
+static OSErr		GetHostFromString _ANSI_ARGS_((CONST char *name,
 			    ip_addr *address));
 static OSErr		GetLocalAddress _ANSI_ARGS_((unsigned long *addr));
 static void		IOCompletionRoutine _ANSI_ARGS_((TCPiopb *pb));
@@ -159,7 +157,6 @@ static void		SocketCheckProc _ANSI_ARGS_((ClientData clientData,
 			    int flags));
 static int		SocketEventProc _ANSI_ARGS_((Tcl_Event *evPtr,
 			    int flags));
-static void		SocketExitHandler _ANSI_ARGS_((ClientData clientData));
 static void		SocketFreeProc _ANSI_ARGS_((ClientData clientData));
 static int		SocketReady _ANSI_ARGS_((TcpState *statePtr));
 static void		SocketSetupProc _ANSI_ARGS_((ClientData clientData,
@@ -171,12 +168,12 @@ static int		TcpClose _ANSI_ARGS_((ClientData instanceData,
 static int		TcpGetHandle _ANSI_ARGS_((ClientData instanceData,
 		            int direction, ClientData *handlePtr));
 static int		TcpGetOptionProc _ANSI_ARGS_((ClientData instanceData,
-                            Tcl_Interp *interp, char *optionName,
+                            Tcl_Interp *interp, CONST char *optionName,
 			    Tcl_DString *dsPtr));
 static int		TcpInput _ANSI_ARGS_((ClientData instanceData,
 			    char *buf, int toRead, int *errorCodePtr));
 static int		TcpOutput _ANSI_ARGS_((ClientData instanceData,
-			    char *buf, int toWrite, int *errorCodePtr));
+			    CONST char *buf, int toWrite, int *errorCodePtr));
 static void		TcpWatch _ANSI_ARGS_((ClientData instanceData,
 		            int mask));
 static int		WaitForSocketEvent _ANSI_ARGS_((TcpState *infoPtr,
@@ -196,7 +193,7 @@ pascal void NotifyRoutine (
 
 static Tcl_ChannelType tcpChannelType = {
     "tcp",			/* Type name. */
-    TcpBlockMode,		/* Set blocking or
+    (Tcl_ChannelTypeVersion)TcpBlockMode,		/* Set blocking or
                                  * non-blocking mode.*/
     TcpClose,			/* Close proc. */
     TcpInput,			/* Input proc. */
@@ -367,37 +364,36 @@ InitSockets()
 
     tsdPtr = (ThreadSpecificData *)TclThreadDataKeyGet(&dataKey);
     if (tsdPtr == NULL) {
+	tsdPtr = TCL_TSD_INIT(&dataKey);
 	tsdPtr->socketList = NULL;
 	Tcl_CreateEventSource(SocketSetupProc, SocketCheckProc, NULL);
-	Tcl_CreateThreadExitHandler(SocketExitHandler, (ClientData) NULL);
     }
 }
 
 /*
  *----------------------------------------------------------------------
  *
- * SocketExitHandler --
+ * TclpFinalizeSockets --
  *
- *	Callback invoked during exit clean up to deinitialize the
- *	socket module.
+ *	Invoked during exit clean up to deinitialize the socket module.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	None.
+ *	Removed event source.
  *
  *----------------------------------------------------------------------
  */
 
-static void
-SocketExitHandler(
-    ClientData clientData)              /* Not used. */
+void
+TclpFinalizeSockets()
 {
-    if (hasSockets) {
+    ThreadSpecificData *tsdPtr;
+
+    tsdPtr = (ThreadSpecificData *)TclThreadDataKeyGet(&dataKey);
+    if (tsdPtr != NULL) {
 	Tcl_DeleteEventSource(SocketSetupProc, SocketCheckProc, NULL);
-	/* CleanUpExitProc();
-	TclMacDeleteExitToShellPatch(CleanUpExitProc); */
     }
 }
 
@@ -1201,7 +1197,7 @@ TcpGetHandle(
 static int
 TcpOutput(
     ClientData instanceData, 		/* Channel state. */
-    char *buf, 				/* The data buffer. */
+    CONST char *buf,			/* The data buffer. */
     int toWrite, 			/* How many bytes to write? */
     int *errorCodePtr)			/* Where to store error code. */
 {
@@ -1346,7 +1342,7 @@ static int
 TcpGetOptionProc(
     ClientData instanceData, 		/* Socket state. */
     Tcl_Interp *interp,                 /* For error reporting - can be NULL.*/
-    char *optionName, 			/* Name of the option to
+    CONST char *optionName, 		/* Name of the option to
                                          * retrieve the value for, or
                                          * NULL to get all options and
                                          * their values. */
@@ -1354,13 +1350,14 @@ TcpGetOptionProc(
                                          * value; initialized by caller. */
 {
     TcpState *statePtr = (TcpState *) instanceData;
-    int doPeerName = false, doSockName = false, doAll = false;
+    int doPeerName = false, doSockName = false, doError = false, doAll = false;
     ip_addr tcpAddress;
     char buffer[128];
     OSErr err;
     Tcl_DString dString;
     TCPiopb statusPB;
     int errorCode;
+    size_t len = 0;
 
     /*
      * If an asynchronous connect is in progress, attempt to wait for it
@@ -1385,16 +1382,41 @@ TcpGetOptionProc(
      * if optionName is NULL.
      */
 
-    if (optionName == (char *) NULL || optionName[0] == '\0') {
+    if (optionName == (CONST char *) NULL || optionName[0] == '\0') {
         doAll = true;
     } else {
-	if (!strcmp(optionName, "-peername")) {
+	len = strlen(optionName);
+	if (!strncmp(optionName, "-peername", len)) {
 	    doPeerName = true;
-	} else if (!strcmp(optionName, "-sockname")) {
+	} else if (!strncmp(optionName, "-sockname", len)) {
 	    doSockName = true;
+	} else if (!strncmp(optionName, "-error", len)) {
+	    /* SF Bug #483575 */
+	    doError = true;
 	} else {
 	    return Tcl_BadChannelOption(interp, optionName, 
-	    		"peername sockname");
+		        "error peername sockname");
+	}
+    }
+
+    /*
+     * SF Bug #483575
+     *
+     * Return error information. Currently we ignore
+     * this option. IOW, we always return the empty
+     * string, signaling 'no error'.
+     *
+     * FIXME: Get a mac/socket expert to write a correct
+     * FIXME: implementation.
+     */
+
+    if (doAll || doError) {
+	if (doAll) {
+	    Tcl_DStringAppendElement(dsPtr, "-error");
+	    Tcl_DStringAppendElement(dsPtr, "");
+	} else {
+	    Tcl_DStringAppend (dsPtr, "", -1);
+	    return TCL_OK;
 	}
     }
 
@@ -1654,8 +1676,8 @@ static TcpState *
 CreateSocket(
     Tcl_Interp *interp,		/* For error reporting; can be NULL. */
     int port,			/* Port number to open. */
-    char *host,			/* Name of host on which to open port. */
-    char *myaddr,		/* Optional client-side address */
+    CONST char *host,		/* Name of host on which to open port. */
+    CONST char *myaddr,		/* Optional client-side address */
     int myport,			/* Optional client-side port */
     int server,			/* 1 if socket should be a server socket,
 				 * else 0 for a client socket. */
@@ -1844,8 +1866,8 @@ Tcl_Channel
 Tcl_OpenTcpClient(
     Tcl_Interp *interp, 		/* For error reporting; can be NULL. */
     int port, 				/* Port number to open. */
-    char *host, 			/* Host on which to open port. */
-    char *myaddr, 			/* Client-side address */
+    CONST char *host, 			/* Host on which to open port. */
+    CONST char *myaddr,			/* Client-side address */
     int myport, 			/* Client-side port */
     int async)				/* If nonzero, attempt to do an
                                          * asynchronous connect. Otherwise
@@ -1898,7 +1920,7 @@ Tcl_OpenTcpServer(
     Tcl_Interp *interp,			/* For error reporting - may be
                                          * NULL. */
     int port,				/* Port number to open. */
-    char *host,				/* Name of local host. */
+    CONST char *host,			/* Name of local host. */
     Tcl_TcpAcceptProc *acceptProc,	/* Callback for accepting connections
                                          * from new clients. */
     ClientData acceptProcData)		/* Data for the callback. */
@@ -2225,7 +2247,7 @@ TcpAccept(
  *----------------------------------------------------------------------
  */
 
-char *
+CONST char *
 Tcl_GetHostName()
 {
     static int  hostnameInited = 0;
@@ -2426,7 +2448,7 @@ CleanUpExitProc()
 
 static OSErr
 GetHostFromString(
-    char *name, 		/* Host in string form. */
+    CONST char *name, 		/* Host in string form. */
     ip_addr *address)		/* Returned IP address. */
 {
     OSErr err;
@@ -2449,7 +2471,7 @@ GetHostFromString(
     }
     dnrState.done = 0;
     GetCurrentProcess(&(dnrState.psn));
-    err = StrToAddr(name, &dnrState.hostInfo, resultUPP, (Ptr) &dnrState);
+    err = StrToAddr((char*)name, &dnrState.hostInfo, resultUPP, (Ptr) &dnrState);
     if (err == cacheFault) {
 	while (!dnrState.done) {
 	    WaitNextEvent(0, &dummy, 1, NULL);
@@ -2464,7 +2486,7 @@ GetHostFromString(
 
     if (dnrState.hostInfo.rtnCode == cacheFault) {
 	dnrState.done = 0;
-	err = StrToAddr(name, &dnrState.hostInfo, resultUPP, (Ptr) &dnrState);
+	err = StrToAddr((char*)name, &dnrState.hostInfo, resultUPP, (Ptr) &dnrState);
 	if (err == cacheFault) {
 	    while (!dnrState.done) {
 		WaitNextEvent(0, &dummy, 1, NULL);

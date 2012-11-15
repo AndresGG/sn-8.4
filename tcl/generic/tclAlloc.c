@@ -14,9 +14,14 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
+
+/*
+ * Windows and Unix use an alternative allocator when building with threads
+ * that has significantly reduced lock contention.
+ */
+
+#if !defined(TCL_THREADS) || !defined(USE_THREAD_ALLOC) || defined(TCL_MEM_DEBUG)
 
 #include "tclInt.h"
 #include "tclPort.h"
@@ -30,13 +35,21 @@
 #endif
 
 /*
- * With gcc this will already be defined. This should really
- * make use of AC_CHECK_TYPE(caddr_t) but that can wait
- * until we use config.h properly.
+ * We should really make use of AC_CHECK_TYPE(caddr_t)
+ * here, but it can wait until Tcl uses config.h properly.
+ */
+#if defined(MAC_TCL) || defined(_MSC_VER) || defined(__MINGW32__) || defined(__BORLANDC__)
+typedef unsigned long caddr_t;
+#endif
+
+/*
+ * Alignment for allocated memory.
  */
 
-#if defined(MAC_TCL) || defined(_MSC_VER) || defined(__MINGW32__)
-typedef unsigned long caddr_t;
+#if defined(__APPLE__)
+#define ALLOCALIGN	16
+#else
+#define ALLOCALIGN	8
 #endif
 
 /*
@@ -51,8 +64,8 @@ typedef unsigned long caddr_t;
  */
 
 union overhead {
-    union overhead *ov_next;	/* when free */
-    unsigned char ov_padding[8]; /* Ensure the structure is 8-byte aligned. */
+    union overhead *ov_next;		/* when free */
+    unsigned char ov_padding[ALLOCALIGN];/* align struct to ALLOCALIGN bytes */
     struct {
 	unsigned char	ovu_magic0;	/* magic number */
 	unsigned char	ovu_index;	/* bucket # */
@@ -85,11 +98,12 @@ union overhead {
 
 /*
  * nextf[i] is the pointer to the next free block of size 2^(i+3).  The
- * smallest allocatable block is 8 bytes.  The overhead information
+ * smallest allocatable block is MINBLOCK bytes. The overhead information
  * precedes the data area returned to the user.
  */
 
-#define NBUCKETS	13
+#define MINBLOCK	((sizeof(union overhead) + (ALLOCALIGN-1)) & ~(ALLOCALIGN-1))
+#define NBUCKETS	(13 - (MINBLOCK >> 4))
 #define MAXMALLOC	(1<<(NBUCKETS+2))
 static	union overhead *nextf[NBUCKETS];
 
@@ -203,7 +217,7 @@ TclInitAlloc()
 void
 TclFinalizeAllocSubsystem()
 {
-    int i;
+    unsigned int i;
     struct block *blockPtr, *nextPtr;
 
     Tcl_MutexLock(allocMutexPtr);
@@ -256,7 +270,7 @@ TclpAlloc(nbytes)
     register union overhead *op;
     register long bucket;
     register unsigned amt;
-    struct block *bigBlockPtr;
+    struct block *bigBlockPtr = NULL;
 
     if (!allocInit) {
 	/*
@@ -270,9 +284,11 @@ TclpAlloc(nbytes)
     /*
      * First the simple case: we simple allocate big blocks directly
      */
-    if (nbytes + OVERHEAD >= MAXMALLOC) {
-	bigBlockPtr = (struct block *) TclpSysAlloc((unsigned) 
-		(sizeof(struct block) + OVERHEAD + nbytes), 0);
+    if (nbytes >= MAXMALLOC - OVERHEAD) {
+	if (nbytes <= UINT_MAX - OVERHEAD - sizeof(struct block)) {
+	    bigBlockPtr = (struct block *) TclpSysAlloc((unsigned) 
+		    (sizeof(struct block) + OVERHEAD + nbytes), 0);
+	}
 	if (bigBlockPtr == NULL) {
 	    Tcl_MutexUnlock(allocMutexPtr);
 	    return NULL;
@@ -305,13 +321,10 @@ TclpAlloc(nbytes)
      * stored in hash buckets which satisfies request.
      * Account for space used per block for accounting.
      */
-#ifndef RCHECK
-    amt = 8;	/* size of first bucket */
-    bucket = 0;
-#else
-    amt = 16;	/* size of first bucket */
-    bucket = 1;
-#endif
+
+    amt = MINBLOCK;		/* size of first bucket */
+    bucket = MINBLOCK >> 4;
+
     while (nbytes + OVERHEAD > amt) {
 	amt <<= 1;
 	if (amt == 0) {
@@ -723,4 +736,4 @@ TclpRealloc(cp, nbytes)
 }
 
 #endif /* !USE_TCLALLOC */
-
+#endif /* !TCL_THREADS */

@@ -179,11 +179,11 @@ static VOID freecvec _ANSI_ARGS_((struct cvec *));
 static int nmcces _ANSI_ARGS_((struct vars *));
 static int nleaders _ANSI_ARGS_((struct vars *));
 static struct cvec *allmcces _ANSI_ARGS_((struct vars *, struct cvec *));
-static celt element _ANSI_ARGS_((struct vars *, chr *, chr *));
+static celt element _ANSI_ARGS_((struct vars *, CONST chr *, CONST chr *));
 static struct cvec *range _ANSI_ARGS_((struct vars *, celt, celt, int));
 static int before _ANSI_ARGS_((celt, celt));
 static struct cvec *eclass _ANSI_ARGS_((struct vars *, celt, int));
-static struct cvec *cclass _ANSI_ARGS_((struct vars *, chr *, chr *, int));
+static struct cvec *cclass _ANSI_ARGS_((struct vars *, CONST chr *, CONST chr *, int));
 static struct cvec *allcases _ANSI_ARGS_((struct vars *, pchr));
 static int cmp _ANSI_ARGS_((CONST chr *, CONST chr *, size_t));
 static int casecmp _ANSI_ARGS_((CONST chr *, CONST chr *, size_t));
@@ -553,8 +553,12 @@ struct nfa *nfa;
 			if (b->from != pre)
 				break;
 		if (b != NULL) {		/* must be split */
-			s->tmp = slist;
-			slist = s;
+			if (s->tmp == NULL) {  /* if not already in the list */
+			                       /* (fixes bugs 505048, 230589, */
+			                       /* 840258, 504785) */
+				s->tmp = slist;
+				slist = s;
+			}
 		}
 	}
 
@@ -1833,14 +1837,14 @@ optst(v, t)
 struct vars *v;
 struct subre *t;
 {
-	if (t == NULL)
-		return;
+    /*
+     * DGP (2007-11-13): I assume it was the programmer's intent to eventually
+     * come back and add code to optimize subRE trees, but the routine coded
+     * just spent effort traversing the tree and doing nothing. We can do
+     * nothing with less effort.
+     */
 
-	/* recurse through children */
-	if (t->left != NULL)
-		optst(v, t->left);
-	if (t->right != NULL)
-		optst(v, t->right);
+    return;
 }
 
 /*
@@ -2140,8 +2144,8 @@ int nfapresent;			/* is the original NFA still around? */
 	if (!NULLCNFA(t->cnfa)) {
 		fprintf(f, "\n");
 		dumpcnfa(&t->cnfa, f);
-		fprintf(f, "\n");
 	}
+	fprintf(f, "\n");
 	if (t->left != NULL)
 		stdump(t->left, f, nfapresent);
 	if (t->right != NULL)
@@ -2159,12 +2163,12 @@ char *buf;
 size_t bufsize;
 {
 	/* big enough for hex int or decimal t->retry? */
-	if (bufsize < sizeof(int)*2 + 3 || bufsize < sizeof(t->retry)*3 + 1)
+	if (bufsize < sizeof(void*)*2 + 3 || bufsize < sizeof(t->retry)*3 + 1)
 		return "unable";
 	if (t->retry != 0)
 		sprintf(buf, "%d", t->retry);
 	else
-		sprintf(buf, "0x%x", (int)t);	/* may lose bits, that's okay */
+		sprintf(buf, "%p", t);
 	return buf;
 }
 

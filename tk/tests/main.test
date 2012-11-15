@@ -7,43 +7,55 @@
 # Copyright (c) 1997 by Sun Microsystems, Inc.
 # Copyright (c) 1998-1999 by Scriptics Corporation.
 # All rights reserved.
-#
-# RCS: @(#) $Id$
 
-if {[lsearch [namespace children] ::tcltest] == -1} {
-    source [file join [pwd] [file dirname [info script]] defs.tcl]
-}
+package require tcltest 2.1
+namespace import -force tcltest::configure
+namespace import -force tcltest::testsDirectory
+configure -testdir [file join [pwd] [file dirname [info script]]]
+configure -loadfile [file join [testsDirectory] constraints.tcl]
+tcltest::loadTestedCommands
 
-test main-1.1 {StdinProc} {unixOnly} {
-    catch {removeFile script}
-    set fd [open script w]
-    puts $fd {
+namespace import -force tcltest::interpreter
+namespace import -force tcltest::makeFile
+namespace import -force tcltest::removeFile
+
+test main-1.1 {StdinProc} {unix} {
+    set script [makeFile {
 	close stdin; exit
-    }
-    close $fd
-    if {[catch {exec $::tcltest::tktest <script} msg]} {
+    } script]
+    if {[catch {exec [interpreter] <$script} msg]} {
 	set error 1
     } else {
 	set error 0
     }
-    file delete -force script
+    removeFile script
     list $error $msg
 } {0 {}}
 
+test main-3.1 {Tk_ParseArgv: -help option} -constraints unix -body {
+    # Run only on unix as Win32 pops up native dialog
+    list [catch {exec [interpreter] -help} msg] $msg
+} -match glob -result {1 {% Application initialization failed: Command-specific options:*}}
+
+test main-3.2 {Tk_ParseArgv: -help option} -setup {
+    set maininterp [interp create]
+} -body {
+    $maininterp eval { set argc 1 ; set argv -help }
+    list [catch {load {} Tk $maininterp} msg] $msg
+} -cleanup {
+    interp delete $maininterp
+} -match glob -result {1 {Command-specific options:*}}
+
+test main-3.3 {Tk_ParseArgv: -help option} -setup {
+    set maininterp [interp create]
+} -body {
+    # Repeat of 3.2 to catch cleanup, eg Bug 1927135
+    $maininterp eval { set argc 1 ; set argv -help }
+    list [catch {load {} Tk $maininterp} msg] $msg
+} -cleanup {
+    interp delete $maininterp
+} -match glob -result {1 {Command-specific options:*}}
+
 # cleanup
-catch {removeFile script}
 ::tcltest::cleanupTests
 return
-
-
-
-
-
-
-
-
-
-
-
-
-

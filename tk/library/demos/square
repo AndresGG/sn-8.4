@@ -10,8 +10,6 @@ exec wish "$0" "$@"
 # 
 # Button-1 press/drag:		moves square to mouse
 # "a":				toggle size animation on/off
-#
-# RCS: @(#) $Id$
 
 square .s
 pack .s -expand yes -fill both
@@ -53,4 +51,3 @@ proc timer {} {
     .s size [expr {$s+$inc}]
     after 30 timer
 }
-

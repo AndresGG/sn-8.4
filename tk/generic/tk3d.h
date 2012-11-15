@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #ifndef _TK3D
@@ -100,4 +98,3 @@ EXTERN void		TkpFreeBorder _ANSI_ARGS_((TkBorder *borderPtr));
 # define TCL_STORAGE_CLASS DLLIMPORT
 
 #endif /* _TK3D */
-

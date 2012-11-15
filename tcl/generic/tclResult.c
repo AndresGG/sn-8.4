@@ -7,8 +7,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tclInt.h"
@@ -198,8 +196,7 @@ Tcl_DiscardResult(statePtr)
     if (statePtr->result == statePtr->appendResult) {
 	ckfree(statePtr->appendResult);
     } else if (statePtr->freeProc) {
-	if ((statePtr->freeProc == TCL_DYNAMIC)
-	        || (statePtr->freeProc == (Tcl_FreeProc *) free)) {
+	if (statePtr->freeProc == TCL_DYNAMIC) {
 	    ckfree(statePtr->result);
 	} else {
 	    (*statePtr->freeProc)(statePtr->result);
@@ -265,8 +262,7 @@ Tcl_SetResult(interp, string, freeProc)
      */
 
     if (oldFreeProc != 0) {
-	if ((oldFreeProc == TCL_DYNAMIC)
-		|| (oldFreeProc == (Tcl_FreeProc *) free)) {
+	if (oldFreeProc == TCL_DYNAMIC) {
 	    ckfree(oldResult);
 	} else {
 	    (*oldFreeProc)(oldResult);
@@ -297,7 +293,7 @@ Tcl_SetResult(interp, string, freeProc)
  *----------------------------------------------------------------------
  */
 
-char *
+CONST char *
 Tcl_GetStringResult(interp)
      register Tcl_Interp *interp; /* Interpreter whose result to return. */
 {
@@ -359,8 +355,7 @@ Tcl_SetObjResult(interp, objPtr)
      */
 
     if (iPtr->freeProc != NULL) {
-	if ((iPtr->freeProc == TCL_DYNAMIC)
-	        || (iPtr->freeProc == (Tcl_FreeProc *) free)) {
+	if (iPtr->freeProc == TCL_DYNAMIC) {
 	    ckfree(iPtr->result);
 	} else {
 	    (*iPtr->freeProc)(iPtr->result);
@@ -413,8 +408,7 @@ Tcl_GetObjResult(interp)
 	TclInitStringRep(objResultPtr, iPtr->result, length);
 	
 	if (iPtr->freeProc != NULL) {
-	    if ((iPtr->freeProc == TCL_DYNAMIC)
-	            || (iPtr->freeProc == (Tcl_FreeProc *) free)) {
+	    if (iPtr->freeProc == TCL_DYNAMIC) {
 		ckfree(iPtr->result);
 	    } else {
 		(*iPtr->freeProc)(iPtr->result);
@@ -751,8 +745,7 @@ Tcl_FreeResult(interp)
     register Interp *iPtr = (Interp *) interp;
     
     if (iPtr->freeProc != NULL) {
-	if ((iPtr->freeProc == TCL_DYNAMIC)
-	        || (iPtr->freeProc == (Tcl_FreeProc *) free)) {
+	if (iPtr->freeProc == TCL_DYNAMIC) {
 	    ckfree(iPtr->result);
 	} else {
 	    (*iPtr->freeProc)(iPtr->result);
@@ -791,8 +784,7 @@ Tcl_ResetResult(interp)
 
     ResetObjResult(iPtr);
     if (iPtr->freeProc != NULL) {
-	if ((iPtr->freeProc == TCL_DYNAMIC)
-	        || (iPtr->freeProc == (Tcl_FreeProc *) free)) {
+	if (iPtr->freeProc == TCL_DYNAMIC) {
 	    ckfree(iPtr->result);
 	} else {
 	    (*iPtr->freeProc)(iPtr->result);
@@ -1035,15 +1027,18 @@ TclTransferResult(sourceInterp, result, targetInterp)
         
 	objPtr = Tcl_GetVar2Ex(sourceInterp, "errorInfo", NULL,
 		TCL_GLOBAL_ONLY);
-	Tcl_SetVar2Ex(targetInterp, "errorInfo", NULL, objPtr,
-		TCL_GLOBAL_ONLY);
+	if (objPtr) {
+	    Tcl_SetVar2Ex(targetInterp, "errorInfo", NULL, objPtr,
+		    TCL_GLOBAL_ONLY);
+	    ((Interp *) targetInterp)->flags |= ERR_IN_PROGRESS;
+	}
 
 	objPtr = Tcl_GetVar2Ex(sourceInterp, "errorCode", NULL,
 		TCL_GLOBAL_ONLY);
-	Tcl_SetVar2Ex(targetInterp, "errorCode", NULL, objPtr,
-		TCL_GLOBAL_ONLY);
+	if (objPtr) {
+	    Tcl_SetObjErrorCode(targetInterp, objPtr);
+	}
 
-	((Interp *) targetInterp)->flags |= (ERR_IN_PROGRESS | ERROR_CODE_SET);
     }
 
     ((Interp *) targetInterp)->returnCode = ((Interp *) sourceInterp)->returnCode;

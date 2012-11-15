@@ -4,8 +4,6 @@
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
-'\" 
-'\" RCS: @(#) $Id$
 '\"
 .so man.macros
 .TH re_syntax n "8.1" Tcl "Tcl Built-In Commands"
@@ -279,8 +277,8 @@ Standard character classes are:
 .PP
 .RS
 .ne 5
-.nf
 .ta 3c
+.nf
 \fBalpha\fR	A letter. 
 \fBupper\fR	An upper-case letter. 
 \fBlower\fR	A lower-case letter. 

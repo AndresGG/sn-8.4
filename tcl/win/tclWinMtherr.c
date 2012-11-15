@@ -8,14 +8,13 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tclWinInt.h"
 #include <math.h>
 
 
+#ifndef __MINGW32__
 /*
  *----------------------------------------------------------------------
  *
@@ -40,10 +39,11 @@ int
 _matherr(xPtr)
     struct exception *xPtr;	/* Describes error that occurred. */
 {
-    if (!TclMathInProgress()) {
-	return 0;
-    }
-    if ((xPtr->type == DOMAIN) || (xPtr->type == SING)) {
+    if ((xPtr->type == DOMAIN)
+#ifdef __BORLANDC__
+	    || (xPtr->type == TLOSS)
+#endif
+	    || (xPtr->type == SING)) {
 	errno = EDOM;
     } else {
 	errno = ERANGE;
@@ -51,4 +51,5 @@ _matherr(xPtr)
     return 1;
 }
 
+#endif /* !__MINGW__ */
 

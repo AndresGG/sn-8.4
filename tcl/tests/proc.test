@@ -12,13 +12,13 @@
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
-#
-# RCS: @(#) $Id$
 
 if {[lsearch [namespace children] ::tcltest] == -1} {
     package require tcltest
     namespace import -force ::tcltest::*
 }
+
+testConstraint memory     [llength [info commands memory]]
 
 catch {eval namespace delete [namespace children :: test_ns_*]}
 catch {rename p ""}
@@ -96,6 +96,11 @@ test proc-1.7 {Tcl_ProcObjCmd, check that formal parameter names are not array e
             puts "$z=z, $a(1)=$a(1)"
         }} msg] $msg
 } {1 {procedure "p" has formal parameter "a(1)" that is an array element}}
+test proc-1.8 {Tcl_ProcObjCmd, check that formal parameter names are simple names} {
+    catch {rename p ""}
+    list [catch {proc p {b:a b::a} { 
+    }} msg] $msg
+} {1 {procedure "p" has formal parameter "b::a" that is not a simple name}}
 
 test proc-2.1 {TclFindProc, simple proc name and proc not in namespace} {
     catch {eval namespace delete [namespace children :: test_ns_*]}
@@ -159,11 +164,22 @@ test proc-3.4 {TclObjInterpProc, procs execute in the namespace in which they we
 test proc-3.5 {TclObjInterpProc, any old result is reset before appending error msg about missing arguments} {
     proc p {x} {info commands 3m}
     list [catch {p} msg] $msg
-} {1 {no value given for parameter "x" to "p"}}
+} {1 {wrong # args: should be "p x"}}
+
+test proc-3.6 {TclObjInterpProc, proper quoting of proc name, Bug 942757} {
+    proc {a b  c} {x} {info commands 3m}
+    list [catch {{a b  c}} msg] $msg
+} {1 {wrong # args: should be "{a b  c} x"}}
+
+test proc-3.7 {TclObjInterpProc, wrong num args, Bug 3366265} {
+    proc {} {x} {}
+    list [catch {{}} msg] $msg
+} {1 {wrong # args: should be "{} x"}}
 
 catch {eval namespace delete [namespace children :: test_ns_*]}
 catch {rename p ""}
 catch {rename {} ""}
+catch {rename {a b  c} {}}
 catch {unset msg}
 
 if {[catch {package require procbodytest}]} {
@@ -226,7 +242,7 @@ test proc-4.3 {TclCreateProc, procbody obj, too many args} {
     set result
 } {procedure "t": arg list contains 3 entries, precompiled header expects 1}
 
-test proc-4.4 {TclCreateProc, procbody obj, inconsitent arg name} {
+test proc-4.4 {TclCreateProc, procbody obj, inconsistent arg name} {
     catch {
 	proc p {x y z} {
 	    set v [join [list $x $y $z]]
@@ -243,7 +259,7 @@ test proc-4.4 {TclCreateProc, procbody obj, inconsitent arg name} {
     set result
 } {procedure "t": formal parameter 1 is inconsistent with precompiled body}
 
-test proc-4.5 {TclCreateProc, procbody obj, inconsitent arg default type} {
+test proc-4.5 {TclCreateProc, procbody obj, inconsistent arg default type} {
     catch {
 	proc p {x y {z Z}} {
 	    set v [join [list $x $y $z]]
@@ -260,7 +276,7 @@ test proc-4.5 {TclCreateProc, procbody obj, inconsitent arg default type} {
     set result
 } {procedure "t": formal parameter 2 is inconsistent with precompiled body}
 
-test proc-4.6 {TclCreateProc, procbody obj, inconsitent arg default type} {
+test proc-4.6 {TclCreateProc, procbody obj, inconsistent arg default type} {
     catch {
 	proc p {x y z} {
 	    set v [join [list $x $y $z]]
@@ -277,7 +293,7 @@ test proc-4.6 {TclCreateProc, procbody obj, inconsitent arg default type} {
     set result
 } {procedure "t": formal parameter 2 is inconsistent with precompiled body}
 
-test proc-4.7 {TclCreateProc, procbody obj, inconsitent arg default value} {
+test proc-4.7 {TclCreateProc, procbody obj, inconsistent arg default value} {
     catch {
 	proc p {x y {z Z}} {
 	    set v [join [list $x $y $z]]
@@ -294,12 +310,61 @@ test proc-4.7 {TclCreateProc, procbody obj, inconsitent arg default value} {
     set result
 } {procedure "t": formal parameter "z" has default value inconsistent with precompiled body}
 
+test proc-4.8 {TclCreateProc, procbody obj, no leak on multiple iterations} -setup {
+    proc getbytes {} {
+	set lines [split [memory info] "\n"]
+	lindex $lines 3 3
+    }
+    proc px x {
+	set y [string tolower $x]
+	return "$x:$y"
+    }
+    px x
+} -constraints memory -body {
+    set end [getbytes]
+    for {set i 0} {$i < 5} {incr i} {
+
+	procbodytest::proc tx x px
+
+	set tmp $end
+	set end [getbytes]
+    }
+    set leakedBytes [expr {$end - $tmp}]
+} -cleanup {
+    rename getbytes {}
+} -result 0
+
+test proc-5.1 {Bytecompiling noop; test for correct argument substitution} {
+    proc p args {} ; # this will be bytecompiled into t
+    proc t {} {
+	set res {}
+	set a 0
+	set b 0
+	trace add variable a read {append res a ;#}
+	trace add variable b write {append res b ;#}
+	p $a ccccccw {bfe} {$a} [incr b] [incr a] {[incr b]} {$a} hello
+	set res
+    }
+    set result [t]
+    catch {rename p ""}
+    catch {rename t ""}
+    set result
+} {aba}    
+
+test proc-6.1 {ProcessProcResultCode: Bug 647307 (negative return code)} {
+    proc a {} {return -code -5}
+    proc b {} a
+    set result [catch b]
+    rename a {}
+    rename b {}
+    set result
+} -5
+
 # cleanup
 catch {rename p ""}
 catch {rename t ""}
 ::tcltest::cleanupTests
 return
-
 
 
 

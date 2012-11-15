@@ -15,8 +15,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 static char sccsid[] = "@(#) man2tcl.c 1.3 95/08/12 17:34:08";
@@ -32,7 +30,14 @@ static char sccsid[] = "@(#) man2tcl.c 1.3 95/08/12 17:34:08";
  * Imported things that aren't defined in header files:
  */
 
+/*
+ * Some <errno.h> define errno to be something complex and
+ * thread-aware; in that case we definitely do not want to declare
+ * errno ourselves!
+ */
+#ifndef errno
 extern int errno;
+#endif
 
 /*
  * Current line number, used for error messages.
@@ -88,7 +93,7 @@ main(argc, argv)
     char **argv;		/* Values of command-line arguments. */
 {
     FILE *f;
-#define MAX_LINE_SIZE 500
+#define MAX_LINE_SIZE 1000
     char line[MAX_LINE_SIZE];
     char *p;
 
@@ -136,6 +141,12 @@ main(argc, argv)
 		continue;
 	    }
     
+	    if (strlen(line) >= MAX_LINE_SIZE -1) {
+		fprintf(stderr, "Too long line. Max is %d chars.\n",
+			MAX_LINE_SIZE - 1);
+		exit(1);
+	    }
+
 	    if ((line[0] == '.') || (line[0] == '\'')) {
 		/*
 		 * This line is a macro invocation.

@@ -3,8 +3,6 @@
 #
 # Copyright (c) 1998-2000 by Scriptics Corporation.
 # All rights reserved.
-#
-# RCS: @(#) $Id$
 
 package require tcltest 2.1
 namespace import -force tcltest::configure
@@ -1272,6 +1270,7 @@ test spinbox-17.3 {SpinboxUpdateScrollbar procedure} {
 } {0.315789 0.842105}
 test spinbox-17.4 {SpinboxUpdateScrollbar procedure} {
     destroy .e
+    set x "Background error did not happen"
     proc bgerror msg {
 	global x
 	set x $msg
@@ -1571,6 +1570,20 @@ test spinbox-22.3 {spinbox config, -from changes SF bug 559078} {
     .s configure -from 6 -to 10
     set val
 } {6}
+
+test entry-23.1 {selection present while disabled, bug 637828} {
+    destroy .e
+    entry .e
+    .e insert end 0123456789
+    .e select from 3
+    .e select to 6
+    set out [.e selection present]
+    .e configure -state disabled
+    # still return 1 when disabled, because 'selection get' will work,
+    # but selection cannot be changed (new behavior since 8.4)
+    .e select to 9
+    lappend out [.e selection present] [selection get]
+} {1 1 345}
 
 destroy .e
 catch {unset ::e ::vVals}

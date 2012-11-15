@@ -1,8 +1,6 @@
 # clrpick.tcl --
 #
 # This demonstration script prompts the user to select a color.
-#
-# RCS: @(#) $Id$
 
 if {![info exists widgetDemo]} {
     error "This script should be run from the \"widget\" demo."
@@ -38,7 +36,7 @@ proc setColor {w button name options} {
     set initialColor [$button cget -$name]
     set color [tk_chooseColor -title "Choose a $name color" -parent $w \
 	-initialcolor $initialColor]
-    if [string compare $color ""] {
+    if {[string compare $color ""]} {
 	setColor_helper $w $options $color
     }
     grab release $w
@@ -54,4 +52,3 @@ proc setColor_helper {w options color} {
 	setColor_helper $child $options $color
     }
 }
-

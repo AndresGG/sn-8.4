@@ -8,9 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
- *
  */
 
 #ifndef _TK_FILE_FILTER
@@ -90,4 +87,3 @@ EXTERN int		TkGetFileFilters _ANSI_ARGS_ ((Tcl_Interp *interp,
 # define TCL_STORAGE_CLASS DLLIMPORT
 
 #endif
-

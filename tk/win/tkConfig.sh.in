@@ -10,8 +10,6 @@
 # file in addition to this one.
 #
 # The information in this file is specific to a single platform.
-#
-# RCS: @(#) $Id$
 
 # Tk's version number.
 TK_VERSION='@TK_VERSION@'
@@ -33,7 +31,6 @@ TK_LIB_FILE='@TK_LIB_FILE@'
 
 # Additional libraries to use when linking Tk.
 TK_LIBS='@LIBS@ @LIBS_GUI@'
-LIBS_GUI='@LIBS_GUI@'
 
 # Top-level directory in which Tcl's platform-independent files are
 # installed.
@@ -89,4 +86,3 @@ TK_BUILD_STUB_LIB_PATH='@TK_BUILD_STUB_LIB_PATH@'
 
 # Path to the Tk stub library in the install directory.
 TK_STUB_LIB_PATH='@TK_STUB_LIB_PATH@'
-

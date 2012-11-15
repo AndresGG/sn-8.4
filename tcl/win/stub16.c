@@ -8,15 +8,12 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #define STRICT
 
 #include <windows.h>
 #include <stdio.h>
-#include <string.h>
 
 static HANDLE		CreateTempFile(void);
 
@@ -197,5 +194,3 @@ CreateTempFile()
 	    CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE,
 	    NULL);
 }
-
-

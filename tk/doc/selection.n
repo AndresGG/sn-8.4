@@ -5,8 +5,6 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" RCS: @(#) $Id$
-'\" 
 .so man.macros
 .TH selection n 8.1 Tk "Tk Built-In Commands"
 .BS
@@ -22,6 +20,9 @@ selection \- Manipulate the X selection
 This command provides a Tcl interface to the X selection mechanism and
 implements the full selection functionality described in the
 X Inter-Client Communication Conventions Manual (ICCCM).
+.PP
+Note that for management of the CLIPBOARD selection (see below), the
+\fBclipboard\fR command may also be used.
 .PP
 The first argument to \fBselection\fR determines the format of the
 rest of the arguments and the behavior of the command.  The following
@@ -125,7 +126,43 @@ that it has lost the selection.
 If \fIcommand\fR is specified, it is a Tcl script to execute when
 some other window claims ownership of the selection away from
 \fIwindow\fR.  \fISelection\fR defaults to PRIMARY.
+.SH EXAMPLES
+On X11 platforms, one of the standard selections available is the
+SECONDARY selection. Hardly anything uses it, but here is how to read
+it using Tk:
+.CS
+set selContents [\fBselection get\fR \-selection SECONDARY]
+.CE
+.PP
+Many different types of data may be available for a selection; the
+special type TARGETS allows you to get a list of available types:
+.CS
+foreach type [\fBselection get\fR \-type TARGETS] {
+   puts "Selection PRIMARY supports type $type"
+}
+.CE
+.PP
+To claim the selection, you must first set up a handler to supply the
+data for the selection.  Then you have to claim the selection...
+.CS
+# Set up the data handler ready for incoming requests
+set foo "This is a string with some data in it... blah blah"
+\fBselection handle\fR \-selection SECONDARY . getData
+proc getData {offset maxChars} {
+   puts "Retrieving selection starting at $offset"
+   return [string range $::foo $offset [expr {$offset+$maxChars}]]
+}
+
+# Now we grab the selection itself
+puts "Claiming selection"
+\fBselection own\fR \-command lost \-selection SECONDARY .
+proc lost {} {
+   puts "Lost selection"
+}
+.CE
+
+.SH "SEE ALSO"
+clipboard(n)
 
 .SH KEYWORDS
 clear, format, handler, ICCCM, own, selection, target, type
-

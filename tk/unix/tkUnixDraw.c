@@ -7,8 +7,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkPort.h"
@@ -94,7 +92,11 @@ TkScrollWindow(tkwin, gc, x, y, width, height, dx, dy, damageRgn)
     }
     Tk_RestrictEvents(oldProc, oldArg, &dummy);
 
-    return XEmptyRegion((Region) damageRgn) ? 0 : 1;
+    if (XEmptyRegion((Region) damageRgn)) {
+	return 0;
+    } else {
+	return 1;
+    }
 }
 
 /*
@@ -205,4 +207,30 @@ TkpDrawHighlightBorder(tkwin, fgGC, bgGC, highlightWidth, drawable)
 {
     TkDrawInsetFocusHighlight(tkwin, fgGC, highlightWidth, drawable, 0);
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TkpDrawFrame --
+ *
+ *	This procedure draws the rectangular frame area.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Draws inside the tkwin area.
+ *
+ *----------------------------------------------------------------------
+ */
 
+void
+TkpDrawFrame (Tk_Window tkwin, Tk_3DBorder border,
+	int highlightWidth, int borderWidth, int relief)
+{
+    Tk_Fill3DRectangle(tkwin, Tk_WindowId(tkwin),
+	    border, highlightWidth, highlightWidth,
+	    Tk_Width(tkwin) - 2 * highlightWidth,
+	    Tk_Height(tkwin) - 2 * highlightWidth,
+	    borderWidth, relief);
+}

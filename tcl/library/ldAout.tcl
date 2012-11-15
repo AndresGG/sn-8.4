@@ -18,8 +18,6 @@
 #	its .o file placed before all others in the command; then
 #	"ld" is executed to bind the objects together.
 #
-# RCS: @(#) $Id$
-#
 # Copyright (c) 1995, by General Electric Company. All rights reserved.
 #
 # See the file "license.terms" for information on usage and redistribution
@@ -182,7 +180,7 @@ proc tclLdAout {{cc {}} {shlib_suffix {}} {shlib_cflags none}} {
     append C {typedef int Tcl_PackageInitProc (Tcl_Interp *);} \n
     append C {Tcl_PackageInitProc *} \n
     append C TclLoadDictionary_ $modName { (symbol)} \n
-    append C {    char * symbol;} \n
+    append C {    CONST char * symbol;} \n
     append C {
 	{
 	    int i;

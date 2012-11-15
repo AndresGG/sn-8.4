@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 
@@ -52,8 +50,7 @@ static char initScript[] = "if {[info proc tkInit]==\"\"} {\n\
         global tk_library tk_version tk_patchLevel\n\
         rename tkInit {}\n\
         tcl_findLibrary tk $tk_version $tk_patchLevel tk.tcl TK_LIBRARY tk_library\n\
-}\n\
+  }\n\
 }\n\
 tkInit";
-
 

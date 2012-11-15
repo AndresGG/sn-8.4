@@ -2610,14 +2610,7 @@ itcl::class Editor& {
 	    if {$tcl_platform(platform) == "unix"} {
 		#don't call motif dialog box
 
-		# FIXME: Hack to support both tk 8.1 and tk 8.3
-		if {! [catch {package require Tcl 8.3}]} {
-		    set tkFDialog tk::dialog::file::tkFDialog
-		} else {
-		    set tkFDialog tkFDialog
-		}
-
-		set f [$tkFDialog open \
+		set f [::tk::dialog::file:: open \
 		    -parent ${w} \
 		    -title ${title} \
 		    -initialdir ${initialdir} \
@@ -2637,14 +2630,7 @@ itcl::class Editor& {
 	    if {$tcl_platform(platform) == "unix"} {
 		#don't call motif dialog box
 
-		# FIXME: Hack to support both tk 8.1 and tk 8.3
-		if {! [catch {package require Tcl 8.3}]} {
-		    set tkFDialog tk::dialog::file::tkFDialog
-		} else {
-		    set tkFDialog tkFDialog
-		}
-
-		set f [$tkFDialog save \
+		set f [::tk::dialog::file:: save \
 		    -parent ${w} \
 		    -title ${title} \
 		    -initialdir ${initialdir} \

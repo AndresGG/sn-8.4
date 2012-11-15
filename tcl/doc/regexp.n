@@ -4,8 +4,6 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" RCS: @(#) $Id$
-'\" 
 .so man.macros
 .TH regexp n 8.3 Tcl "Tcl Built-In Commands"
 .BS
@@ -49,7 +47,7 @@ expression. This switch is primarily intended for debugging purposes.
 \fB\-expanded\fR
 Enables use of the expanded regular expression syntax where
 whitespace and comments are ignored.  This is the same as specifying
-the \fB(?x)\fR embedded option (see METASYNTAX, below).
+the \fB(?x)\fR embedded option (see the \fBre_syntax\fR manual page).
 .TP 15
 \fB\-indices\fR
 Changes what is stored in the \fIsubMatchVar\fRs. 
@@ -67,17 +65,18 @@ matches an empty string after any newline in addition to its normal
 function, and `$' matches an empty string before any newline in
 addition to its normal function.  This flag is equivalent to
 specifying both \fB\-linestop\fR and \fB\-lineanchor\fR, or the
-\fB(?n)\fR embedded option (see METASYNTAX, below).
+\fB(?n)\fR embedded option (see the \fBre_syntax\fR manual page).
 .TP 15
 \fB\-linestop\fR
 Changes the behavior of `[^' bracket expressions and `.' so that they
 stop at newlines.  This is the same as specifying the \fB(?p)\fR
-embedded option (see METASYNTAX, below).
+embedded option (see the \fBre_syntax\fR manual page).
 .TP 15
 \fB\-lineanchor\fR
 Changes the behavior of `^' and `$' (the ``anchors'') so they match the
 beginning and end of a line respectively.  This is the same as
-specifying the \fB(?w)\fR embedded option (see METASYNTAX, below).
+specifying the \fB(?w)\fR embedded option (see the \fBre_syntax\fR
+manual page).
 .TP 15
 \fB\-nocase\fR
 Causes upper-case characters in \fIstring\fR to be treated as
@@ -87,7 +86,7 @@ lower case during the matching process.
 \fB\-all\fR
 Causes the regular expression to be matched as many times as possible
 in the string, returning the total number of matches found.  If this
-is specified with match variables, they will continue information for
+is specified with match variables, they will contain information for
 the last match only.
 .TP 15
 \fB\-inline\fR
@@ -125,10 +124,36 @@ in \fIexp\fR doesn't match the string (e.g. because it was in a
 portion of the expression that wasn't matched), then the corresponding
 \fIsubMatchVar\fR will be set to ``\fB\-1 \-1\fR'' if \fB\-indices\fR
 has been specified or to an empty string otherwise.
+.SH EXAMPLES
+Find the first occurrence of a word starting with \fBfoo\fR in a
+string that is not actually an instance of \fBfoobar\fR, and get the
+letters following it up to the end of the word into a variable:
+.CS
+\fBregexp\fR {\\<foo(?!bar\\>)(\\w*)} $string \-> restOfWord
+.CE
+Note that the whole matched substring has been placed in the variable
+\fB\->\fR which is a name chosen to look nice given that we are not
+actually interested in its contents.
+.PP
+Find the index of the word \fBbadger\fR (in any case) within a string
+and store that in the variable \fBlocation\fR:
+.CS
+\fBregexp\fR \-indices {(?i)\\<badger\\>} $string location
+.CE
+.PP
+Count the number of octal digits in a string:
+.CS
+\fBregexp\fR \-all {[0\-7]} $string
+.CE
+.PP
+List all words (consisting of all sequences of non-whitespace
+characters) in a string:
+.CS
+\fBregexp\fR \-all \-inline {\\S+} $string
+.CE
 
 .SH "SEE ALSO"
-re_syntax(n)
+re_syntax(n), regsub(n)
 
 .SH KEYWORDS
 match, regular expression, string
-

@@ -7,8 +7,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #ifndef _TKMENU
@@ -37,6 +35,15 @@
 
 typedef struct TkMenuPlatformData_ *TkMenuPlatformData;
 typedef struct TkMenuPlatformEntryData_ *TkMenuPlatformEntryData;
+
+/*
+ * Legal values for the "compound" field of TkMenuEntry and TkMenuButton records.
+ */
+
+enum compound {
+    COMPOUND_BOTTOM, COMPOUND_CENTER, COMPOUND_LEFT, COMPOUND_NONE,
+	COMPOUND_RIGHT, COMPOUND_TOP
+};
 
 /*
  * One of the following data structures is kept for each entry of each
@@ -115,6 +122,9 @@ typedef struct TkMenuEntry {
 				 * entry. */
     int labelWidth;		/* Number of pixels to allow for displaying
 				 * labels in menu entries. */
+    int compound;		/* Value of -compound option; specifies whether
+				 * the entry should show both an image and
+				 * text, and, if so, how. */
 
     /*
      * Information used to implement this entry's action:
@@ -439,17 +449,21 @@ typedef struct TkMenuOptionTables {
  * RESIZE_PENDING:		Non-zero means a call to ComputeMenuGeometry
  *				has already been scheduled.
  * MENU_DELETION_PENDING	Non-zero means that we are currently destroying
- *				this menu. This is useful when we are in the 
- *				middle of cleaning this master menu's chain of 
- *				menus up when TkDestroyMenu was called again on
- *				this menu (via a destroy binding or somesuch).
+ *				this menu's internal structures. This is useful 
+ *				when we are in the middle of cleaning
+ *				this master menu's chain of menus up when
+ *				TkDestroyMenu was called again on this
+ *				menu (via a destroy binding or somesuch).
+ * MENU_WIN_DESTRUCTION_PENDING Non-zero means we are in the middle of 
+ *                              destroying this menu's Tk_Window.
  * MENU_PLATFORM_FLAG1...	Reserved for use by the platform-specific menu
  *				code.
  */
 
-#define REDRAW_PENDING		1
-#define RESIZE_PENDING		2
-#define MENU_DELETION_PENDING	4
+#define REDRAW_PENDING		        1
+#define RESIZE_PENDING		        2
+#define MENU_DELETION_PENDING	        4
+#define MENU_WIN_DESTRUCTION_PENDING	8
 #define MENU_PLATFORM_FLAG1	(1 << 30)
 #define MENU_PLATFORM_FLAG2	(1 << 29)
 #define MENU_PLATFORM_FLAG3	(1 << 28)
@@ -499,7 +513,7 @@ EXTERN TkMenuReferences *
 EXTERN TkMenuReferences *
 			TkFindMenuReferencesObj _ANSI_ARGS_((
 			    Tcl_Interp *interp, Tcl_Obj *namePtr));
-EXTERN void		TkFreeMenuReferences _ANSI_ARGS_((
+EXTERN int		TkFreeMenuReferences _ANSI_ARGS_((
 			    TkMenuReferences *menuRefPtr));
 EXTERN Tcl_HashTable *	TkGetMenuHashTable _ANSI_ARGS_((Tcl_Interp *interp));
 EXTERN int		TkGetMenuIndex _ANSI_ARGS_((Tcl_Interp *interp,
@@ -569,5 +583,4 @@ EXTERN void		TkpSetWindowMenuBar _ANSI_ARGS_((Tk_Window tkwin,
 # define TCL_STORAGE_CLASS DLLIMPORT
 
 #endif /* _TKMENU */
-
 

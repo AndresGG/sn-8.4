@@ -9,8 +9,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #ifndef _TKFONT
@@ -205,6 +203,8 @@ EXTERN int		TkFontGetPoints _ANSI_ARGS_((Tk_Window tkwin,
 			    int size));
 EXTERN char **		TkFontGetGlobalClass _ANSI_ARGS_((void));
 EXTERN char **		TkFontGetSymbolClass _ANSI_ARGS_((void));
+EXTERN int		TkFontGetFirstTextLayout _ANSI_ARGS_((
+			    Tk_TextLayout layout, Tk_Font *font, char *dst));
 
 /*
  * Low-level API exported by platform-specific code to generic code. 
@@ -228,5 +228,3 @@ EXTERN void		TkUpdateFonts _ANSI_ARGS_((Tk_Window tkwin,
 # define TCL_STORAGE_CLASS DLLIMPORT
 
 #endif	/* _TKFONT */
-
-

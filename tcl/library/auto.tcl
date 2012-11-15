@@ -3,8 +3,6 @@
 # utility procs formerly in init.tcl dealing with auto execution
 # of commands and can be auto loaded themselves.
 #
-# RCS: @(#) $Id$
-#
 # Copyright (c) 1991-1993 The Regents of the University of California.
 # Copyright (c) 1994-1998 Sun Microsystems, Inc.
 #
@@ -28,13 +26,12 @@ proc auto_reset {} {
 	if {[info exists auto_index($p)] && ![string match auto_* $p]
 		&& ([lsearch -exact {unknown pkg_mkIndex tclPkgSetup
 			tcl_findLibrary pkg_compareExtension
-			tclMacPkgSearch tclPkgUnknown} $p] < 0)} {
+			tclPkgUnknown tcl::MacOSXPkgUnknown
+			tcl::MacPkgUnknown} $p] < 0)} {
 	    rename $p {}
 	}
     }
-    catch {unset auto_execs}
-    catch {unset auto_index}
-    catch {unset auto_oldpath}
+    unset -nocomplain auto_execs auto_index auto_oldpath
 }
 
 # tcl_findLibrary --
@@ -59,7 +56,6 @@ proc auto_reset {} {
 #       pkgName         The package name (for cases like Itcl where you have
 #                       several subpackages under one package...
 #       debug_startup   Run the startup proc through debugger_eval?
-
 proc tcl_findLibrary {basename version patch initScript 
                       enVarName varName {srcLibName {}} {instLibName {}} 
 		      {pkgName {}} {debug_startup 0}} {
@@ -68,22 +64,33 @@ proc tcl_findLibrary {basename version patch initScript
 
     set dirs {}
     set errors {}
+
     # The C application may have hardwired a path, which we honor
-    
-    if {[info exist the_library] && [string compare $the_library {}]} {
+
+    if {[info exists the_library] && $the_library ne ""} {
 	lappend dirs $the_library
     } else {
 
 	# Do the canonical search
 
-	# 1. From an environment variable, if it exists
+	# 1. From an environment variable, if it exists.
+	#    Placing this first gives the end-user ultimate control
+	#    to work-around any bugs, or to customize.
 
         if {[info exists env($enVarName)]} {
             lappend dirs $env($enVarName)
         }
 
-	# 2. Relative to the Tcl library
-       
+	# 2. In the package script directory registered within
+	#    the configuration of the package itself.
+	#
+	# Only do this for Tcl 8.5+, when Tcl_RegsiterConfig() is available.
+	#if {[catch {
+	#    ::${basename}::pkgconfig get scriptdir,runtime
+	#} value] == 0} {
+	#    lappend dirs $value
+	#}
+
         if {$srcLibName == ""} {
 	  set srcLibName library
 	}
@@ -91,22 +98,65 @@ proc tcl_findLibrary {basename version patch initScript
 	  set instLibName $basename$version
         }
 
-        lappend dirs [file join [file dirname [info library]] \
-		$basename$version]
+	# 3. Relative to auto_path directories.  This checks relative to the
+	# Tcl library as well as allowing loading of libraries added to the
+	# auto_path that is not relative to the core library or binary paths.
+	foreach d $::auto_path {
+	    lappend dirs [file join $d $basename$version]
+	    if {$::tcl_platform(platform) eq "unix"
+		&& $::tcl_platform(os) eq "Darwin"} {
+		# 4. On MacOSX, check the Resources/Scripts subdir too
+		lappend dirs [file join $d $basename$version Resources Scripts]
+	    }
+	}
 
         set parentDir [file dirname [file dirname [info nameofexecutable]]]
         set grandParentDir [file dirname $parentDir]
         lappend dirs [file join $parentDir lib $basename$version]
         lappend dirs [file join $grandParentDir lib $basename$version]
         lappend dirs [file join $parentDir library]
-        lappend dirs [file join $grandParentDir library]
-        if {![regexp {.*[ab][0-9]*} $patch ver]} {
-            set ver $version
-        }
-        lappend dirs [file join $grandParentDir $basename$ver library]
-        lappend dirs [file join [file dirname $grandParentDir] $basename$ver library]
-    }
 
+	# Remaining locations are out of date (when relevant, they ought
+	# to be covered by the $::auto_path seach above).
+	#
+	# ../../library		(From unix/arch directory in build hierarchy)
+	# ../../foo1.0.1/library
+	#		(From unix directory in parallel build hierarchy)
+	# ../../../foo1.0.1/library
+	#		(From unix/arch directory in parallel build hierarchy)
+	#
+	# For the sake of extra compatibility safety, we keep adding these
+	# paths during the 8.4.* release series.
+	if {1} {
+	    lappend dirs [file join $grandParentDir library]
+	    lappend dirs [file join $grandParentDir $basename$patch library]
+	    lappend dirs [file join [file dirname $grandParentDir] \
+			      $basename$patch library]
+	}
+    }
+    # uniquify $dirs in order
+    array set seen {}
+    foreach i $dirs {
+	# For Tcl 8.4.9, we've disabled the use of [file normalize] here.
+	# This means that two different path names that are the same path
+	# in normalized form, will both remain on the search path.  There
+	# should be no harm in that, just a bit more file system access
+	# than is strictly necessary.
+	#
+	# [file normalize] has been disabled because of reports it has
+	# caused difficulties with the freewrap utility.  To keep
+	# compatibility with freewrap's needs, we'll keep this disabled
+	# throughout the 8.4.x (x >= 9) releases.  See Bug 1072136.
+	if {1 || [interp issafe]} {
+	    set norm $i
+	} else {
+	    set norm [file normalize $i]
+	}
+	if {[info exists seen($norm)]} { continue }
+	set seen($norm) ""
+	lappend uniqdirs $i
+    }
+    set dirs $uniqdirs
     foreach i $dirs {
         set the_library $i
         set file [file join $i $initScript]
@@ -125,18 +175,20 @@ proc tcl_findLibrary {basename version patch initScript
 	    } else {
                 if {![catch {uplevel \#0 [list source $file]} msg]} {
 	            return
-                } else {
+               } else {
 	            append errors "$file: $msg\n$errorInfo\n"
-                }
+               }
 	    }
-	}
+        }
     }
+    unset -nocomplain the_library
     set msg "Can't find a usable $initScript in the following directories: \n"
     append msg "    $dirs\n\n"
     append msg "$errors\n\n"
     append msg "This probably means that $basename wasn't installed properly.\n"
     error $msg
 }
+
 
 # ----------------------------------------------------------------------
 # auto_mkindex
@@ -182,12 +234,12 @@ proc auto_mkindex {dir args} {
     append index "# sets an element in the auto_index array, where the\n"
     append index "# element name is the name of a command and the value is\n"
     append index "# a script that loads the command.\n\n"
-    if {$args == ""} {
+    if {[llength $args] == 0} {
 	set args *.tcl
     }
 
     auto_mkindex_parser::init
-    foreach file [eval glob $args] {
+    foreach file [eval [linsert $args 0 glob --]] {
         if {[catch {auto_mkindex_parser::mkindex $file} msg] == 0} {
             append index $msg
         } else {
@@ -220,10 +272,10 @@ proc auto_mkindex_old {dir args} {
     append index "# sets an element in the auto_index array, where the\n"
     append index "# element name is the name of a command and the value is\n"
     append index "# a script that loads the command.\n\n"
-    if {[string equal $args ""]} {
+    if {[llength $args] == 0} {
 	set args *.tcl
     }
-    foreach file [eval glob $args] {
+    foreach file [eval [linsert $args 0 glob --]] {
 	set f ""
 	set error [catch {
 	    set f [open $file]
@@ -341,7 +393,7 @@ proc auto_mkindex_parser::mkindex {file} {
     # in case there were any $ in the proc name.  This will cause a problem
     # if somebody actually tries to have a \0 in their proc name.  Too bad
     # for them.
-    regsub -all {\$} $contents "\0" contents
+    set contents [string map "$ \u0000" $contents]
     
     set index ""
     set contextStack ""
@@ -419,12 +471,10 @@ proc auto_mkindex_parser::commandInit {name arglist body} {
 
     set ns [namespace qualifiers $name]
     set tail [namespace tail $name]
-    if {[string equal $ns ""]} {
-        set fakeName "[namespace current]::_%@fake_$tail"
+    if {$ns eq ""} {
+        set fakeName [namespace current]::_%@fake_$tail
     } else {
-        set fakeName "_%@fake_$name"
-        regsub -all {::} $fakeName "_" fakeName
-        set fakeName "[namespace current]::$fakeName"
+        set fakeName [namespace current]::[string map {:: _} _%@fake_$name]
     }
     proc $fakeName $arglist $body
 
@@ -433,7 +483,7 @@ proc auto_mkindex_parser::commandInit {name arglist body} {
     # we have to build procs with the fully qualified names, and
     # have the procs point to the aliases.
 
-    if {[regexp {::} $name]} {
+    if {[string match *::* $name]} {
         set exportCmd [list _%@namespace export [namespace tail $name]]
         $parser eval [list _%@namespace eval $ns $exportCmd]
  
@@ -483,7 +533,7 @@ proc auto_mkindex_parser::fullname {name} {
         }
     }
 
-    if {[string equal [namespace qualifiers $name] ""]} {
+    if {[namespace qualifiers $name] eq ""} {
         set name [namespace tail $name]
     } elseif {![string match ::* $name]} {
         set name "::$name"
@@ -491,8 +541,7 @@ proc auto_mkindex_parser::fullname {name} {
     
     # Earlier, mkindex replaced all $'s with \0.  Now, we have to reverse
     # that replacement.
-    regsub -all "\0" $name "\$" name
-    return $name
+    return [string map "\u0000 $" $name]
 }
 
 # Register all of the procedures for the auto_mkindex parser that
@@ -524,7 +573,7 @@ auto_mkindex_parser::command proc {name args} {
 
 auto_mkindex_parser::hook {
     if {![catch {package require tbcload}]} {
-	if {[llength [info commands tbcload::bcproc]] == 0} {
+	if {[namespace which -command tbcload::bcproc] eq ""} {
 	    auto_load tbcload::bcproc
 	}
 	load {} tbcload $auto_mkindex_parser::parser
@@ -575,7 +624,7 @@ auto_mkindex_parser::command namespace {op args} {
             variable parser
             variable imports
             foreach pattern $args {
-                if {[string compare $pattern "-force"]} {
+                if {$pattern ne "-force"} {
                     lappend imports $pattern
                 }
             }

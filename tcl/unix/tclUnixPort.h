@@ -18,8 +18,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #ifndef _TCLUNIXPORT
@@ -56,11 +54,53 @@
 #   include <dirent.h>
 #endif
 #endif
+
+#ifdef HAVE_STRUCT_DIRENT64
+typedef struct dirent64	Tcl_DirEntry;
+#   define TclOSreaddir		readdir64
+#else
+typedef struct dirent	Tcl_DirEntry;
+#   define TclOSreaddir		readdir
+#endif
+
+#ifdef HAVE_TYPE_OFF64_T
+typedef off64_t		Tcl_SeekOffset;
+#   define TclOSseek		lseek64
+#   define TclOSopen		open64
+#else
+typedef off_t		Tcl_SeekOffset;
+#   define TclOSseek		lseek
+#   define TclOSopen		open
+#endif
+
+#ifdef HAVE_STRUCT_STAT64
+#   define TclOSstat		stat64
+#   define TclOSlstat		lstat64
+#else
+#   define TclOSstat		stat
+#   define TclOSlstat		lstat
+#endif
+
+#if !HAVE_STRTOLL && defined(TCL_WIDE_INT_TYPE) && !TCL_WIDE_INT_IS_LONG
+EXTERN Tcl_WideInt	strtoll _ANSI_ARGS_((CONST char *string,
+					     char **endPtr, int base));
+EXTERN Tcl_WideUInt	strtoull _ANSI_ARGS_((CONST char *string,
+					      char **endPtr, int base));
+#endif
+
 #include <sys/file.h>
 #ifdef HAVE_SYS_SELECT_H
 #   include <sys/select.h>
 #endif
 #include <sys/stat.h>
+
+#ifdef __CYGWIN__
+#   define timezone _timezone
+    typedef long TIMEZONE_t;
+#else	/* !__CYGWIN__ */
+    typedef int TIMEZONE_t;
+#endif	/* !__CYGWIN__ */
+
 #if TIME_WITH_SYS_TIME
 #   include <sys/time.h>
 #   include <time.h>
@@ -288,7 +328,10 @@ EXTERN int		gettimeofday _ANSI_ARGS_((struct timeval *tp,
  */
 
 #ifndef S_IFLNK
+#   undef TclOSlstat
 #   define lstat	stat
+#   define lstat64	stat64
+#   define TclOSlstat	TclOSstat
 #endif
 
 /*
@@ -302,52 +345,52 @@ EXTERN int		gettimeofday _ANSI_ARGS_((struct timeval *tp,
 #   else
 #       define S_ISREG(m) 0
 #   endif
-# endif
+#endif /* !S_ISREG */
 #ifndef S_ISDIR
 #   ifdef S_IFDIR
 #       define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #   else
 #       define S_ISDIR(m) 0
 #   endif
-# endif
+#endif /* !S_ISDIR */
 #ifndef S_ISCHR
 #   ifdef S_IFCHR
 #       define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
 #   else
 #       define S_ISCHR(m) 0
 #   endif
-# endif
+#endif /* !S_ISCHR */
 #ifndef S_ISBLK
 #   ifdef S_IFBLK
 #       define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
 #   else
 #       define S_ISBLK(m) 0
 #   endif
-# endif
+#endif /* !S_ISBLK */
 #ifndef S_ISFIFO
 #   ifdef S_IFIFO
 #       define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
 #   else
 #       define S_ISFIFO(m) 0
 #   endif
-# endif
+#endif /* !S_ISFIFO */
 #ifndef S_ISLNK
 #   ifdef S_IFLNK
 #       define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
 #   else
 #       define S_ISLNK(m) 0
 #   endif
-# endif
+#endif /* !S_ISLNK */
 #ifndef S_ISSOCK
 #   ifdef S_IFSOCK
 #       define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
 #   else
 #       define S_ISSOCK(m) 0
 #   endif
-# endif
+#endif /* !S_ISSOCK */
 
 /*
- * Make sure that MAXPATHLEN is defined.
+ * Make sure that MAXPATHLEN and MAXNAMLEN are defined.
  */
 
 #ifndef MAXPATHLEN
@@ -355,6 +398,14 @@ EXTERN int		gettimeofday _ANSI_ARGS_((struct timeval *tp,
 #       define MAXPATHLEN PATH_MAX
 #   else
 #       define MAXPATHLEN 2048
+#   endif
+#endif
+
+#ifndef MAXNAMLEN
+#   ifdef NAME_MAX
+#	define MAXNAMLEN NAME_MAX
+#   else
+#	define MAXNAMLEN 255
 #   endif
 #endif
 
@@ -373,16 +424,16 @@ EXTERN int		gettimeofday _ANSI_ARGS_((struct timeval *tp,
 
 #ifndef NO_FD_SET
 #   define SELECT_MASK fd_set
-#else
+#else /* NO_FD_SET */
 #   ifndef _AIX
 	typedef long fd_mask;
-#   endif
+#   endif /* !AIX */
 #   if defined(_IBMR2)
 #	define SELECT_MASK void
-#   else
+#   else /* !defined(_IBMR2) */
 #	define SELECT_MASK int
-#   endif
-#endif
+#   endif /* defined(_IBMR2) */
+#endif /* !NO_FD_SET */
 
 /*
  * Define "NBBY" (number of bits per byte) if it's not already defined.
@@ -402,13 +453,13 @@ EXTERN int		gettimeofday _ANSI_ARGS_((struct timeval *tp,
 #   else
 #	define FD_SETSIZE 256
 #   endif
-#endif
+#endif /* FD_SETSIZE */
 #if !defined(howmany)
 #   define howmany(x, y) (((x)+((y)-1))/(y))
-#endif
+#endif /* !defined(howmany) */
 #ifndef NFDBITS
 #   define NFDBITS NBBY*sizeof(fd_mask)
-#endif
+#endif /* NFDBITS */
 #define MASK_SIZE howmany(FD_SETSIZE, NFDBITS)
 
 /*
@@ -417,16 +468,37 @@ EXTERN int		gettimeofday _ANSI_ARGS_((struct timeval *tp,
  * isn't generally declared in a header file anywhere.
  */
 
+#ifdef NO_ERRNO
 extern int errno;
+#endif
+
+/*
+ * Not all systems declare all the errors that Tcl uses!  Provide some
+ * work-arounds...
+ */
+
+#ifndef EOVERFLOW
+#   ifdef EFBIG
+#	define EOVERFLOW EFBIG
+#   else /* !EFBIG */
+#	define EOVERFLOW EINVAL
+#   endif /* EFBIG */
+#endif /* EOVERFLOW */
 
 /*
  * Variables provided by the C library:
  */
 
-#if defined(_sgi) || defined(__sgi) || (defined(__APPLE__) && defined(__DYNAMIC__))
-#   define environ _environ
-#endif
+#if defined(__APPLE__) && defined(__DYNAMIC__)
+#   include <crt_externs.h>
+#   define environ (*_NSGetEnviron())
+#   define USE_PUTENV 1
+#else
+#   if defined(_sgi) || defined(__sgi)
+#       define environ _environ
+#   endif
 extern char **environ;
+#endif
 
 /*
  * At present (12/91) not all stdlib.h implementations declare strtod.
@@ -437,6 +509,126 @@ extern char **environ;
  */
 
 extern double strtod();
+
+/*
+ * There is no platform-specific panic routine for Unix in the Tcl internals.
+ */
+
+#define TclpPanic ((Tcl_PanicProc *) NULL)
+
+/*
+ * Darwin specifc configure overrides.
+ */
+
+#ifdef __APPLE__
+/*
+ * Support for fat compiles: configure runs only once for multiple architectures
+ */
+#   if defined(__LP64__) && defined (NO_COREFOUNDATION_64)
+#       undef HAVE_COREFOUNDATION
+#    endif /* __LP64__ && NO_COREFOUNDATION_64 */
+#   include <sys/cdefs.h>
+#   ifdef __DARWIN_UNIX03
+#       if __DARWIN_UNIX03
+#           undef HAVE_PUTENV_THAT_COPIES
+#       else
+#           define HAVE_PUTENV_THAT_COPIES 1
+#       endif
+#   endif /* __DARWIN_UNIX03 */
+/*
+ * The termios configure test program relies on the configure script being run
+ * from a terminal, which is not the case e.g. when configuring from Xcode.
+ * Since termios is known to be present on all Mac OS X releases since 10.0,
+ * override the configure defines for serial API here. [Bug 497147]
+ */
+#   define USE_TERMIOS 1
+#   undef  USE_TERMIO
+#   undef  USE_SGTTY
+/*
+ * Include AvailabilityMacros.h here (when available) to ensure any symbolic
+ * MAC_OS_X_VERSION_* constants passed on the command line are translated.
+ */
+#   ifdef HAVE_AVAILABILITYMACROS_H
+#       include <AvailabilityMacros.h>
+#   endif
+/*
+ * Support for weak import.
+ */
+#   ifdef HAVE_WEAK_IMPORT
+#       if !defined(HAVE_AVAILABILITYMACROS_H) || !defined(MAC_OS_X_VERSION_MIN_REQUIRED)
+#           undef HAVE_WEAK_IMPORT
+#       else
+#           ifndef WEAK_IMPORT_ATTRIBUTE
+#               define WEAK_IMPORT_ATTRIBUTE __attribute__((weak_import))
+#           endif
+#       endif
+#   endif /* HAVE_WEAK_IMPORT */
+/*
+ * Support for MAC_OS_X_VERSION_MAX_ALLOWED define from AvailabilityMacros.h:
+ * only use API available in the indicated OS version or earlier.
+ */
+#   ifdef MAC_OS_X_VERSION_MAX_ALLOWED
+#       if MAC_OS_X_VERSION_MAX_ALLOWED < 1050 && defined(__LP64__)
+#           undef HAVE_COREFOUNDATION
+#       endif
+#       if MAC_OS_X_VERSION_MAX_ALLOWED < 1040
+#           undef HAVE_OSSPINLOCKLOCK
+#           undef HAVE_PTHREAD_ATFORK
+#           undef HAVE_COPYFILE
+#       endif
+#       if MAC_OS_X_VERSION_MAX_ALLOWED < 1030
+#           ifdef TCL_THREADS
+		/* prior to 10.3, realpath is not threadsafe, c.f. bug 711232 */
+#               define NO_REALPATH 1
+#           endif
+#           undef HAVE_LANGINFO
+#       endif
+#   endif /* MAC_OS_X_VERSION_MAX_ALLOWED */
+#   if defined(HAVE_COREFOUNDATION) && defined(__LP64__) && \
+	    defined(HAVE_WEAK_IMPORT) && MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+#       warning "Weak import of 64-bit CoreFoundation is not supported, will not run on Mac OS X < 10.5."
+#   endif
+/*
+ * At present, using vfork() instead of fork() causes execve() to fail
+ * intermittently on Darwin x86_64. rdar://4685553
+ */
+#   if defined(__x86_64__) && !defined(FIXED_RDAR_4685553)
+#       undef USE_VFORK
+#   endif /* __x86_64__ */
+/* Workaround problems with vfork() when building with llvm-gcc-4.2 */
+#   if defined (__llvm__) && \
+	    (__GNUC__ > 4 || (__GNUC__ == 4 && (__GNUC_MINOR__ > 2 || \
+	    (__GNUC_MINOR__ == 2 && __GNUC_PATCHLEVEL__ > 0))))
+#       undef USE_VFORK
+#   endif /* __llvm__ */
+#endif /* __APPLE__ */
+
+/*
+ * Darwin 8 copyfile API.
+ */
+
+#ifdef HAVE_COPYFILE
+#ifdef HAVE_COPYFILE_H
+#include <copyfile.h>
+#if defined(HAVE_WEAK_IMPORT) && MAC_OS_X_VERSION_MIN_REQUIRED < 1040
+/* Support for weakly importing copyfile. */
+#define WEAK_IMPORT_COPYFILE
+extern int copyfile(const char *from, const char *to, copyfile_state_t state,
+		    copyfile_flags_t flags) WEAK_IMPORT_ATTRIBUTE;
+#endif /* HAVE_WEAK_IMPORT */
+#else /* HAVE_COPYFILE_H */
+int copyfile(const char *from, const char *to, void *state, uint32_t flags);
+#define COPYFILE_ACL            (1<<0)
+#define COPYFILE_XATTR          (1<<2)
+#define COPYFILE_NOFOLLOW_SRC   (1<<18)
+#if defined(HAVE_WEAK_IMPORT) && MAC_OS_X_VERSION_MIN_REQUIRED < 1040
+/* Support for weakly importing copyfile. */
+#define WEAK_IMPORT_COPYFILE
+extern int copyfile(const char *from, const char *to, void *state,
+                    uint32_t flags) WEAK_IMPORT_ATTRIBUTE;
+#endif /* HAVE_WEAK_IMPORT */
+#endif /* HAVE_COPYFILE_H */
+#endif /* HAVE_COPYFILE */
 
 /*
  *---------------------------------------------------------------------------
@@ -450,14 +642,17 @@ extern double strtod();
  * The default platform eol translation on Unix is TCL_TRANSLATE_LF.
  */
 
+#ifdef DJGPP
+#define	TCL_PLATFORM_TRANSLATION	TCL_TRANSLATE_CRLF
+#else
 #define	TCL_PLATFORM_TRANSLATION	TCL_TRANSLATE_LF
+#endif
 
 /*
  * The following macros have trivial definitions, allowing generic code to 
  * address platform-specific issues.
  */
 
-#define TclpAsyncMark(async)
 #define TclpGetPid(pid)		((unsigned long) (pid))
 #define TclpReleaseFile(file)	/* Nothing. */
 
@@ -479,15 +674,6 @@ extern double strtod();
 
 #define TclpExit		exit
 
-#ifdef TclpStat
-#undef TclpStat
-#endif
-
-EXTERN int		TclpLstat _ANSI_ARGS_((CONST char *path, 
-			    struct stat *buf));
-EXTERN int		TclpStat _ANSI_ARGS_((CONST char *path, 
-			    struct stat *buf));
-
 /*
  * Platform specific mutex definition used by memory allocators.
  * These mutexes are statically allocated and explicitly initialized.
@@ -501,6 +687,15 @@ typedef pthread_mutex_t TclpMutex;
 EXTERN void	TclpMutexInit _ANSI_ARGS_((TclpMutex *mPtr));
 EXTERN void	TclpMutexLock _ANSI_ARGS_((TclpMutex *mPtr));
 EXTERN void	TclpMutexUnlock _ANSI_ARGS_((TclpMutex *mPtr));
+EXTERN Tcl_DirEntry * 	TclpReaddir(DIR *);
+#ifndef TclpLocaltime
+EXTERN struct tm *     	TclpLocaltime(TclpTime_t_CONST);
+#endif
+#ifndef TclpGmtime
+EXTERN struct tm *     	TclpGmtime(TclpTime_t_CONST);
+#endif
+EXTERN char *          	TclpInetNtoa(struct in_addr);
+#define inet_ntoa(x)	TclpInetNtoa(x)
 #else
 typedef int TclpMutex;
 #define	TclpMutexInit(a)
@@ -508,8 +703,26 @@ typedef int TclpMutex;
 #define	TclpMutexUnlock(a)
 #endif /* TCL_THREADS */
 
+
+/*
+ * Set of MT-safe implementations of some
+ * known-to-be-MT-unsafe library calls.
+ * Instead of returning pointers to the
+ * static storage, those return pointers
+ * to the TSD data. 
+ */
+
+#include <pwd.h>
+#include <grp.h>
+
+EXTERN struct passwd*  TclpGetPwNam(const char *name);
+EXTERN struct group*   TclpGetGrNam(const char *name);
+EXTERN struct passwd*  TclpGetPwUid(uid_t uid);
+EXTERN struct group*   TclpGetGrGid(gid_t gid);
+EXTERN struct hostent* TclpGetHostByName(const char *name);
+EXTERN struct hostent* TclpGetHostByAddr(const char *addr, int length, int type);
+
 #include "tclPlatDecls.h"
 #include "tclIntPlatDecls.h"
 
 #endif /* _TCLUNIXPORT */
-

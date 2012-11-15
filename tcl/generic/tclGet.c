@@ -10,8 +10,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tclInt.h"
@@ -41,11 +39,12 @@
 int
 Tcl_GetInt(interp, string, intPtr)
     Tcl_Interp *interp;		/* Interpreter to use for error reporting. */
-    char *string;		/* String containing a (possibly signed)
+    CONST char *string;		/* String containing a (possibly signed)
 				 * integer in a form acceptable to strtol. */
     int *intPtr;		/* Place to store converted result. */
 {
-    char *end, *p;
+    char *end;
+    CONST char *p = string;
     long i;
 
     /*
@@ -55,7 +54,14 @@ Tcl_GetInt(interp, string, intPtr)
      */
 
     errno = 0;
-    for (p = string; isspace(UCHAR(*p)); p++) {	/* INTL: ISO space. */
+#ifdef TCL_STRTOUL_SIGN_CHECK
+    /*
+     * This special sign check actually causes bad numbers to be allowed
+     * when strtoul.  I can't find a strtoul that doesn't validly handle
+     * signed characters, and the C standard implies that this is all
+     * unnecessary. [Bug #634856]
+     */
+    for ( ; isspace(UCHAR(*p)); p++) {	/* INTL: ISO space. */
 	/* Empty loop body. */
     }
     if (*p == '-') {
@@ -64,9 +70,10 @@ Tcl_GetInt(interp, string, intPtr)
     } else if (*p == '+') {
 	p++;
 	i = strtoul(p, &end, 0); /* INTL: Tcl source. */
-    } else {
+    } else
+#else
 	i = strtoul(p, &end, 0); /* INTL: Tcl source. */
-    }
+#endif
     if (end == p) {
 	badInteger:
         if (interp != (Tcl_Interp *) NULL) {
@@ -83,7 +90,11 @@ Tcl_GetInt(interp, string, intPtr)
      * an int.
      */
 
-    if ((errno == ERANGE) || (((long)(int) i) != i)) {
+    if ((errno == ERANGE) 
+#if (LONG_MAX > INT_MAX)
+	    || (i > UINT_MAX) || (i < -(long)UINT_MAX)
+#endif
+    ) {
         if (interp != (Tcl_Interp *) NULL) {
 	    Tcl_SetResult(interp, "integer value too large to represent",
 		    TCL_STATIC);
@@ -128,12 +139,13 @@ int
 TclGetLong(interp, string, longPtr)
     Tcl_Interp *interp;		/* Interpreter used for error reporting
 				 * if not NULL. */
-    char *string;		/* String containing a (possibly signed)
+    CONST char *string;		/* String containing a (possibly signed)
 				 * long integer in a form acceptable to
 				 * strtoul. */
     long *longPtr;		/* Place to store converted long result. */
 {
-    char *end, *p;
+    char *end;
+    CONST char *p = string;
     long i;
 
     /*
@@ -142,7 +154,8 @@ TclGetLong(interp, string, longPtr)
      */
 
     errno = 0;
-    for (p = string; isspace(UCHAR(*p)); p++) {	/* INTL: ISO space. */
+#ifdef TCL_STRTOUL_SIGN_CHECK
+    for ( ; isspace(UCHAR(*p)); p++) {	/* INTL: ISO space. */
 	/* Empty loop body. */
     }
     if (*p == '-') {
@@ -151,9 +164,10 @@ TclGetLong(interp, string, longPtr)
     } else if (*p == '+') {
 	p++;
 	i = strtoul(p, &end, 0); /* INTL: Tcl source. */
-    } else {
+    } else
+#else
 	i = strtoul(p, &end, 0); /* INTL: Tcl source. */
-    }
+#endif
     if (end == p) {
 	badInteger:
         if (interp != (Tcl_Interp *) NULL) {
@@ -205,7 +219,7 @@ TclGetLong(interp, string, longPtr)
 int
 Tcl_GetDouble(interp, string, doublePtr)
     Tcl_Interp *interp;		/* Interpreter used for error reporting. */
-    char *string;		/* String containing a floating-point number
+    CONST char *string;		/* String containing a floating-point number
 				 * in a form acceptable to strtod. */
     double *doublePtr;		/* Place to store converted result. */
 {
@@ -262,7 +276,7 @@ Tcl_GetDouble(interp, string, doublePtr)
 int
 Tcl_GetBoolean(interp, string, boolPtr)
     Tcl_Interp *interp;		/* Interpreter used for error reporting. */
-    char *string;		/* String containing a boolean number
+    CONST char *string;		/* String containing a boolean number
 				 * specified either as 1/0 or true/false or
 				 * yes/no. */
     int *boolPtr;		/* Place to store converted result, which
@@ -321,4 +335,3 @@ Tcl_GetBoolean(interp, string, boolPtr)
     }
     return TCL_OK;
 }
-

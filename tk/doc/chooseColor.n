@@ -4,8 +4,6 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" RCS: @(#) $Id$
-'\" 
 .so man.macros
 .TH tk_chooseColor n 4.2 Tk "Tk Built-In Commands"
 .BS
@@ -42,9 +40,8 @@ user cancels the operation, both commands will return the empty
 string.
 .SH EXAMPLE
 .CS
-button .b \-fg [tk_chooseColor \-initialcolor gray \-title "Choose color"]
+button .b \-bg [tk_chooseColor \-initialcolor gray \-title "Choose color"]
 .CE
 
 .SH KEYWORDS
 color selection dialog
-

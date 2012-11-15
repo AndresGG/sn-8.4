@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkInt.h"
@@ -99,8 +97,8 @@ static TkSelRetrievalInfo *pendingRetrievals = NULL;
 static void		ConvertSelection _ANSI_ARGS_((TkWindow *winPtr,
 			    XSelectionRequestEvent *eventPtr));
 static void		IncrTimeoutProc _ANSI_ARGS_((ClientData clientData));
-static char *		SelCvtFromX _ANSI_ARGS_((long *propPtr, int numValues,
-			    Atom type, Tk_Window tkwin));
+static void		SelCvtFromX _ANSI_ARGS_((long *propPtr, int numValues,
+			    Atom type, Tk_Window tkwin, Tcl_DString *dsPtr));
 static long *		SelCvtToX _ANSI_ARGS_((char *string, Atom type,
 			    Tk_Window tkwin, int *numLongsPtr));
 static int		SelectionSize _ANSI_ARGS_((TkSelHandler *selPtr));
@@ -246,15 +244,10 @@ TkSelPropProc(eventPtr)
     register XEvent *eventPtr;		/* X PropertyChange event. */
 {
     register IncrInfo *incrPtr;
-    int i, length, numItems, flags;
-    Tcl_Encoding encoding;
-    int srcLen, dstLen, result, srcRead, dstWrote, soFar;
-    Tcl_DString ds;
-    char *src, *dst;
-    Atom target, formatType;
     register TkSelHandler *selPtr;
+    int i, length, numItems;
+    Atom target, formatType;
     long buffer[TK_SEL_WORDS_AT_ONCE];
-    char *propPtr;
     TkDisplay *dispPtr = TkGetDisplay(eventPtr->xany.display);
     Tk_ErrorHandler errorHandler;
     ThreadSpecificData *tsdPtr = (ThreadSpecificData *) 
@@ -361,27 +354,37 @@ TkSelPropProc(eventPtr)
 	    }
 	    ((char *) buffer)[numItems] = 0;
 
+	    errorHandler = Tk_CreateErrorHandler(eventPtr->xproperty.display,
+		    -1, -1, -1, (int (*)()) NULL, (ClientData) NULL);
 	    /*
 	     * Encode the data using the proper format for each type.
 	     */
 
 	    if ((formatType == XA_STRING)
-		    || (dispPtr
-			    && (formatType == dispPtr->compoundTextAtom))) {
+		    || (dispPtr && formatType==dispPtr->utf8Atom)
+		    || (dispPtr && formatType==dispPtr->compoundTextAtom)) {
+		Tcl_DString ds;
+		int encodingCvtFlags;
+		int srcLen, dstLen, result, srcRead, dstWrote, soFar;
+		char *src, *dst;
+		Tcl_Encoding encoding;
+
 		/*
 		 * Set up the encoding state based on the format and whether
 		 * this is the first and/or last chunk.
 		 */
 
-		flags = 0;
+		encodingCvtFlags = 0;
 		if (incrPtr->converts[i].offset == 0) {
-		    flags |= TCL_ENCODING_START;
+		    encodingCvtFlags |= TCL_ENCODING_START;
 		}
 		if (numItems < TK_SEL_BYTES_AT_ONCE) {
-		    flags |= TCL_ENCODING_END;
+		    encodingCvtFlags |= TCL_ENCODING_END;
 		}
 		if (formatType == XA_STRING) {
 		    encoding = Tcl_GetEncoding(NULL, "iso8859-1");
+		} else if (dispPtr && formatType==dispPtr->utf8Atom) {
+		    encoding = Tcl_GetEncoding(NULL, "utf-8");
 		} else {
 		    encoding = Tcl_GetEncoding(NULL, "iso2022");
 		}
@@ -404,11 +407,11 @@ TkSelPropProc(eventPtr)
 
 		while (1) {
 		    result = Tcl_UtfToExternal(NULL, encoding,
-			    src, srcLen, flags,
+			    src, srcLen, encodingCvtFlags,
 			    &incrPtr->converts[i].state,
 			    dst, dstLen, &srcRead, &dstWrote, NULL);
 		    soFar = dst + dstWrote - Tcl_DStringValue(&ds);
-		    flags &= ~TCL_ENCODING_START;
+		    encodingCvtFlags &= ~TCL_ENCODING_START;
 		    src += srcRead;
 		    srcLen -= srcRead;
 		    if (result != TCL_CONVERT_NOSPACE) {
@@ -418,8 +421,7 @@ TkSelPropProc(eventPtr)
 		    if (Tcl_DStringLength(&ds) == 0) {
 			Tcl_DStringSetLength(&ds, dstLen);
 		    }
-		    Tcl_DStringSetLength(&ds,
-			    2 * Tcl_DStringLength(&ds) + 1);
+		    Tcl_DStringSetLength(&ds, 2 * Tcl_DStringLength(&ds) + 1);
 		    dst = Tcl_DStringValue(&ds) + soFar;
 		    dstLen = Tcl_DStringLength(&ds) - soFar - 1;
 		}
@@ -433,16 +435,11 @@ TkSelPropProc(eventPtr)
 		 * Set the property to the encoded string value.
 		 */
 
-		errorHandler = Tk_CreateErrorHandler(
-		    eventPtr->xproperty.display, -1, -1, -1,
-		    (int (*)()) NULL, (ClientData) NULL);
 		XChangeProperty(eventPtr->xproperty.display,
-			eventPtr->xproperty.window,
-			eventPtr->xproperty.atom, formatType, 8,
-			PropModeReplace,
+			eventPtr->xproperty.window, eventPtr->xproperty.atom,
+			formatType, 8, PropModeReplace,
 			(unsigned char *) Tcl_DStringValue(&ds),
 			Tcl_DStringLength(&ds));
-		Tk_DeleteErrorHandler(errorHandler);
 
 		/*
 		 * Preserve any left-over bytes.
@@ -454,26 +451,26 @@ TkSelPropProc(eventPtr)
 		memcpy(incrPtr->converts[i].buffer, src, (size_t) srcLen+1);
 		Tcl_DStringFree(&ds);
 	    } else {
-		propPtr = (char *) SelCvtToX((char *) buffer,
-			formatType, (Tk_Window) incrPtr->winPtr,
-			&numItems);
-
 		/*
 		 * Set the property to the encoded string value.
 		 */
 
-		errorHandler = Tk_CreateErrorHandler(
-		    eventPtr->xproperty.display, -1, -1, -1,
-		    (int (*)()) NULL, (ClientData) NULL);
-		XChangeProperty(eventPtr->xproperty.display,
-			eventPtr->xproperty.window,
-			eventPtr->xproperty.atom, formatType, 8,
-			PropModeReplace,
-			(unsigned char *) Tcl_DStringValue(&ds), numItems);
-		Tk_DeleteErrorHandler(errorHandler);
+		char *propPtr = (char *) SelCvtToX((char *) buffer,
+			formatType, (Tk_Window) incrPtr->winPtr,
+			&numItems);
 
-		ckfree(propPtr);
+		if (propPtr == NULL) {
+		    numItems = 0;
+		}
+		XChangeProperty(eventPtr->xproperty.display,
+			eventPtr->xproperty.window, eventPtr->xproperty.atom,
+			formatType, 32, PropModeReplace,
+			(unsigned char *) propPtr, numItems);
+		if (propPtr != NULL) {
+		    ckfree(propPtr);
+		}
 	    }
+	    Tk_DeleteErrorHandler(errorHandler);
 
 	    /*
 	     * Compute the next offset value.  If this was the last chunk,
@@ -597,7 +594,7 @@ TkSelEventProc(tkwin, eventPtr)
 	    Tcl_Encoding encoding;
 	    if (format != 8) {
 		char buf[64 + TCL_INTEGER_SPACE];
-		
+
 		sprintf(buf, 
 			"bad format for string selection: wanted \"8\", got \"%d\"",
 			format);
@@ -633,6 +630,35 @@ TkSelEventProc(tkwin, eventPtr)
 		    interp, Tcl_DStringValue(&ds));
 	    Tcl_DStringFree(&ds);
 	    Tcl_Release((ClientData) interp);
+	} else if (type == dispPtr->utf8Atom) {
+	    /*
+	     * The X selection data is in UTF-8 format already.
+	     * We can't guarantee that propInfo is NULL-terminated,
+	     * so we might have to copy the string.
+	     */
+	    char *propData = propInfo;
+
+	    if (format != 8) {
+		char buf[64 + TCL_INTEGER_SPACE];
+
+		sprintf(buf, 
+			"bad format for string selection: wanted \"8\", got \"%d\"",
+			format);
+		Tcl_SetResult(retrPtr->interp, buf, TCL_VOLATILE);
+		retrPtr->result = TCL_ERROR;
+		return;
+	    }
+
+	    if (propInfo[numItems] != '\0') {
+		propData = ckalloc((size_t) numItems + 1);
+		strcpy(propData, propInfo);
+		propData[numItems] = '\0';
+	    }
+	    retrPtr->result = (*retrPtr->proc)(retrPtr->clientData,
+		    retrPtr->interp, propData);
+	    if (propData != propInfo) {
+		ckfree((char *) propData);
+	    }
 	} else if (type == dispPtr->incrAtom) {
 
 	    /*
@@ -653,11 +679,11 @@ TkSelEventProc(tkwin, eventPtr)
 	    Tk_DeleteEventHandler(tkwin, PropertyChangeMask, SelRcvIncrProc,
 		    (ClientData) retrPtr);
 	} else {
-	    char *string;
+	    Tcl_DString ds;
 
 	    if (format != 32) {
 		char buf[64 + TCL_INTEGER_SPACE];
-		
+
 		sprintf(buf, 
 			"bad format for selection: wanted \"32\", got \"%d\"",
 			format);
@@ -665,14 +691,15 @@ TkSelEventProc(tkwin, eventPtr)
 		retrPtr->result = TCL_ERROR;
 		return;
 	    }
-	    string = SelCvtFromX((long *) propInfo, (int) numItems, type,
-		    (Tk_Window) winPtr);
+	    Tcl_DStringInit(&ds);
+	    SelCvtFromX((long *) propInfo, (int) numItems, type,
+		    (Tk_Window) winPtr, &ds);
             interp = retrPtr->interp;
             Tcl_Preserve((ClientData) interp);
 	    retrPtr->result = (*retrPtr->proc)(retrPtr->clientData,
-		    interp, string);
+		    interp, Tcl_DStringValue(&ds));
             Tcl_Release((ClientData) interp);
-	    ckfree(string);
+	    Tcl_DStringFree(&ds);
 	}
 	XFree(propInfo);
 	return;
@@ -940,6 +967,15 @@ ConvertSelection(winPtr, eventPtr)
 	    XChangeProperty(reply.display, reply.requestor,
 		    property, type, format, PropModeReplace,
 		    (unsigned char *) propPtr, numItems);
+	} else if (type == winPtr->dispPtr->utf8Atom) {
+	    /*
+	     * This matches selection requests of type UTF8_STRING,
+	     * which allows us to pass our utf-8 information untouched.
+	     */
+
+	    XChangeProperty(reply.display, reply.requestor,
+		    property, type, 8, PropModeReplace,
+		    (unsigned char *) buffer, numItems);
 	} else if ((type == XA_STRING)
 		|| (type == winPtr->dispPtr->compoundTextAtom)) {
 	    Tcl_DString ds;
@@ -968,6 +1004,9 @@ ConvertSelection(winPtr, eventPtr)
 	} else {
 	    propPtr = (char *) SelCvtToX((char *) buffer,
 		    type, (Tk_Window) winPtr, &numItems);
+	    if (propPtr == NULL) {
+		goto refuse;
+	    }
 	    format = 32;
 	    XChangeProperty(reply.display, reply.requestor,
 		    property, type, format, PropModeReplace,
@@ -1089,13 +1128,11 @@ SelRcvIncrProc(clientData, eventPtr)
     register XEvent *eventPtr;		/* X PropertyChange event. */
 {
     register TkSelRetrievalInfo *retrPtr = (TkSelRetrievalInfo *) clientData;
-    char *propInfo, *dst, *src;
+    char *propInfo;
     Atom type;
-    int format, result, srcLen, dstLen, srcRead, dstWrote, soFar;
+    int format, result;
     unsigned long numItems, bytesAfter;
-    Tcl_DString *dstPtr, temp;
     Tcl_Interp *interp;
-    Tcl_Encoding encoding;
 
     if ((eventPtr->xproperty.atom != retrPtr->property)
 	    || (eventPtr->xproperty.state != PropertyNewValue)
@@ -1118,7 +1155,13 @@ SelRcvIncrProc(clientData, eventPtr)
     }
     if ((type == XA_STRING)
 	    || (type == retrPtr->winPtr->dispPtr->textAtom)
+	    || (type == retrPtr->winPtr->dispPtr->utf8Atom)
 	    || (type == retrPtr->winPtr->dispPtr->compoundTextAtom)) {
+	char *dst, *src;
+	int srcLen, dstLen, srcRead, dstWrote, soFar;
+	Tcl_Encoding encoding;
+	Tcl_DString *dstPtr, temp;
+
 	if (format != 8) {
 	    char buf[64 + TCL_INTEGER_SPACE];
 	    
@@ -1134,6 +1177,8 @@ SelRcvIncrProc(clientData, eventPtr)
 
 	if (type == retrPtr->winPtr->dispPtr->compoundTextAtom) {
 	    encoding = Tcl_GetEncoding(NULL, "iso2022");
+	} else if (type == retrPtr->winPtr->dispPtr->utf8Atom) {
+	    encoding = Tcl_GetEncoding(NULL, "utf-8");
 	} else {
 	    encoding = Tcl_GetEncoding(NULL, "iso8859-1");
 	}
@@ -1159,6 +1204,7 @@ SelRcvIncrProc(clientData, eventPtr)
 	     */
 
 	    retrPtr->result = TCL_OK;
+	    Tcl_Release((ClientData) interp);
 	    goto done;
 	} else {
 	    src = propInfo;
@@ -1221,7 +1267,7 @@ SelRcvIncrProc(clientData, eventPtr)
     } else if (numItems == 0) {
 	retrPtr->result = TCL_OK;
     } else {
-	char *string;
+	Tcl_DString ds;
 
 	if (format != 32) {
 	    char buf[64 + TCL_INTEGER_SPACE];
@@ -1233,19 +1279,21 @@ SelRcvIncrProc(clientData, eventPtr)
 	    retrPtr->result = TCL_ERROR;
 	    goto done;
 	}
-	string = SelCvtFromX((long *) propInfo, (int) numItems, type,
-		(Tk_Window) retrPtr->winPtr);
+	Tcl_DStringInit(&ds);
+	SelCvtFromX((long *) propInfo, (int) numItems, type,
+		(Tk_Window) retrPtr->winPtr, &ds);
         interp = retrPtr->interp;
         Tcl_Preserve((ClientData) interp);
-	result = (*retrPtr->proc)(retrPtr->clientData, interp, string);
+	result = (*retrPtr->proc)(retrPtr->clientData, interp,
+		Tcl_DStringValue(&ds));
         Tcl_Release((ClientData) interp);
+	Tcl_DStringFree(&ds);
 	if (result != TCL_OK) {
 	    retrPtr->result = result;
 	}
-	ckfree(string);
     }
 
-    done:
+  done:
     XFree(propInfo);
     retrPtr->idleTime = 0;
 }
@@ -1366,28 +1414,21 @@ SelCvtToX(string, type, tkwin, numLongsPtr)
     int *numLongsPtr;		/* Number of 32-bit words contained in the
 				 * result. */
 {
-    register char *p;
-    char *field;
-    int numFields;
-    long *propPtr, *longPtr;
-#define MAX_ATOM_NAME_LENGTH 100
-    char atomName[MAX_ATOM_NAME_LENGTH+1];
+    const char **field;
+    int numFields, i;
+    long *propPtr;
 
     /*
-     * The string is assumed to consist of fields separated by spaces.
-     * The property gets generated by converting each field to an
-     * integer number, in one of two ways:
-     * 1. If type is XA_ATOM, convert each field to its corresponding
-     *	  atom.
-     * 2. If type is anything else, convert each field from an ASCII number
-     *    to a 32-bit binary number.
+     * The string is assumed to consist of fields separated by spaces. The
+     * property gets generated by converting each field to an integer number,
+     * in one of two ways:
+     * 1. If type is XA_ATOM, convert each field to its corresponding atom.
+     * 2. If type is anything else, convert each field from an ASCII number to
+     *    a 32-bit binary number.
      */
 
-    numFields = 1;
-    for (p = string; *p != 0; p++) {
-	if (isspace(UCHAR(*p))) {
-	    numFields++;
-	}
+    if (Tcl_SplitList(NULL, string, &numFields, &field) != TCL_OK) {
+	return NULL;
     }
     propPtr = (long *) ckalloc((unsigned) numFields*sizeof(long));
 
@@ -1395,34 +1436,27 @@ SelCvtToX(string, type, tkwin, numLongsPtr)
      * Convert the fields one-by-one.
      */
 
-    for (longPtr = propPtr, *numLongsPtr = 0, p = string;
-	    ; longPtr++, (*numLongsPtr)++) {
-	while (isspace(UCHAR(*p))) {
-	    p++;
-	}
-	if (*p == 0) {
-	    break;
-	}
-	field = p;
-	while ((*p != 0) && !isspace(UCHAR(*p))) {
-	    p++;
-	}
+    for (i=0 ; i<numFields ; i++) {
 	if (type == XA_ATOM) {
-	    int length;
-
-	    length = p - field;
-	    if (length > MAX_ATOM_NAME_LENGTH) {
-		length = MAX_ATOM_NAME_LENGTH;
-	    }
-	    strncpy(atomName, field, (unsigned) length);
-	    atomName[length] = 0;
-	    *longPtr = (long) Tk_InternAtom(tkwin, atomName);
+	    propPtr[i] = (long) Tk_InternAtom(tkwin, field[i]);
 	} else {
 	    char *dummy;
 
-	    *longPtr = strtol(field, &dummy, 0);
+	    /*
+	     * If this fails to parse a number, we just plunge on regardless
+	     * anyway.
+	     */
+
+	    propPtr[i] = strtol(field[i], &dummy, 0);
 	}
     }
+
+    /*
+     * Release the parsed list.
+     */
+
+    ckfree((char *) field);
+    *numLongsPtr = i;
     return propPtr;
 }
 
@@ -1437,9 +1471,8 @@ SelCvtToX(string, type, tkwin, numLongsPtr)
  *	procedure is the inverse of SelCvtToX.
  *
  * Results:
- *	The return value is the string equivalent of "property".  It is
- *	malloc-ed and should be freed by the caller when no longer
- *	needed.
+ *	The return value (stored in a Tcl_DString) is the string equivalent of
+ *	"property". It is up to the caller to initialize and free the DString.
  *
  * Side effects:
  *	None.
@@ -1447,61 +1480,34 @@ SelCvtToX(string, type, tkwin, numLongsPtr)
  *----------------------------------------------------------------------
  */
 
-static char *
-SelCvtFromX(propPtr, numValues, type, tkwin)
+static void
+SelCvtFromX(propPtr, numValues, type, tkwin, dsPtr)
     register long *propPtr;	/* Property value from X. */
     int numValues;		/* Number of 32-bit values in property. */
     Atom type;			/* Type of property  Should not be
 				 * XA_STRING (if so, don't bother calling
 				 * this procedure at all). */
     Tk_Window tkwin;		/* Window to use for atom conversion. */
+    Tcl_DString *dsPtr;		/* Where to store the converted string. */
 {
-    char *result;
-    int resultSpace, curSize, fieldSize;
-    char *atomName;
-
     /*
-     * Convert each long in the property to a string value, which is
-     * either the name of an atom (if type is XA_ATOM) or a hexadecimal
-     * string.  Make an initial guess about the size of the result, but
-     * be prepared to enlarge the result if necessary.
+     * Convert each long in the property to a string value, which is either
+     * the name of an atom (if type is XA_ATOM) or a hexadecimal string. We
+     * build the list in a Tcl_DString because this is easier than trying to
+     * get the quoting correct ourselves; this is tricky because atoms can
+     * contain spaces in their names (encountered when the atoms are really
+     * MIME types). [Bug 1353414]
      */
 
-    resultSpace = 12*numValues+1;
-    curSize = 0;
-    atomName = "";	/* Not needed, but eliminates compiler warning. */
-    result = (char *) ckalloc((unsigned) resultSpace);
-    *result  = '\0';
     for ( ; numValues > 0; propPtr++, numValues--) {
 	if (type == XA_ATOM) {
-	    atomName = Tk_GetAtomName(tkwin, (Atom) *propPtr);
-	    fieldSize = strlen(atomName) + 1;
+	    Tcl_DStringAppendElement(dsPtr,
+		    Tk_GetAtomName(tkwin, (Atom) *propPtr));
 	} else {
-	    fieldSize = 12;
-	}
-	if (curSize+fieldSize >= resultSpace) {
-	    char *newResult;
+	    char buf[12];
 
-	    resultSpace *= 2;
-	    if (curSize+fieldSize >= resultSpace) {
-		resultSpace = curSize + fieldSize + 1;
-	    }
-	    newResult = (char *) ckalloc((unsigned) resultSpace);
-	    strncpy(newResult, result, (unsigned) curSize);
-	    ckfree(result);
-	    result = newResult;
+	    sprintf(buf, "0x%x", (unsigned int) *propPtr);
+	    Tcl_DStringAppendElement(dsPtr, buf);
 	}
-	if (curSize != 0) {
-	    result[curSize] = ' ';
-	    curSize++;
-	}
-	if (type == XA_ATOM) {
-	    strcpy(result+curSize, atomName);
-	} else {
-	    sprintf(result+curSize, "0x%x", (unsigned int) *propPtr);
-	}
-	curSize += strlen(result+curSize);
     }
-    return result;
 }
-

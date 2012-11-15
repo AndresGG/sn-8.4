@@ -4,8 +4,6 @@ by Ray Johnson
 Sun Microsystems Laboratories
 rjohnson@eng.sun.com
 
-RCS: @(#) $Id$
-
 This was a new feature as of Tcl7.6b1 and as such I'll started with
 a clean slate.  I currently know of no reproducable bugs.  I often
 get vague reports - but nothing I've been able to confirm.  Let

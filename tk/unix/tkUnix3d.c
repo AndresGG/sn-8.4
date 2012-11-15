@@ -8,13 +8,11 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include <tk3d.h>
 
-#if !defined(__WIN32__) && !defined(MAC_TCL)
+#if !(defined(__WIN32__) || defined(MAC_TCL) || defined(MAC_OSX_TK))
 #include "tkUnixInt.h"
 #endif
 
@@ -294,6 +292,15 @@ Tk_3DHorizontalBevel(tkwin, drawable, border, x, y, width, height,
 
     for ( ; y < bottom; y++) {
 	/*
+	 * X Dimensions are 16-bit, so avoid wraparound or display errors
+	 * by limiting these here.
+	 */
+	if (x1 < -32767)
+	    x1 = -32767;
+	if (x2 > 32767)
+	    x2 = 32767;
+
+	/*
 	 * In some weird cases (such as large border widths for skinny
 	 * rectangles) x1 can be >= x2.  Don't draw the lines
 	 * in these cases.
@@ -490,5 +497,3 @@ TkpGetShadows(borderPtr, tkwin)
 	borderPtr->lightGC = Tk_GetGC(tkwin, GCForeground, &gcValues);
     }
 }
-
-

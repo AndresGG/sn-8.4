@@ -9,8 +9,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #ifndef _TKPORT
@@ -28,10 +26,11 @@
 #else
 #   if defined(MAC_TCL)
 #	include "tkMacPort.h"
+#   elif defined(MAC_OSX_TK)
+#	include "tkMacOSXPort.h"
 #   else
-#	include "../unix/tkUnixPort.h"
+#	include "tkUnixPort.h"
 #   endif
 #endif
 
 #endif /* _TKPORT */
-

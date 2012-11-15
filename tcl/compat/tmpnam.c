@@ -8,8 +8,6 @@
  * may not be used to endorse or promote products derived from this
  * software without specific written prior permission. This software
  * is provided ``as is'' without express or implied warranty.
- *
- * RCS: @(#) $Id$
  */
 
 #include <sys/param.h>

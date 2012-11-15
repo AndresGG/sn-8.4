@@ -5,8 +5,6 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" RCS: @(#) $Id$
-'\" 
 .so man.macros
 .TH case n 7.0 Tcl "Tcl Built-In Commands"
 .BS
@@ -54,6 +52,9 @@ Since the \fIpatList\fR arguments are in braces in the second form,
 no command or variable substitutions are performed on them;  this makes
 the behavior of the second form different than the first form in some
 cases.
+
+.SH "SEE ALSO"
+switch(n)
 
 .SH KEYWORDS
 case, match, regular expression

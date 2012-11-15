@@ -10,8 +10,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 %{
@@ -33,7 +31,7 @@
 #include "tclInt.h"
 #include "tclPort.h"
 
-#ifdef MAC_TCL
+#if defined(MAC_TCL) && !defined(TCL_MAC_USE_MSL_EPOCH)
 #   define EPOCH           1904
 #   define START_OF_TIME   1904
 #   define END_OF_TIME     2039
@@ -553,6 +551,9 @@ static TABLE    TimezoneTable[] = {
     { "jt",     tZONE,    -HOUR(15/2) },    /* Java (3pm in Cronusland!) */
     { "cct",    tZONE,    -HOUR( 8) },      /* China Coast, USSR Zone 7 */
     { "jst",    tZONE,    -HOUR( 9) },      /* Japan Standard, USSR Zone 8 */
+    { "jdt",    tDAYZONE, -HOUR( 9) },      /* Japan Daylight */
+    { "kst",    tZONE,    -HOUR( 9) },      /* Korea Standard */
+    { "kdt",    tDAYZONE, -HOUR( 9) },      /* Korea Daylight */
     { "cast",   tZONE,    -HOUR(19/2) },    /* Central Australian Standard */
     { "cadt",   tDAYZONE, -HOUR(19/2) },    /* Central Australian Daylight */
     { "east",   tZONE,    -HOUR(10) },      /* Eastern Australian Standard */
@@ -798,6 +799,23 @@ RelativeMonth(Start, RelMonth, TimePtr)
     result = Convert(Month, (time_t) tm->tm_mday, Year,
 	    (time_t) tm->tm_hour, (time_t) tm->tm_min, (time_t) tm->tm_sec,
 	    MER24, DSTmaybe, &Julian);
+
+    /*
+     * The Julian time returned above is behind by one day, if "month" 
+     * or "year" is used to specify relative time and the GMT flag is true.
+     * This problem occurs only when the current time is closer to
+     * midnight, the difference being not more than its time difference
+     * with GMT. For example, in US/Pacific time zone, the problem occurs
+     * whenever the current time is between midnight to 8:00am or 7:00amDST.
+     * See Bug# 413397 for more details and sample script.
+     * To resolve this bug, we simply add the number of seconds corresponding
+     * to timezone difference with GMT to Julian time, if GMT flag is true.
+     */
+
+    if (TclDateTimezone == 0) {
+        Julian += TclpGetTimeZone((unsigned long) Start) * 60L;
+    }
+
     /*
      * The following iteration takes into account the case were we jump
      * into a "short month".  Far example, "one month from Jan 31" will
@@ -1034,9 +1052,9 @@ yylex()
 int
 TclGetDate(p, now, zone, timePtr)
     char *p;
-    unsigned long now;
+    Tcl_WideInt now;
     long zone;
-    unsigned long *timePtr;
+    Tcl_WideInt *timePtr;
 {
     struct tm *tm;
     time_t Start;
@@ -1046,8 +1064,8 @@ TclGetDate(p, now, zone, timePtr)
 
     yyInput = p;
     /* now has to be cast to a time_t for 64bit compliance */
-    Start = now;
-    tm = TclpGetDate((TclpTime_t) &Start, 0);
+    Start = (time_t) now;
+    tm = TclpGetDate((TclpTime_t) &Start, (zone == -50000));
     thisyear = tm->tm_year + TM_YEAR_BASE;
     yyYear = thisyear;
     yyMonth = tm->tm_mon + 1;
@@ -1106,7 +1124,7 @@ TclGetDate(p, now, zone, timePtr)
             return -1;
 	}
     } else {
-        Start = now;
+        Start = (time_t) now;
         if (!yyHaveRel) {
             Start -= ((tm->tm_hour * 60L * 60L) +
 		    tm->tm_min * 60L) +	tm->tm_sec;
@@ -1137,4 +1155,3 @@ TclGetDate(p, now, zone, timePtr)
     *timePtr = Start;
     return 0;
 }
-

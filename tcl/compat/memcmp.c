@@ -7,8 +7,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * SCCS: @(#) memcmp.c 1.2 98/01/19 10:48:58
  */
 
 #include "tcl.h"
@@ -48,11 +46,12 @@ memcmp(s1, s2, n)
     CONST VOID *s2;			/* Second string. */
     size_t      n;                      /* Length to compare. */
 {
-    unsigned char u1, u2;
+    CONST unsigned char *ptr1 = (CONST unsigned char *) s1;
+    CONST unsigned char *ptr2 = (CONST unsigned char *) s2;
 
-    for ( ; n-- ; s1++, s2++) {
-	u1 = * (unsigned char *) s1;
-	u2 = * (unsigned char *) s2;
+    for ( ; n-- ; ptr1++, ptr2++) {
+	unsigned char u1 = *ptr1, u2 = *ptr2;
+
 	if ( u1 != u2) {
 	    return (u1-u2);
 	}

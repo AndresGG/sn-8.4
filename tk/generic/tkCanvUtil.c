@@ -9,13 +9,12 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkInt.h"
 #include "tkCanvas.h"
 #include "tkPort.h"
+#include <assert.h>
 
 
 /*
@@ -189,7 +188,7 @@ int
 Tk_CanvasGetCoord(interp, canvas, string, doublePtr)
     Tcl_Interp *interp;		/* Interpreter for error reporting. */
     Tk_Canvas canvas;		/* Canvas to which coordinate applies. */
-    char *string;		/* Describes coordinate (any screen
+    CONST char *string;		/* Describes coordinate (any screen
 				 * coordinate form may be used here). */
     double *doublePtr;		/* Place to store converted coordinate. */
 {
@@ -369,14 +368,14 @@ Tk_CanvasTagsParseProc(clientData, interp, tkwin, value, widgRec, offset)
     ClientData clientData;		/* Not used.*/
     Tcl_Interp *interp;			/* Used for reporting errors. */
     Tk_Window tkwin;			/* Window containing canvas widget. */
-    char *value;			/* Value of option (list of tag
+    CONST char *value;			/* Value of option (list of tag
 					 * names). */
     char *widgRec;			/* Pointer to record for item. */
     int offset;				/* Offset into item (ignored). */
 {
     register Tk_Item *itemPtr = (Tk_Item *) widgRec;
     int argc, i;
-    char **argv;
+    CONST char **argv;
     Tk_Uid *newPtr;
 
     /*
@@ -454,7 +453,7 @@ Tk_CanvasTagsPrintProc(clientData, tkwin, widgRec, offset, freeProcPtr)
 	return (char *) itemPtr->tagPtr[0];
     }
     *freeProcPtr = TCL_DYNAMIC;
-    return Tcl_Merge(itemPtr->numTags, (char **) itemPtr->tagPtr);
+    return Tcl_Merge(itemPtr->numTags, (CONST char **) itemPtr->tagPtr);
 }
 
 
@@ -706,7 +705,14 @@ TkSmoothParseProc(clientData, interp, tkwin, value, widgRec, offset)
     if (smooth) {
 	*smoothPtr = smooth;
 	return TCL_OK;
+    } else if (strncmp(value, tkBezierSmoothMethod.name, length) == 0) {
+	/*
+	 * We need to do handle the built-in bezier method.
+	 */
+	*smoothPtr = &tkBezierSmoothMethod;
+	return TCL_OK;
     }
+
 
     if (Tcl_GetBoolean(interp, (char *) value, &b) != TCL_OK) {
 	return TCL_ERROR;
@@ -777,7 +783,7 @@ Tk_GetDash(interp, value, dash)
 				 * store dash information. */
 {
     int argc, i;
-    char **largv, **argv = NULL;
+    CONST char **largv, **argv = NULL;
     char *pt;
 
     if ((value==(char *) NULL) || (*value==0) ) {
@@ -1472,4 +1478,278 @@ DashConvert (l, p, n, width)
     }
     return result;
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * translateAndAppendCoords --
+ *
+ *	This is a helper routine for TkCanvTranslatePath() below.
+ *
+ *	Given an (x,y) coordinate pair within a canvas, this procedure
+ *	computes the corresponding coordinates at which the point should
+ *	be drawn in the drawable used for display.  Those coordinates are
+ *	then written into outArr[numOut*2] and outArr[numOut*2+1].
+ *
+ * Results:
+ *	There is no return value.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
 
+static void
+translateAndAppendCoords(canvPtr, x, y, outArr, numOut)
+    TkCanvas *canvPtr;			/* The canvas. */
+    double x, y;			/* Coordinates in canvas space. */
+    XPoint *outArr;                     /* Write results into this array */
+    int numOut;                         /* Num of prior entries in outArr[] */
+{
+    double tmp;
+
+    tmp = x - canvPtr->drawableXOrigin;
+    if (tmp > 0) {
+	tmp += 0.5;
+    } else {
+	tmp -= 0.5;
+    }
+    outArr[numOut].x = (short) tmp;
+
+    tmp = y  - canvPtr->drawableYOrigin;
+    if (tmp > 0) {
+	tmp += 0.5;
+    } else {
+	tmp -= 0.5;
+    }
+    outArr[numOut].y = (short) tmp;
+}
+
+/*
+ *--------------------------------------------------------------
+ *
+ * TkCanvTranslatePath
+ *
+ *	Translate a line or polygon path so that all vertices are
+ *	within a rectangle that is 1000 pixels larger than the total
+ *	size of the canvas window.  This will prevent pixel coordinates
+ *	from overflowing the 16-bit integer size limitation imposed by
+ *	most windowing systems.
+ *
+ *      coordPtr must point to an array of doubles, two doubles per
+ *      vertex.  There are a total of numVertex vertices, or 2*numVertex
+ *      entries in coordPtr.  The result vertices written into outArr
+ *      have their coordinate origin shifted to canvPtr->drawableXOrigin
+ *      by canvPtr->drawableYOrigin.  There might be as many as 3 times
+ *      more output vertices than there are input vertices.  The calling
+ *      function should allocate space accordingly.
+ *
+ *	This routine limits the width and height of a canvas window
+ *	to 31767 pixels.  At the highest resolution display devices
+ *	available today (210 ppi in Jan 2003) that's a window that is
+ *      over 13 feet wide and tall.  Should be enough for the near
+ *	future.
+ *
+ * Results:
+ *      Clipped and translated path vertices are written into outArr[].
+ *      There might be as many as twice the vertices in outArr[] as there
+ *      are in coordPtr[].  The return value is the number of vertices
+ *      actually written into outArr[].
+ *
+ * Side effects:
+ *	None
+ *
+ *--------------------------------------------------------------
+ */
+int
+TkCanvTranslatePath (canvPtr, numVertex, coordArr, closedPath, outArr)
+    TkCanvas *canvPtr;  /* The canvas */
+    int numVertex;      /* Number of vertices specified by coordArr[] */
+    double *coordArr;   /* X and Y coordinates for each vertex */
+    int closedPath;     /* True if this is a closed polygon */
+    XPoint *outArr;     /* Write results here, if not NULL */
+{
+    int numOutput = 0;  /* Number of output coordinates */
+    double lft, rgh;    /* Left and right sides of the bounding box */
+    double top, btm;    /* Top and bottom sizes of the bounding box */
+    double *tempArr;    /* Temporary storage used by the clipper */
+    double *a, *b, *t;  /* Pointers to parts of the temporary storage */
+    int i, j;           /* Loop counters */
+    int maxOutput;      /* Maximum number of outputs that we will allow */
+    double limit[4];          /* Boundries at which clipping occurs */
+    double staticSpace[480];  /* Temp space from the stack */
+
+    /*
+    ** Constrain all vertices of the path to be within a box that is no
+    ** larger than 32000 pixels wide or height.  The top-left corner of
+    ** this clipping box is 1000 pixels above and to the left of the top
+    ** left corner of the window on which the canvas is displayed.
+    **
+    ** This means that a canvas will not display properly on a canvas
+    ** window that is larger than 31000 pixels wide or high.  That is not
+    ** a problem today, but might someday become a factor for ultra-high
+    ** resolutions displays.
+    **
+    ** The X11 protocol allows us (in theory) to expand the size of the
+    ** clipping box to 32767 pixels.  But we have found experimentally that
+    ** XFree86 sometimes fails to draw lines correctly if they are longer
+    ** than about 32500 pixels.  So we have left a little margin in the
+    ** size to mask that bug.
+    */
+    lft = canvPtr->xOrigin - 1000.0;
+    top = canvPtr->yOrigin - 1000.0;
+    rgh = lft + 32000.0;
+    btm = top + 32000.0;
+
+    /* Try the common case first - no clipping.  Loop over the input
+    ** coordinates and translate them into appropriate output coordinates.
+    ** But if a vertex outside of the bounding box is seen, break out of
+    ** the loop.
+    **
+    ** Most of the time, no clipping is needed, so this one loop is 
+    ** sufficient to do the translation.
+    */
+    for(i=0; i<numVertex; i++){
+        double x, y;
+        x = coordArr[i*2];
+        y = coordArr[i*2+1];
+        if( x<lft || x>rgh || y<top || y>btm ) break;
+        translateAndAppendCoords(canvPtr, x, y, outArr, numOutput++);
+    }
+    if( i==numVertex ){
+        assert( numOutput==numVertex );
+        return numOutput;
+    }
+
+    /* If we reach this point, it means that some clipping is required.
+    ** Begin by allocating some working storage - at least 6 times as much space
+    ** as coordArr[] requires.  Divide this space into two separate arrays
+    ** a[] and b[].  Initialize a[] to be equal to coordArr[].
+    */
+    if( numVertex*12 <= sizeof(staticSpace)/sizeof(staticSpace[0]) ){
+        tempArr = staticSpace;
+    } else {
+        tempArr = (double*)ckalloc( numVertex*12*sizeof(tempArr[0]) );
+    }
+    for(i=0; i<numVertex*2; i++){
+        tempArr[i] = coordArr[i];
+    }
+    a = tempArr;
+    b = &tempArr[numVertex*6];
+
+    /* We will make four passes through the input data.  On each pass,
+    ** we copy the contents of a[] over into b[].  As we copy, we clip
+    ** any line segments that extend to the right past xClip then we
+    ** rotate the coordinate system 90 degrees clockwise.  After each
+    ** pass is complete, we interchange a[] and b[] in preparation for
+    ** the next pass.
+    **
+    ** Each pass clips line segments that extend beyond a single side
+    ** of the bounding box, and four passes rotate the coordinate system
+    ** back to its original value.  I'm not an expert on graphics 
+    ** algorithms, but I think this is called Cohen-Sutherland polygon
+    ** clipping.
+    **
+    ** The limit[] array contains the xClip value used for each of the
+    ** four passes.
+    */
+    limit[0] = rgh;
+    limit[1] = -top;
+    limit[2] = -lft;
+    limit[3] = btm;
+
+    /* This is the loop that makes the four passes through the data.
+    */
+    maxOutput = numVertex*3;
+    for(j=0; j<4; j++){
+        double xClip = limit[j];
+        int inside = a[0]<xClip;
+        double priorY = a[1];
+        numOutput = 0;
+
+        /* Clip everything to the right of xClip.  Store the results in
+        ** b[] rotated by 90 degrees clockwise.
+        */
+        for(i=0; i<numVertex; i++){
+            double x = a[i*2];
+            double y = a[i*2+1];
+            if( x>=xClip ){
+                /* The current vertex is to the right of xClip.
+                */
+                if( inside ){
+                    /* If the current vertex is to the right of xClip but
+                    ** the previous vertex was left of xClip, then draw a
+                    ** line segment from the previous vertex to until it
+                    ** intersects the vertical at xClip.
+                    */
+                    double x0, y0, yN;
+                    assert( i>0 );
+                    x0 = a[i*2-2];
+                    y0 = a[i*2-1];
+                    yN = y0 + (y - y0)*(xClip-x0)/(x-x0);
+                    b[numOutput*2] = -yN;
+                    b[numOutput*2+1] = xClip;
+                    numOutput++;
+                    assert( numOutput<=maxOutput );
+                    priorY = yN;
+                    inside = 0;
+                }else if( i==0 ){
+                    /* If the first vertex is to the right of xClip, add
+                    ** a vertex that is the projection of the first vertex
+                    ** onto the vertical xClip line.
+                    */
+                    b[0] = -y;
+                    b[1] = xClip;
+                    numOutput = 1;
+                    priorY = y;
+                }
+            }else{
+                /* The current vertex is to the left of xClip
+                */
+                if( !inside ){
+                    /* If the current vertex is on the left of xClip and
+                    ** one or more prior vertices where to the right, then
+                    ** we have to draw a line segment along xClip that extends
+                    ** from the spot where we first crossed from left to right
+                    ** to the spot where we cross back from right to left.
+                    */
+                    double x0, y0, yN;
+                    assert( i>0 );
+                    x0 = a[i*2-2];
+                    y0 = a[i*2-1];
+                    yN = y0 + (y - y0)*(xClip-x0)/(x-x0);
+                    if( yN!=priorY ){
+                        b[numOutput*2] = -yN;
+                        b[numOutput*2+1] = xClip;
+                        numOutput++;
+                        assert( numOutput<=maxOutput );
+                    }
+                    inside = 1;
+                }
+                b[numOutput*2] = -y;
+                b[numOutput*2+1] = x;
+                numOutput++;
+                assert( numOutput<=maxOutput );
+            }
+        }
+
+        /* Interchange a[] and b[] in preparation for the next pass.
+        */
+        t = a;
+        a = b;
+        b = t;
+        numVertex = numOutput;
+    }
+
+    /* All clipping is now finished.  Convert the coordinates from doubles
+    ** into XPoints and translate the origin for the drawable.
+    */
+    for(i=0; i<numVertex; i++){
+        translateAndAppendCoords(canvPtr, a[i*2], a[i*2+1], outArr, i);
+    }
+    if( tempArr!=staticSpace ){
+        ckfree((char *) tempArr);
+    }
+    return numOutput;
+}

@@ -8,8 +8,6 @@
  *
  * Copyright (c) 1998-1999 by Scriptics Corporation.
  * All rights reserved.
- *
- * RCS: @(#) $Id$
  */
 
 #ifndef _TCLINTPLATDECLS
@@ -43,9 +41,9 @@ EXTERN int		TclpCreatePipe _ANSI_ARGS_((TclFile * readPipe,
 				TclFile * writePipe));
 /* 4 */
 EXTERN int		TclpCreateProcess _ANSI_ARGS_((Tcl_Interp * interp, 
-				int argc, char ** argv, TclFile inputFile, 
-				TclFile outputFile, TclFile errorFile, 
-				Tcl_Pid * pidPtr));
+				int argc, CONST char ** argv, 
+				TclFile inputFile, TclFile outputFile, 
+				TclFile errorFile, Tcl_Pid * pidPtr));
 /* Slot 5 is reserved */
 /* 6 */
 EXTERN TclFile		TclpMakeFile _ANSI_ARGS_((Tcl_Channel channel, 
@@ -59,6 +57,15 @@ EXTERN int		TclUnixWaitForFile _ANSI_ARGS_((int fd, int mask,
 /* 9 */
 EXTERN TclFile		TclpCreateTempFile _ANSI_ARGS_((
 				CONST char * contents));
+/* 10 */
+EXTERN Tcl_DirEntry *	TclpReaddir _ANSI_ARGS_((DIR * dir));
+/* 11 */
+EXTERN struct tm *	TclpLocaltime_unix _ANSI_ARGS_((
+				TclpTime_t_CONST clock));
+/* 12 */
+EXTERN struct tm *	TclpGmtime_unix _ANSI_ARGS_((TclpTime_t_CONST clock));
+/* 13 */
+EXTERN char *		TclpInetNtoa _ANSI_ARGS_((struct in_addr addr));
 #endif /* UNIX */
 #ifdef __WIN32__
 /* 0 */
@@ -101,9 +108,9 @@ EXTERN int		TclpCreatePipe _ANSI_ARGS_((TclFile * readPipe,
 				TclFile * writePipe));
 /* 15 */
 EXTERN int		TclpCreateProcess _ANSI_ARGS_((Tcl_Interp * interp, 
-				int argc, char ** argv, TclFile inputFile, 
-				TclFile outputFile, TclFile errorFile, 
-				Tcl_Pid * pidPtr));
+				int argc, CONST char ** argv, 
+				TclFile inputFile, TclFile outputFile, 
+				TclFile errorFile, Tcl_Pid * pidPtr));
 /* Slot 16 is reserved */
 /* Slot 17 is reserved */
 /* 18 */
@@ -115,8 +122,7 @@ EXTERN TclFile		TclpOpenFile _ANSI_ARGS_((CONST char * fname,
 /* 20 */
 EXTERN void		TclWinAddProcess _ANSI_ARGS_((HANDLE hProcess, 
 				DWORD id));
-/* 21 */
-EXTERN void		TclpAsyncMark _ANSI_ARGS_((Tcl_AsyncHandler async));
+/* Slot 21 is reserved */
 /* 22 */
 EXTERN TclFile		TclpCreateTempFile _ANSI_ARGS_((
 				CONST char * contents));
@@ -128,6 +134,13 @@ EXTERN char *		TclWinNoBackslash _ANSI_ARGS_((char * path));
 EXTERN TclPlatformType * TclWinGetPlatform _ANSI_ARGS_((void));
 /* 26 */
 EXTERN void		TclWinSetInterfaces _ANSI_ARGS_((int wide));
+/* 27 */
+EXTERN void		TclWinFlushDirtyChannels _ANSI_ARGS_((void));
+/* 28 */
+EXTERN void		TclWinResetInterfaces _ANSI_ARGS_((void));
+/* 29 */
+EXTERN int		TclWinCPUID _ANSI_ARGS_((unsigned int index, 
+				unsigned int * regs));
 #endif /* __WIN32__ */
 #ifdef MAC_TCL
 /* 0 */
@@ -148,15 +161,16 @@ EXTERN OSErr		FSpFindFolder _ANSI_ARGS_((short vRefNum,
 				OSType folderType, Boolean createFolder, 
 				FSSpec * spec));
 /* 7 */
-EXTERN void		GetGlobalMouse _ANSI_ARGS_((Point * mouse));
+EXTERN void		GetGlobalMouseTcl _ANSI_ARGS_((Point * mouse));
 /* 8 */
-EXTERN pascal OSErr	FSpGetDirectoryID _ANSI_ARGS_((CONST FSSpec * spec, 
-				long * theDirID, Boolean * isDirectory));
+EXTERN pascal OSErr	FSpGetDirectoryIDTcl _ANSI_ARGS_((
+				CONST FSSpec * spec, long * theDirID, 
+				Boolean * isDirectory));
 /* 9 */
-EXTERN pascal short	FSpOpenResFileCompat _ANSI_ARGS_((
+EXTERN pascal short	FSpOpenResFileCompatTcl _ANSI_ARGS_((
 				CONST FSSpec * spec, SignedByte permission));
 /* 10 */
-EXTERN pascal void	FSpCreateResFileCompat _ANSI_ARGS_((
+EXTERN pascal void	FSpCreateResFileCompatTcl _ANSI_ARGS_((
 				CONST FSSpec * spec, OSType creator, 
 				OSType fileType, ScriptCode scriptTag));
 /* 11 */
@@ -175,11 +189,11 @@ EXTERN OSErr		TclMacInstallExitToShellPatch _ANSI_ARGS_((
 /* 16 */
 EXTERN int		TclMacOSErrorToPosixError _ANSI_ARGS_((int error));
 /* 17 */
-EXTERN void		TclMacRemoveTimer _ANSI_ARGS_((void * timerToken));
+EXTERN void		TclMacRemoveTimer _ANSI_ARGS_((VOID * timerToken));
 /* 18 */
-EXTERN void *		TclMacStartTimer _ANSI_ARGS_((long ms));
+EXTERN VOID *		TclMacStartTimer _ANSI_ARGS_((long ms));
 /* 19 */
-EXTERN int		TclMacTimerExpired _ANSI_ARGS_((void * timerToken));
+EXTERN int		TclMacTimerExpired _ANSI_ARGS_((VOID * timerToken));
 /* 20 */
 EXTERN int		TclMacRegisterResourceFork _ANSI_ARGS_((
 				short fileRef, Tcl_Obj * tokenPtr, 
@@ -192,9 +206,13 @@ EXTERN int		TclMacCreateEnv _ANSI_ARGS_((void));
 /* 23 */
 EXTERN FILE *		TclMacFOpenHack _ANSI_ARGS_((CONST char * path, 
 				CONST char * mode));
-/* Slot 24 is reserved */
+/* 24 */
+EXTERN char *		TclpGetTZName _ANSI_ARGS_((int isdst));
 /* 25 */
-EXTERN int		TclMacChmod _ANSI_ARGS_((char * path, int mode));
+EXTERN int		TclMacChmod _ANSI_ARGS_((CONST char * path, int mode));
+/* 26 */
+EXTERN int		FSpLLocationFromPath _ANSI_ARGS_((int length, 
+				CONST char * path, FSSpecPtr theSpec));
 #endif /* MAC_TCL */
 
 typedef struct TclIntPlatStubs {
@@ -206,12 +224,16 @@ typedef struct TclIntPlatStubs {
     int (*tclpCloseFile) _ANSI_ARGS_((TclFile file)); /* 1 */
     Tcl_Channel (*tclpCreateCommandChannel) _ANSI_ARGS_((TclFile readFile, TclFile writeFile, TclFile errorFile, int numPids, Tcl_Pid * pidPtr)); /* 2 */
     int (*tclpCreatePipe) _ANSI_ARGS_((TclFile * readPipe, TclFile * writePipe)); /* 3 */
-    int (*tclpCreateProcess) _ANSI_ARGS_((Tcl_Interp * interp, int argc, char ** argv, TclFile inputFile, TclFile outputFile, TclFile errorFile, Tcl_Pid * pidPtr)); /* 4 */
+    int (*tclpCreateProcess) _ANSI_ARGS_((Tcl_Interp * interp, int argc, CONST char ** argv, TclFile inputFile, TclFile outputFile, TclFile errorFile, Tcl_Pid * pidPtr)); /* 4 */
     void *reserved5;
     TclFile (*tclpMakeFile) _ANSI_ARGS_((Tcl_Channel channel, int direction)); /* 6 */
     TclFile (*tclpOpenFile) _ANSI_ARGS_((CONST char * fname, int mode)); /* 7 */
     int (*tclUnixWaitForFile) _ANSI_ARGS_((int fd, int mask, int timeout)); /* 8 */
     TclFile (*tclpCreateTempFile) _ANSI_ARGS_((CONST char * contents)); /* 9 */
+    Tcl_DirEntry * (*tclpReaddir) _ANSI_ARGS_((DIR * dir)); /* 10 */
+    struct tm * (*tclpLocaltime_unix) _ANSI_ARGS_((TclpTime_t_CONST clock)); /* 11 */
+    struct tm * (*tclpGmtime_unix) _ANSI_ARGS_((TclpTime_t_CONST clock)); /* 12 */
+    char * (*tclpInetNtoa) _ANSI_ARGS_((struct in_addr addr)); /* 13 */
 #endif /* UNIX */
 #ifdef __WIN32__
     void (*tclWinConvertError) _ANSI_ARGS_((DWORD errCode)); /* 0 */
@@ -229,18 +251,21 @@ typedef struct TclIntPlatStubs {
     int (*tclpCloseFile) _ANSI_ARGS_((TclFile file)); /* 12 */
     Tcl_Channel (*tclpCreateCommandChannel) _ANSI_ARGS_((TclFile readFile, TclFile writeFile, TclFile errorFile, int numPids, Tcl_Pid * pidPtr)); /* 13 */
     int (*tclpCreatePipe) _ANSI_ARGS_((TclFile * readPipe, TclFile * writePipe)); /* 14 */
-    int (*tclpCreateProcess) _ANSI_ARGS_((Tcl_Interp * interp, int argc, char ** argv, TclFile inputFile, TclFile outputFile, TclFile errorFile, Tcl_Pid * pidPtr)); /* 15 */
+    int (*tclpCreateProcess) _ANSI_ARGS_((Tcl_Interp * interp, int argc, CONST char ** argv, TclFile inputFile, TclFile outputFile, TclFile errorFile, Tcl_Pid * pidPtr)); /* 15 */
     void *reserved16;
     void *reserved17;
     TclFile (*tclpMakeFile) _ANSI_ARGS_((Tcl_Channel channel, int direction)); /* 18 */
     TclFile (*tclpOpenFile) _ANSI_ARGS_((CONST char * fname, int mode)); /* 19 */
     void (*tclWinAddProcess) _ANSI_ARGS_((HANDLE hProcess, DWORD id)); /* 20 */
-    void (*tclpAsyncMark) _ANSI_ARGS_((Tcl_AsyncHandler async)); /* 21 */
+    void *reserved21;
     TclFile (*tclpCreateTempFile) _ANSI_ARGS_((CONST char * contents)); /* 22 */
     char * (*tclpGetTZName) _ANSI_ARGS_((int isdst)); /* 23 */
     char * (*tclWinNoBackslash) _ANSI_ARGS_((char * path)); /* 24 */
     TclPlatformType * (*tclWinGetPlatform) _ANSI_ARGS_((void)); /* 25 */
     void (*tclWinSetInterfaces) _ANSI_ARGS_((int wide)); /* 26 */
+    void (*tclWinFlushDirtyChannels) _ANSI_ARGS_((void)); /* 27 */
+    void (*tclWinResetInterfaces) _ANSI_ARGS_((void)); /* 28 */
+    int (*tclWinCPUID) _ANSI_ARGS_((unsigned int index, unsigned int * regs)); /* 29 */
 #endif /* __WIN32__ */
 #ifdef MAC_TCL
     VOID * (*tclpSysAlloc) _ANSI_ARGS_((long size, int isBin)); /* 0 */
@@ -250,25 +275,26 @@ typedef struct TclIntPlatStubs {
     int (*fSpGetDefaultDir) _ANSI_ARGS_((FSSpecPtr theSpec)); /* 4 */
     int (*fSpSetDefaultDir) _ANSI_ARGS_((FSSpecPtr theSpec)); /* 5 */
     OSErr (*fSpFindFolder) _ANSI_ARGS_((short vRefNum, OSType folderType, Boolean createFolder, FSSpec * spec)); /* 6 */
-    void (*getGlobalMouse) _ANSI_ARGS_((Point * mouse)); /* 7 */
-    pascal OSErr (*fSpGetDirectoryID) _ANSI_ARGS_((CONST FSSpec * spec, long * theDirID, Boolean * isDirectory)); /* 8 */
-    pascal short (*fSpOpenResFileCompat) _ANSI_ARGS_((CONST FSSpec * spec, SignedByte permission)); /* 9 */
-    pascal void (*fSpCreateResFileCompat) _ANSI_ARGS_((CONST FSSpec * spec, OSType creator, OSType fileType, ScriptCode scriptTag)); /* 10 */
+    void (*getGlobalMouseTcl) _ANSI_ARGS_((Point * mouse)); /* 7 */
+    pascal OSErr (*fSpGetDirectoryIDTcl) _ANSI_ARGS_((CONST FSSpec * spec, long * theDirID, Boolean * isDirectory)); /* 8 */
+    pascal short (*fSpOpenResFileCompatTcl) _ANSI_ARGS_((CONST FSSpec * spec, SignedByte permission)); /* 9 */
+    pascal void (*fSpCreateResFileCompatTcl) _ANSI_ARGS_((CONST FSSpec * spec, OSType creator, OSType fileType, ScriptCode scriptTag)); /* 10 */
     int (*fSpLocationFromPath) _ANSI_ARGS_((int length, CONST char * path, FSSpecPtr theSpec)); /* 11 */
     OSErr (*fSpPathFromLocation) _ANSI_ARGS_((FSSpecPtr theSpec, int * length, Handle * fullPath)); /* 12 */
     void (*tclMacExitHandler) _ANSI_ARGS_((void)); /* 13 */
     void (*tclMacInitExitToShell) _ANSI_ARGS_((int usePatch)); /* 14 */
     OSErr (*tclMacInstallExitToShellPatch) _ANSI_ARGS_((ExitToShellProcPtr newProc)); /* 15 */
     int (*tclMacOSErrorToPosixError) _ANSI_ARGS_((int error)); /* 16 */
-    void (*tclMacRemoveTimer) _ANSI_ARGS_((void * timerToken)); /* 17 */
-    void * (*tclMacStartTimer) _ANSI_ARGS_((long ms)); /* 18 */
-    int (*tclMacTimerExpired) _ANSI_ARGS_((void * timerToken)); /* 19 */
+    void (*tclMacRemoveTimer) _ANSI_ARGS_((VOID * timerToken)); /* 17 */
+    VOID * (*tclMacStartTimer) _ANSI_ARGS_((long ms)); /* 18 */
+    int (*tclMacTimerExpired) _ANSI_ARGS_((VOID * timerToken)); /* 19 */
     int (*tclMacRegisterResourceFork) _ANSI_ARGS_((short fileRef, Tcl_Obj * tokenPtr, int insert)); /* 20 */
     short (*tclMacUnRegisterResourceFork) _ANSI_ARGS_((char * tokenPtr, Tcl_Obj * resultPtr)); /* 21 */
     int (*tclMacCreateEnv) _ANSI_ARGS_((void)); /* 22 */
     FILE * (*tclMacFOpenHack) _ANSI_ARGS_((CONST char * path, CONST char * mode)); /* 23 */
-    void *reserved24;
-    int (*tclMacChmod) _ANSI_ARGS_((char * path, int mode)); /* 25 */
+    char * (*tclpGetTZName) _ANSI_ARGS_((int isdst)); /* 24 */
+    int (*tclMacChmod) _ANSI_ARGS_((CONST char * path, int mode)); /* 25 */
+    int (*fSpLLocationFromPath) _ANSI_ARGS_((int length, CONST char * path, FSSpecPtr theSpec)); /* 26 */
 #endif /* MAC_TCL */
 } TclIntPlatStubs;
 
@@ -323,6 +349,22 @@ extern TclIntPlatStubs *tclIntPlatStubsPtr;
 #ifndef TclpCreateTempFile
 #define TclpCreateTempFile \
 	(tclIntPlatStubsPtr->tclpCreateTempFile) /* 9 */
+#endif
+#ifndef TclpReaddir
+#define TclpReaddir \
+	(tclIntPlatStubsPtr->tclpReaddir) /* 10 */
+#endif
+#ifndef TclpLocaltime_unix
+#define TclpLocaltime_unix \
+	(tclIntPlatStubsPtr->tclpLocaltime_unix) /* 11 */
+#endif
+#ifndef TclpGmtime_unix
+#define TclpGmtime_unix \
+	(tclIntPlatStubsPtr->tclpGmtime_unix) /* 12 */
+#endif
+#ifndef TclpInetNtoa
+#define TclpInetNtoa \
+	(tclIntPlatStubsPtr->tclpInetNtoa) /* 13 */
 #endif
 #endif /* UNIX */
 #ifdef __WIN32__
@@ -398,10 +440,7 @@ extern TclIntPlatStubs *tclIntPlatStubsPtr;
 #define TclWinAddProcess \
 	(tclIntPlatStubsPtr->tclWinAddProcess) /* 20 */
 #endif
-#ifndef TclpAsyncMark
-#define TclpAsyncMark \
-	(tclIntPlatStubsPtr->tclpAsyncMark) /* 21 */
-#endif
+/* Slot 21 is reserved */
 #ifndef TclpCreateTempFile
 #define TclpCreateTempFile \
 	(tclIntPlatStubsPtr->tclpCreateTempFile) /* 22 */
@@ -421,6 +460,18 @@ extern TclIntPlatStubs *tclIntPlatStubsPtr;
 #ifndef TclWinSetInterfaces
 #define TclWinSetInterfaces \
 	(tclIntPlatStubsPtr->tclWinSetInterfaces) /* 26 */
+#endif
+#ifndef TclWinFlushDirtyChannels
+#define TclWinFlushDirtyChannels \
+	(tclIntPlatStubsPtr->tclWinFlushDirtyChannels) /* 27 */
+#endif
+#ifndef TclWinResetInterfaces
+#define TclWinResetInterfaces \
+	(tclIntPlatStubsPtr->tclWinResetInterfaces) /* 28 */
+#endif
+#ifndef TclWinCPUID
+#define TclWinCPUID \
+	(tclIntPlatStubsPtr->tclWinCPUID) /* 29 */
 #endif
 #endif /* __WIN32__ */
 #ifdef MAC_TCL
@@ -452,21 +503,21 @@ extern TclIntPlatStubs *tclIntPlatStubsPtr;
 #define FSpFindFolder \
 	(tclIntPlatStubsPtr->fSpFindFolder) /* 6 */
 #endif
-#ifndef GetGlobalMouse
-#define GetGlobalMouse \
-	(tclIntPlatStubsPtr->getGlobalMouse) /* 7 */
+#ifndef GetGlobalMouseTcl
+#define GetGlobalMouseTcl \
+	(tclIntPlatStubsPtr->getGlobalMouseTcl) /* 7 */
 #endif
-#ifndef FSpGetDirectoryID
-#define FSpGetDirectoryID \
-	(tclIntPlatStubsPtr->fSpGetDirectoryID) /* 8 */
+#ifndef FSpGetDirectoryIDTcl
+#define FSpGetDirectoryIDTcl \
+	(tclIntPlatStubsPtr->fSpGetDirectoryIDTcl) /* 8 */
 #endif
-#ifndef FSpOpenResFileCompat
-#define FSpOpenResFileCompat \
-	(tclIntPlatStubsPtr->fSpOpenResFileCompat) /* 9 */
+#ifndef FSpOpenResFileCompatTcl
+#define FSpOpenResFileCompatTcl \
+	(tclIntPlatStubsPtr->fSpOpenResFileCompatTcl) /* 9 */
 #endif
-#ifndef FSpCreateResFileCompat
-#define FSpCreateResFileCompat \
-	(tclIntPlatStubsPtr->fSpCreateResFileCompat) /* 10 */
+#ifndef FSpCreateResFileCompatTcl
+#define FSpCreateResFileCompatTcl \
+	(tclIntPlatStubsPtr->fSpCreateResFileCompatTcl) /* 10 */
 #endif
 #ifndef FSpLocationFromPath
 #define FSpLocationFromPath \
@@ -520,10 +571,17 @@ extern TclIntPlatStubs *tclIntPlatStubsPtr;
 #define TclMacFOpenHack \
 	(tclIntPlatStubsPtr->tclMacFOpenHack) /* 23 */
 #endif
-/* Slot 24 is reserved */
+#ifndef TclpGetTZName
+#define TclpGetTZName \
+	(tclIntPlatStubsPtr->tclpGetTZName) /* 24 */
+#endif
 #ifndef TclMacChmod
 #define TclMacChmod \
 	(tclIntPlatStubsPtr->tclMacChmod) /* 25 */
+#endif
+#ifndef FSpLLocationFromPath
+#define FSpLLocationFromPath \
+	(tclIntPlatStubsPtr->fSpLLocationFromPath) /* 26 */
 #endif
 #endif /* MAC_TCL */
 
@@ -531,5 +589,7 @@ extern TclIntPlatStubs *tclIntPlatStubsPtr;
 
 /* !END!: Do not edit above this line. */
 
-#endif /* _TCLINTPLATDECLS */
+#undef TclpLocaltime_unix
+#undef TclpGmtime_unix
 
+#endif /* _TCLINTPLATDECLS */

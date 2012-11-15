@@ -1,8 +1,6 @@
 # filebox.tcl --
 #
 # This demonstration script prompts the user to select a file.
-#
-# RCS: @(#) $Id$
 
 if {![info exists widgetDemo]} {
     error "This script should be run from the \"widget\" demo."
@@ -35,10 +33,14 @@ foreach i {open save} {
     pack $f -fill x -padx 1c -pady 3
 }
 
-if ![string compare $tcl_platform(platform) unix] {
+if {![string compare $tcl_platform(platform) unix]} {
     checkbutton $w.strict -text "Use Motif Style Dialog" \
 	-variable tk_strictMotif -onvalue 1 -offvalue 0
     pack $w.strict -anchor c
+
+    # This binding ensures that we don't run the rest of the demos
+    # with motif style interactions
+    bind $w.strict <Destroy> {set tk_strictMotif 0}
 }
 
 proc fileDialog {w ent operation} {
@@ -62,10 +64,9 @@ proc fileDialog {w ent operation} {
 	set file [tk_getSaveFile -filetypes $types -parent $w \
 	    -initialfile Untitled -defaultextension .txt]
     }
-    if [string compare $file ""] {
+    if {[string compare $file ""]} {
 	$ent delete 0 end
 	$ent insert 0 $file
 	$ent xview end
     }
 }
-

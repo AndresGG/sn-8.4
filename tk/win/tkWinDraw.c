@@ -9,8 +9,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkWinInt.h"
@@ -57,7 +55,7 @@ int tkpWinRopModes[] = {
 #define SRCORREVERSE	(DWORD)0x00DD0228 /* dest = source OR (NOT dest) */
 #define SRCNAND		(DWORD)0x007700E6 /* dest = NOT (source AND dest) */
 
-static int bltModes[] = {
+int tkpWinBltModes[] = {
     BLACKNESS,			/* GXclear */
     SRCAND,			/* GXand */
     SRCERASE,			/* GXandReverse */
@@ -328,7 +326,7 @@ XCopyArea(display, src, dest, gc, src_x, src_y, width, height, dest_x, dest_y)
     }
 
     BitBlt(destDC, dest_x, dest_y, width, height, srcDC, src_x, src_y,
-	    bltModes[gc->function]);
+	    tkpWinBltModes[gc->function]);
 
     SelectClipRgn(destDC, NULL);
 
@@ -415,11 +413,14 @@ XCopyPlane(display, src, dest, gc, src_x, src_y, width, height, dest_x,
 	    /*
 	     * Case 2: transparent bitmaps are handled by setting the
 	     * destination to the foreground color whenever the source
-	     * pixel is set.
+	     * pixel is set.  We need to reset the BkColor and TextColor,
+	     * because they affect bitmap color mapping.
 	     */
 
 	    fgBrush = CreateSolidBrush(gc->foreground);
 	    oldBrush = SelectObject(destDC, fgBrush);
+	    SetBkColor(destDC, RGB(255,255,255));
+	    SetTextColor(destDC, RGB(0,0,0));
 	    BitBlt(destDC, dest_x, dest_y, width, height, srcDC, src_x, src_y,
 		    MASKPAT);
 	    SelectObject(destDC, oldBrush);
@@ -429,7 +430,7 @@ XCopyPlane(display, src, dest, gc, src_x, src_y, width, height, dest_x,
 	    /*
 	     * Case 3: two arbitrary bitmaps.  Copy the source rectangle
 	     * into a color pixmap.  Use the result as a brush when
-	     * copying the clip mask into the destination.	 
+	     * copying the clip mask into the destination.
 	     */
 
 	    HDC memDC, maskDC;
@@ -589,6 +590,12 @@ TkPutImage(colors, ncolors, display, d, gc, image, src_x, src_y, dest_x,
 		image->data, infoPtr, DIB_RGB_COLORS);
 	ckfree((char *) infoPtr);
     }
+    if(!bitmap) {
+	panic("Fail to allocate bitmap\n");
+	DeleteDC(dcMem);
+    	TkWinReleaseDrawableDC(d, dc, &state);
+	return;
+    }
     bitmap = SelectObject(dcMem, bitmap);
     BitBlt(dc, dest_x, dest_y, width, height, dcMem, src_x, src_y, SRCCOPY);
     DeleteObject(SelectObject(dcMem, bitmap));
@@ -624,7 +631,7 @@ XFillRectangles(display, d, gc, rectangles, nrectangles)
     int i;
     RECT rect;
     TkWinDCState state;
-    HBRUSH brush;
+    HBRUSH brush, oldBrush;
 
     if (d == None) {
 	return;
@@ -638,7 +645,7 @@ XFillRectangles(display, d, gc, rectangles, nrectangles)
 	    || gc->fill_style == FillOpaqueStippled)
 	    && gc->stipple != None) {
 	TkWinDrawable *twdPtr = (TkWinDrawable *)gc->stipple;
-	HBRUSH oldBrush, stipple;
+	HBRUSH stipple;
 	HBITMAP oldBitmap, bitmap;
 	HDC dcMem;
 	HBRUSH bgBrush = CreateSolidBrush(gc->background);
@@ -688,9 +695,28 @@ XFillRectangles(display, d, gc, rectangles, nrectangles)
 	DeleteObject(stipple);
 	DeleteObject(bgBrush);
     } else {
-	for (i = 0; i < nrectangles; i++) {
-	    TkWinFillRect(dc, rectangles[i].x, rectangles[i].y,
-		    rectangles[i].width, rectangles[i].height, gc->foreground);
+	if (gc->function == GXcopy) {
+	    for (i = 0; i < nrectangles; i++) {
+		rect.left = rectangles[i].x;
+		rect.right = rect.left + rectangles[i].width;
+		rect.top = rectangles[i].y;
+		rect.bottom = rect.top + rectangles[i].height;
+		FillRect(dc, &rect, brush);
+	    }
+	} else {
+	    HPEN newPen = CreatePen(PS_NULL, 0, gc->foreground);
+	    HPEN oldPen = SelectObject(dc, newPen);
+	    oldBrush = SelectObject(dc, brush);
+	    
+	    for (i = 0; i < nrectangles; i++) {
+		Rectangle(dc, rectangles[i].x, rectangles[i].y,
+		    rectangles[i].x + rectangles[i].width + 1,
+		    rectangles[i].y + rectangles[i].height + 1);
+	    }
+
+	    SelectObject(dc, oldBrush);
+	    SelectObject(dc, oldPen);
+	    DeleteObject(newPen);
 	}
     }
     DeleteObject(brush);
@@ -724,7 +750,7 @@ RenderObject(dc, gc, points, npoints, mode, pen, func)
     HPEN pen;
     WinDrawFunc func;
 {
-    RECT rect;
+    RECT rect = {0, 0, 0, 0};
     HPEN oldPen;
     HBRUSH oldBrush;
     POINT *winPoints = ConvertPoints(points, npoints, mode, &rect);
@@ -745,15 +771,13 @@ RenderObject(dc, gc, points, npoints, mode, pen, func)
 	}
 
 	/*
-	 * Grow the bounding box enough to account for wide lines.
+	 * Grow the bounding box enough to account for line width.
 	 */
 
-	if (gc->line_width > 1) {
-	    rect.left -= gc->line_width;
-	    rect.top -= gc->line_width;
-	    rect.right += gc->line_width;
-	    rect.bottom += gc->line_width;
-	}
+	rect.left -= gc->line_width;
+	rect.top -= gc->line_width;
+	rect.right += gc->line_width;
+	rect.bottom += gc->line_width;
 
 	width = rect.right - rect.left;
 	height = rect.bottom - rect.top;
@@ -1333,5 +1357,30 @@ TkpDrawHighlightBorder(tkwin, fgGC, bgGC, highlightWidth, drawable)
 {
     TkDrawInsetFocusHighlight(tkwin, fgGC, highlightWidth, drawable, 0);
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TkpDrawFrame --
+ *
+ *	This procedure draws the rectangular frame area.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Draws inside the tkwin area.
+ *
+ *----------------------------------------------------------------------
+ */
 
-
+void
+TkpDrawFrame (Tk_Window tkwin, Tk_3DBorder border,
+	int highlightWidth, int borderWidth, int relief)
+{
+    Tk_Fill3DRectangle(tkwin, Tk_WindowId(tkwin),
+	    border, highlightWidth, highlightWidth,
+	    Tk_Width(tkwin) - 2 * highlightWidth,
+	    Tk_Height(tkwin) - 2 * highlightWidth,
+	    borderWidth, relief);
+}

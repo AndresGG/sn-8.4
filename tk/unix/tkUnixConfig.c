@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tk.h"
@@ -38,9 +36,8 @@
 Tcl_Obj *
 TkpGetSystemDefault(tkwin, dbName, className)
     Tk_Window tkwin;		/* A window to use. */
-    char *dbName;		/* The option database name. */
-    char *className;		/* The name of the option class. */
+    CONST char *dbName;		/* The option database name. */
+    CONST char *className;		/* The name of the option class. */
 {
     return NULL;
 }
-

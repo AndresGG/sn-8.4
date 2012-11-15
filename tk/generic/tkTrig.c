@@ -11,8 +11,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include <stdio.h>
@@ -1473,4 +1471,3 @@ TkGetButtPoints(p1, p2, width, project, m1, m2)
 	}
     }
 }
-

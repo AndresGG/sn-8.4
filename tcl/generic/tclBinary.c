@@ -9,13 +9,11 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
-#include <math.h>
 #include "tclInt.h"
 #include "tclPort.h"
+#include <math.h>
 
 /*
  * The following constants are used by GetFormatSpec to indicate various
@@ -26,6 +24,26 @@
 #define BINARY_NOCOUNT -2	/* No count was specified in format. */
 
 /*
+ * The following defines the maximum number of different (integer)
+ * numbers placed in the object cache by 'binary scan' before it bails
+ * out and switches back to Plan A (creating a new object for each
+ * value.)  Theoretically, it would be possible to keep the cache
+ * about for the values that are already in it, but that makes the
+ * code slower in practise when overflow happens, and makes little
+ * odds the rest of the time (as measured on my machine.)  It is also
+ * slower (on the sample I tried at least) to grow the cache to hold
+ * all items we might want to put in it; presumably the extra cost of
+ * managing the memory for the enlarged table outweighs the benefit
+ * from allocating fewer objects.  This is probably because as the
+ * number of objects increases, the likelihood of reuse of any
+ * particular one drops, and there is very little gain from larger
+ * maximum cache sizes (the value below is chosen to allow caching to
+ * work in full with conversion of bytes.) - DKF
+ */
+
+#define BINARY_SCAN_MAX_CACHE	260
+
+/*
  * Prototypes for local procedures defined in this file:
  */
 
@@ -33,14 +51,18 @@ static void		DupByteArrayInternalRep _ANSI_ARGS_((Tcl_Obj *srcPtr,
 			    Tcl_Obj *copyPtr));
 static int		FormatNumber _ANSI_ARGS_((Tcl_Interp *interp, int type,
 			    Tcl_Obj *src, unsigned char **cursorPtr));
+static void		CopyNumber _ANSI_ARGS_((CONST VOID *from, VOID *to,
+			    unsigned int length));
 static void		FreeByteArrayInternalRep _ANSI_ARGS_((Tcl_Obj *objPtr));
 static int		GetFormatSpec _ANSI_ARGS_((char **formatPtr,
 			    char *cmdPtr, int *countPtr));
-static Tcl_Obj *	ScanNumber _ANSI_ARGS_((unsigned char *buffer, int type));
+static Tcl_Obj *	ScanNumber _ANSI_ARGS_((unsigned char *buffer,
+			    int type, Tcl_HashTable **numberCachePtr));
 static int		SetByteArrayFromAny _ANSI_ARGS_((Tcl_Interp *interp,
 			    Tcl_Obj *objPtr));
 static void		UpdateStringOfByteArray _ANSI_ARGS_((Tcl_Obj *listPtr));
-
+static void		DeleteScanNumberCache _ANSI_ARGS_((
+			    Tcl_HashTable *numberCachePtr));
 
 /*
  * The following object type represents an array of bytes.  An array of
@@ -125,7 +147,7 @@ typedef struct ByteArray {
 
 Tcl_Obj *
 Tcl_NewByteArrayObj(bytes, length)
-    unsigned char *bytes;	/* The array of bytes used to initialize
+    CONST unsigned char *bytes;	/* The array of bytes used to initialize
 				 * the new object. */
     int length;			/* Length of the array of bytes, which must
 				 * be >= 0. */
@@ -137,7 +159,7 @@ Tcl_NewByteArrayObj(bytes, length)
 
 Tcl_Obj *
 Tcl_NewByteArrayObj(bytes, length)
-    unsigned char *bytes;	/* The array of bytes used to initialize
+    CONST unsigned char *bytes;	/* The array of bytes used to initialize
 				 * the new object. */
     int length;			/* Length of the array of bytes, which must
 				 * be >= 0. */
@@ -159,8 +181,8 @@ Tcl_NewByteArrayObj(bytes, length)
  *	TCL_MEM_DEBUG is defined. It is the same as the Tcl_NewByteArrayObj
  *	above except that it calls Tcl_DbCkalloc directly with the file name
  *	and line number from its caller. This simplifies debugging since then
- *	the checkmem command will report the correct file name and line number
- *	when reporting objects that haven't been freed.
+ *	the [memory active] command will report the correct file name and line
+ *	number when reporting objects that haven't been freed.
  *
  *	When TCL_MEM_DEBUG is not defined, this procedure just returns the
  *	result of calling Tcl_NewByteArrayObj.
@@ -180,11 +202,11 @@ Tcl_NewByteArrayObj(bytes, length)
 
 Tcl_Obj *
 Tcl_DbNewByteArrayObj(bytes, length, file, line)
-    unsigned char *bytes;	/* The array of bytes used to initialize
+    CONST unsigned char *bytes;	/* The array of bytes used to initialize
 				 * the new object. */
     int length;			/* Length of the array of bytes, which must
 				 * be >= 0. */
-    char *file;			/* The name of the source file calling this
+    CONST char *file;		/* The name of the source file calling this
 				 * procedure; used for debugging. */
     int line;			/* Line number in the source file; used
 				 * for debugging. */
@@ -200,11 +222,11 @@ Tcl_DbNewByteArrayObj(bytes, length, file, line)
 
 Tcl_Obj *
 Tcl_DbNewByteArrayObj(bytes, length, file, line)
-    unsigned char *bytes;	/* The array of bytes used to initialize
+    CONST unsigned char *bytes;	/* The array of bytes used to initialize
 				 * the new object. */
     int length;			/* Length of the array of bytes, which must
 				 * be >= 0. */
-    char *file;			/* The name of the source file calling this
+    CONST char *file;		/* The name of the source file calling this
 				 * procedure; used for debugging. */
     int line;			/* Line number in the source file; used
 				 * for debugging. */
@@ -234,7 +256,7 @@ Tcl_DbNewByteArrayObj(bytes, length, file, line)
 void
 Tcl_SetByteArrayObj(objPtr, bytes, length)
     Tcl_Obj *objPtr;		/* Object to initialize as a ByteArray. */
-    unsigned char *bytes;	/* The array of bytes to use as the new
+    CONST unsigned char *bytes;	/* The array of bytes to use as the new
 				 * value. */
     int length;			/* Length of the array of bytes, which must
 				 * be >= 0. */
@@ -561,7 +583,7 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 				 * cursor has visited.*/
     char *errorString, *errorValue, *str;
     int offset, size, length, index;
-    static char *options[] = { 
+    static CONST char *options[] = { 
 	"format",	"scan",		NULL 
     };
     enum options { 
@@ -642,6 +664,11 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 		    case 'i':
 		    case 'I': {
 			size = 4;
+			goto doNumbers;
+		    }
+		    case 'w':
+		    case 'W': {
+			size = 8;
 			goto doNumbers;
 		    }
 		    case 'f': {
@@ -725,7 +752,7 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 		    }
 		    default: {
 			errorString = str;
-			goto badfield;
+			goto badField;
 		    }
 		}
 	    }
@@ -742,6 +769,10 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 	     */
 
 	    resultPtr = Tcl_GetObjResult(interp);
+	    if (Tcl_IsShared(resultPtr)) {
+		TclNewObj(resultPtr);
+		Tcl_SetObjResult(interp, resultPtr);
+	    }
 	    buffer = Tcl_SetByteArrayLength(resultPtr, length);
 	    memset((VOID *) buffer, 0, (size_t) length);
 
@@ -760,7 +791,9 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 		    break;
 		}
 		if ((count == 0) && (cmd != '@')) {
-		    arg++;
+		    if (cmd != 'x') {
+			arg++;
+		    }
 		    continue;
 		}
 		switch (cmd) {
@@ -924,6 +957,8 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 		    case 'S':
 		    case 'i':
 		    case 'I':
+		    case 'w':
+		    case 'W':
 		    case 'd':
 		    case 'f': {
 			int listc, i;
@@ -996,12 +1031,16 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 	case BINARY_SCAN: {
 	    int i;
 	    Tcl_Obj *valuePtr, *elementPtr;
+	    Tcl_HashTable numberCacheHash;
+	    Tcl_HashTable *numberCachePtr;
 
 	    if (objc < 4) {
 		Tcl_WrongNumArgs(interp, 2, objv,
 			"value formatString ?varName varName ...?");
 		return TCL_ERROR;
 	    }
+	    numberCachePtr = &numberCacheHash;
+	    Tcl_InitHashTable(numberCachePtr, TCL_ONE_WORD_KEYS);
 	    buffer = Tcl_GetByteArrayFromObj(objv[2], &length);
 	    format = Tcl_GetString(objv[3]);
 	    cursor = buffer;
@@ -1018,6 +1057,7 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 			unsigned char *src;
 
 			if (arg >= objc) {
+			    DeleteScanNumberCache(numberCachePtr);
 			    goto badIndex;
 			}
 			if (count == BINARY_ALL) {
@@ -1047,11 +1087,13 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 			    }
 			}
 			valuePtr = Tcl_NewByteArrayObj(src, size);
+			Tcl_IncrRefCount(valuePtr);
 			resultPtr = Tcl_ObjSetVar2(interp, objv[arg],
 				NULL, valuePtr, TCL_LEAVE_ERR_MSG);
+			Tcl_DecrRefCount(valuePtr);
 			arg++;
 			if (resultPtr == NULL) {
-			    Tcl_DecrRefCount(valuePtr);	/* unneeded */
+			    DeleteScanNumberCache(numberCachePtr);
 			    return TCL_ERROR;
 			}
 			offset += count;
@@ -1063,6 +1105,7 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 			char *dest;
 
 			if (arg >= objc) {
+			    DeleteScanNumberCache(numberCachePtr);
 			    goto badIndex;
 			}
 			if (count == BINARY_ALL) {
@@ -1099,12 +1142,14 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 				*dest++ = (char) ((value & 0x80) ? '1' : '0');
 			    }
 			}
-			
+
+			Tcl_IncrRefCount(valuePtr);			
 			resultPtr = Tcl_ObjSetVar2(interp, objv[arg],
 				NULL, valuePtr, TCL_LEAVE_ERR_MSG);
+			Tcl_DecrRefCount(valuePtr);
 			arg++;
 			if (resultPtr == NULL) {
-			    Tcl_DecrRefCount(valuePtr);	/* unneeded */
+			    DeleteScanNumberCache(numberCachePtr);
 			    return TCL_ERROR;
 			}
 			offset += (count + 7 ) / 8;
@@ -1118,6 +1163,7 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 			static char hexdigit[] = "0123456789abcdef";
 
 			if (arg >= objc) {
+			    DeleteScanNumberCache(numberCachePtr);
 			    goto badIndex;
 			}
 			if (count == BINARY_ALL) {
@@ -1155,11 +1201,13 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 			    }
 			}
 			
+			Tcl_IncrRefCount(valuePtr);
 			resultPtr = Tcl_ObjSetVar2(interp, objv[arg],
 				NULL, valuePtr, TCL_LEAVE_ERR_MSG);
+			Tcl_DecrRefCount(valuePtr);
 			arg++;
 			if (resultPtr == NULL) {
-			    Tcl_DecrRefCount(valuePtr);	/* unneeded */
+			    DeleteScanNumberCache(numberCachePtr);
 			    return TCL_ERROR;
 			}
 			offset += (count + 1) / 2;
@@ -1179,6 +1227,11 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 			size = 4;
 			goto scanNumber;
 		    }
+		    case 'w':
+		    case 'W': {
+			size = 8;
+			goto scanNumber;
+		    }
 		    case 'f': {
 			size = sizeof(float);
 			goto scanNumber;
@@ -1191,13 +1244,15 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 			
 			scanNumber:
 			if (arg >= objc) {
+			    DeleteScanNumberCache(numberCachePtr);
 			    goto badIndex;
 			}
 			if (count == BINARY_NOCOUNT) {
 			    if ((length - offset) < size) {
 				goto done;
 			    }
-			    valuePtr = ScanNumber(buffer+offset, cmd);
+			    valuePtr = ScanNumber(buffer+offset, cmd,
+				    &numberCachePtr);
 			    offset += size;
 			} else {
 			    if (count == BINARY_ALL) {
@@ -1209,7 +1264,8 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 			    valuePtr = Tcl_NewObj();
 			    src = buffer+offset;
 			    for (i = 0; i < count; i++) {
-				elementPtr = ScanNumber(src, cmd);
+				elementPtr = ScanNumber(src, cmd,
+					&numberCachePtr);
 				src += size;
 				Tcl_ListObjAppendElement(NULL, valuePtr,
 					elementPtr);
@@ -1217,11 +1273,13 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 			    offset += count*size;
 			}
 
+			Tcl_IncrRefCount(valuePtr); 
 			resultPtr = Tcl_ObjSetVar2(interp, objv[arg],
 				NULL, valuePtr, TCL_LEAVE_ERR_MSG);
+			Tcl_DecrRefCount(valuePtr);
 			arg++;
 			if (resultPtr == NULL) {
-			    Tcl_DecrRefCount(valuePtr);	/* unneeded */
+			    DeleteScanNumberCache(numberCachePtr);
 			    return TCL_ERROR;
 			}
 			break;
@@ -1251,6 +1309,7 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 		    }
 		    case '@': {
 			if (count == BINARY_NOCOUNT) {
+			    DeleteScanNumberCache(numberCachePtr);
 			    goto badCount;
 			}
 			if ((count == BINARY_ALL) || (count > length)) {
@@ -1261,8 +1320,9 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 			break;
 		    }
 		    default: {
+			DeleteScanNumberCache(numberCachePtr);
 			errorString = str;
-			goto badfield;
+			goto badField;
 		    }
 		}
 	    }
@@ -1274,6 +1334,7 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 	    done:
 	    Tcl_ResetResult(interp);
 	    Tcl_SetLongObj(Tcl_GetObjResult(interp), arg - 4);
+	    DeleteScanNumberCache(numberCachePtr);
 	    break;
 	}
     }
@@ -1293,7 +1354,8 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
     errorString = "not enough arguments for all format specifiers";
     goto error;
 
-    badfield: {
+    badField:
+    {
 	Tcl_UniChar ch;
 	char buf[TCL_UTF_MAX + 1];
 
@@ -1393,10 +1455,13 @@ FormatNumber(interp, type, src, cursorPtr)
     Tcl_Obj *src;		/* Number to format. */
     unsigned char **cursorPtr;	/* Pointer to index into destination buffer. */
 {
-    int value;
+    long value;
     double dvalue;
+    Tcl_WideInt wvalue;
 
-    if ((type == 'd') || (type == 'f')) {
+    switch (type) {
+    case 'd':
+    case 'f':
 	/*
 	 * For floating point types, we need to copy the data using
 	 * memcpy to avoid alignment issues.
@@ -1406,7 +1471,11 @@ FormatNumber(interp, type, src, cursorPtr)
 	    return TCL_ERROR;
 	}
 	if (type == 'd') {
-	    memcpy((VOID *) *cursorPtr, (VOID *) &dvalue, sizeof(double));
+	    /*
+	     * Can't just memcpy() here. [Bug 1116542]
+	     */
+
+	    CopyNumber(&dvalue, *cursorPtr, sizeof(double));
 	    *cursorPtr += sizeof(double);
 	} else {
 	    float fvalue;
@@ -1425,8 +1494,39 @@ FormatNumber(interp, type, src, cursorPtr)
 	    memcpy((VOID *) *cursorPtr, (VOID *) &fvalue, sizeof(float));
 	    *cursorPtr += sizeof(float);
 	}
-    } else {
-	if (Tcl_GetIntFromObj(interp, src, &value) != TCL_OK) {
+	return TCL_OK;
+
+	/*
+	 * Next cases separate from other integer cases because we
+	 * need a different API to get a wide.
+	 */
+    case 'w':
+    case 'W':
+	if (Tcl_GetWideIntFromObj(interp, src, &wvalue) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	if (type == 'w') {
+	    *(*cursorPtr)++ = (unsigned char) wvalue;
+	    *(*cursorPtr)++ = (unsigned char) (wvalue >> 8);
+	    *(*cursorPtr)++ = (unsigned char) (wvalue >> 16);
+	    *(*cursorPtr)++ = (unsigned char) (wvalue >> 24);
+	    *(*cursorPtr)++ = (unsigned char) (wvalue >> 32);
+	    *(*cursorPtr)++ = (unsigned char) (wvalue >> 40);
+	    *(*cursorPtr)++ = (unsigned char) (wvalue >> 48);
+	    *(*cursorPtr)++ = (unsigned char) (wvalue >> 56);
+	} else {
+	    *(*cursorPtr)++ = (unsigned char) (wvalue >> 56);
+	    *(*cursorPtr)++ = (unsigned char) (wvalue >> 48);
+	    *(*cursorPtr)++ = (unsigned char) (wvalue >> 40);
+	    *(*cursorPtr)++ = (unsigned char) (wvalue >> 32);
+	    *(*cursorPtr)++ = (unsigned char) (wvalue >> 24);
+	    *(*cursorPtr)++ = (unsigned char) (wvalue >> 16);
+	    *(*cursorPtr)++ = (unsigned char) (wvalue >> 8);
+	    *(*cursorPtr)++ = (unsigned char) wvalue;
+	}
+	return TCL_OK;
+    default:
+	if (Tcl_GetLongFromObj(interp, src, &value) != TCL_OK) {
 	    return TCL_ERROR;
 	}
 	if (type == 'c') {
@@ -1448,8 +1548,18 @@ FormatNumber(interp, type, src, cursorPtr)
 	    *(*cursorPtr)++ = (unsigned char) (value >> 8);
 	    *(*cursorPtr)++ = (unsigned char) value;
 	}
+	return TCL_OK;
     }
-    return TCL_OK;
+}
+
+/* Ugly workaround for old and broken compiler! */
+static void
+CopyNumber(from, to, length)
+    CONST VOID *from;
+    VOID *to;
+    unsigned int length;
+{
+    memcpy(to, from, length);
 }
 
 /*
@@ -1465,17 +1575,24 @@ FormatNumber(interp, type, src, cursorPtr)
  *	This object has a ref count of zero.
  *
  * Side effects:
- *	None.
+ *	Might reuse an object in the number cache, place a new object
+ *	in the cache, or delete the cache and set the reference to
+ *	it (itself passed in by reference) to NULL.
  *
  *----------------------------------------------------------------------
  */
 
 static Tcl_Obj *
-ScanNumber(buffer, type)
+ScanNumber(buffer, type, numberCachePtrPtr)
     unsigned char *buffer;	/* Buffer to scan number from. */
     int type;			/* Format character from "binary scan" */
+    Tcl_HashTable **numberCachePtrPtr;
+				/* Place to look for cache of scanned
+				 * value objects, or NULL if too many
+				 * different numbers have been scanned. */
 {
     long value;
+    Tcl_WideUInt uwvalue;
 
     /*
      * We cannot rely on the compiler to properly sign extend integer values
@@ -1486,7 +1603,7 @@ ScanNumber(buffer, type)
      */
 
     switch (type) {
-	case 'c': {
+	case 'c':
 	    /*
 	     * Characters need special handling.  We want to produce a
 	     * signed result, but on some platforms (such as AIX) chars
@@ -1498,28 +1615,26 @@ ScanNumber(buffer, type)
 	    if (value & 0x80) {
 		value |= -0x100;
 	    }
-	    return Tcl_NewLongObj((long)value);
-	}
-	case 's': {
+	    goto returnNumericObject;
+
+	case 's':
 	    value = (long) (buffer[0] + (buffer[1] << 8));
 	    goto shortValue;
-	}
-	case 'S': {
+	case 'S':
 	    value = (long) (buffer[1] + (buffer[0] << 8));
 	    shortValue:
 	    if (value & 0x8000) {
 		value |= -0x10000;
 	    }
-	    return Tcl_NewLongObj(value);
-	}
-	case 'i': {
+	    goto returnNumericObject;
+
+	case 'i':
 	    value = (long) (buffer[0] 
 		    + (buffer[1] << 8)
 		    + (buffer[2] << 16)
 		    + (buffer[3] << 24));
 	    goto intValue;
-	}
-	case 'I': {
+	case 'I':
 	    value = (long) (buffer[3]
 		    + (buffer[2] << 8)
 		    + (buffer[1] << 16)
@@ -1534,8 +1649,70 @@ ScanNumber(buffer, type)
 		value -= (((unsigned int)1)<<31);
 		value -= (((unsigned int)1)<<31);
 	    }
-	    return Tcl_NewLongObj(value);
-	}
+	    returnNumericObject:
+	    if (*numberCachePtrPtr == NULL) {
+		return Tcl_NewLongObj(value);
+	    } else {
+		register Tcl_HashTable *tablePtr = *numberCachePtrPtr;
+		register Tcl_HashEntry *hPtr;
+		int isNew;
+
+		hPtr = Tcl_CreateHashEntry(tablePtr, (char *)value, &isNew);
+		if (!isNew) {
+		    return (Tcl_Obj *) Tcl_GetHashValue(hPtr);
+		}
+		if (tablePtr->numEntries > BINARY_SCAN_MAX_CACHE) {
+		    /*
+		     * We've overflowed the cache!  Someone's parsing
+		     * a LOT of varied binary data in a single call!
+		     * Bail out by switching back to the old behaviour
+		     * for the rest of the scan.
+		     *
+		     * Note that anyone just using the 'c' conversion
+		     * (for bytes) cannot trigger this.
+		     */
+		    DeleteScanNumberCache(tablePtr);
+		    *numberCachePtrPtr = NULL;
+		    return Tcl_NewLongObj(value);
+		} else {
+		    register Tcl_Obj *objPtr = Tcl_NewLongObj(value);
+
+		    Tcl_IncrRefCount(objPtr);
+		    Tcl_SetHashValue(hPtr, (ClientData) objPtr);
+		    return objPtr;
+		}
+	    }
+
+	    /*
+	     * Do not cache wide values; they are already too large to
+	     * use as keys.
+	     */
+	case 'w':
+	    uwvalue =  ((Tcl_WideUInt) buffer[0])
+		    | (((Tcl_WideUInt) buffer[1]) << 8)
+		    | (((Tcl_WideUInt) buffer[2]) << 16)
+		    | (((Tcl_WideUInt) buffer[3]) << 24)
+		    | (((Tcl_WideUInt) buffer[4]) << 32)
+		    | (((Tcl_WideUInt) buffer[5]) << 40)
+		    | (((Tcl_WideUInt) buffer[6]) << 48)
+		    | (((Tcl_WideUInt) buffer[7]) << 56);
+	    return Tcl_NewWideIntObj((Tcl_WideInt) uwvalue);
+	case 'W':
+	    uwvalue =  ((Tcl_WideUInt) buffer[7])
+		    | (((Tcl_WideUInt) buffer[6]) << 8)
+		    | (((Tcl_WideUInt) buffer[5]) << 16)
+		    | (((Tcl_WideUInt) buffer[4]) << 24)
+		    | (((Tcl_WideUInt) buffer[3]) << 32)
+		    | (((Tcl_WideUInt) buffer[2]) << 40)
+		    | (((Tcl_WideUInt) buffer[1]) << 48)
+		    | (((Tcl_WideUInt) buffer[0]) << 56);
+	    return Tcl_NewWideIntObj((Tcl_WideInt) uwvalue);
+
+	    /*
+	     * Do not cache double values; they are already too large
+	     * to use as keys and the values stored are utterly
+	     * incompatible too.
+	     */
 	case 'f': {
 	    float fvalue;
 	    memcpy((VOID *) &fvalue, (VOID *) buffer, sizeof(float));
@@ -1548,4 +1725,45 @@ ScanNumber(buffer, type)
 	}
     }
     return NULL;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DeleteScanNumberCache --
+ * 
+ *	Deletes the hash table acting as a scan number cache.
+ *
+ * Results:
+ *	None
+ *
+ * Side effects:
+ *	Decrements the reference counts of the objects in the cache.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+DeleteScanNumberCache(numberCachePtr)
+    Tcl_HashTable *numberCachePtr;	/* Pointer to the hash table, or
+					 * NULL (when the cache has already
+					 * been deleted due to overflow.) */
+{
+    Tcl_HashEntry *hEntry;
+    Tcl_HashSearch search;
+
+    if (numberCachePtr == NULL) {
+	return;
+    }
+
+    hEntry = Tcl_FirstHashEntry(numberCachePtr, &search);
+    while (hEntry != NULL) {
+	register Tcl_Obj *value = (Tcl_Obj *) Tcl_GetHashValue(hEntry);
+
+	if (value != NULL) {
+	    Tcl_DecrRefCount(value);
+	}
+	hEntry = Tcl_NextHashEntry(&search);
+    }
+    Tcl_DeleteHashTable(numberCachePtr);
 }

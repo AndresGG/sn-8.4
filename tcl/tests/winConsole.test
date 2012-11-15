@@ -8,8 +8,6 @@
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
-#
-# RCS: @(#) $Id$
 
 if {[lsearch [namespace children] ::tcltest] == -1} {
     package require tcltest
@@ -49,5 +47,4 @@ test winConsole-1.1 {Console file channel: non-blocking gets} \
 
 ::tcltest::cleanupTests
 return
-
 

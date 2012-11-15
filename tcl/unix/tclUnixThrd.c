@@ -8,16 +8,20 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * SCCS:  @(#) tclUnixThrd.c 1.18 98/02/19 14:24:12
  */
 
 #include "tclInt.h"
+#include "tclPort.h"
 
 #ifdef TCL_THREADS
 
-#include "tclPort.h"
 #include "pthread.h"
+
+typedef struct ThreadSpecificData {
+    char nabuf[16];
+} ThreadSpecificData;
+
+static Tcl_ThreadDataKey dataKey;
 
 /*
  * masterLock is used to serialize creation of mutexes, condition
@@ -53,12 +57,10 @@ static pthread_mutex_t *allocLockPtr = &allocLock;
 #endif /* TCL_THREADS */
 
 
-
-
 /*
  *----------------------------------------------------------------------
  *
- * Tcl_CreateThread --
+ * TclpThreadCreate --
  *
  *	This procedure creates a new thread.
  *
@@ -73,7 +75,7 @@ static pthread_mutex_t *allocLockPtr = &allocLock;
  */
 
 int
-Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
+TclpThreadCreate(idPtr, proc, clientData, stackSize, flags)
     Tcl_ThreadId *idPtr;		/* Return, the ID of the thread */
     Tcl_ThreadCreateProc proc;		/* Main() function of the thread */
     ClientData clientData;		/* The one argument to Main() */
@@ -83,6 +85,7 @@ Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
 {
 #ifdef TCL_THREADS
     pthread_attr_t attr;
+    pthread_t theThread;
     int result;
 
     pthread_attr_init(&attr);
@@ -118,12 +121,13 @@ Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
     }
 
 
-    if (pthread_create((pthread_t *)idPtr, &attr,
+    if (pthread_create(&theThread, &attr,
 	    (void * (*)())proc, (void *)clientData) &&
-	    pthread_create((pthread_t *)idPtr, NULL,
+	    pthread_create(&theThread, NULL,
 		    (void * (*)())proc, (void *)clientData)) {
 	result = TCL_ERROR;
     } else {
+	*idPtr = (Tcl_ThreadId)theThread;
 	result = TCL_OK;
     }
     pthread_attr_destroy(&attr);
@@ -131,6 +135,44 @@ Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
 #else
     return TCL_ERROR;
 #endif /* TCL_THREADS */
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_JoinThread --
+ *
+ *	This procedure waits upon the exit of the specified thread.
+ *
+ * Results:
+ *	TCL_OK if the wait was successful, TCL_ERROR else.
+ *
+ * Side effects:
+ *	The result area is set to the exit code of the thread we
+ *	waited upon.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Tcl_JoinThread(threadId, state)
+    Tcl_ThreadId threadId; /* Id of the thread to wait upon */
+    int*     state;	   /* Reference to the storage the result
+			    * of the thread we wait upon will be
+			    * written into. */
+{
+#ifdef TCL_THREADS
+    int result;
+    unsigned long retcode;
+
+    result = pthread_join((pthread_t) threadId, (void**) &retcode);
+    if (state) {
+	*state = (int) retcode;
+    }
+    return (result == 0) ? TCL_OK : TCL_ERROR;
+#else
+    return TCL_ERROR;
+#endif
 }
 
 #ifdef TCL_THREADS
@@ -211,7 +253,37 @@ TclpInitLock()
     pthread_mutex_lock(&initLock);
 #endif
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclpFinalizeLock
+ *
+ *	This procedure is used to destroy all private resources used in
+ *	this file.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Destroys everything private.  TclpInitLock must be held
+ *	entering this function.
+ *
+ *----------------------------------------------------------------------
+ */
 
+void
+TclFinalizeLock ()
+{
+#ifdef TCL_THREADS
+    /*
+     * You do not need to destroy mutexes that were created with the
+     * PTHREAD_MUTEX_INITIALIZER macro.  These mutexes do not need
+     * any destruction: masterLock, allocLock, and initLock.
+     */
+    pthread_mutex_unlock(&initLock);
+#endif
+}
 
 /*
  *----------------------------------------------------------------------
@@ -422,6 +494,7 @@ TclpFinalizeMutex(mutexPtr)
 {
     pthread_mutex_t *pmutexPtr = *(pthread_mutex_t **)mutexPtr;
     if (pmutexPtr != NULL) {
+        pthread_mutex_destroy(pmutexPtr);
 	ckfree((char *)pmutexPtr);
 	*mutexPtr = NULL;
     }
@@ -649,8 +722,17 @@ Tcl_ConditionWait(condPtr, mutexPtr, timePtr)
     if (timePtr == NULL) {
 	pthread_cond_wait(pcondPtr, pmutexPtr);
     } else {
-	ptime.tv_sec = timePtr->sec + TclpGetSeconds();
-	ptime.tv_nsec = 1000 * timePtr->usec;
+	Tcl_Time now;
+
+	/*
+	 * Make sure to take into account the microsecond component of the
+	 * current time, including possible overflow situations. [Bug #411603]
+	 */
+
+	Tcl_GetTime(&now);
+	ptime.tv_sec = timePtr->sec + now.sec +
+	    (timePtr->usec + now.usec) / 1000000;
+	ptime.tv_nsec = 1000 * ((timePtr->usec + now.usec) % 1000000);
 	pthread_cond_timedwait(pcondPtr, pmutexPtr, &ptime);
     }
 }
@@ -719,8 +801,122 @@ TclpFinalizeCondition(condPtr)
 	*condPtr = NULL;
     }
 }
-
-
-
 #endif /* TCL_THREADS */
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclpReaddir, TclpInetNtoa --
+ *
+ *	These procedures replace core C versions to be used in a
+ *	threaded environment.
+ *
+ * Results:
+ *	See documentation of C functions.
+ *
+ * Side effects:
+ *	See documentation of C functions.
+ *
+ * Notes:
+ * 	TclpReaddir is no longer used by the core (see 1095909),
+ * 	but it appears in the internal stubs table (see #589526).
+ *----------------------------------------------------------------------
+ */
 
+Tcl_DirEntry *
+TclpReaddir(DIR * dir)
+{
+    return TclOSreaddir(dir);
+}
+
+char *
+TclpInetNtoa(struct in_addr addr)
+{
+#ifdef TCL_THREADS
+    ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKey);
+    unsigned char *b = (unsigned char*) &addr.s_addr;
+
+    sprintf(tsdPtr->nabuf, "%u.%u.%u.%u", b[0], b[1], b[2], b[3]);
+    return tsdPtr->nabuf;
+#else
+    return inet_ntoa(addr);
+#endif
+}
+
+#if defined(TCL_THREADS) && defined(USE_THREAD_ALLOC) && !defined(TCL_MEM_DEBUG)
+/*
+ * Additions by AOL for specialized thread memory allocator.
+ */
+#ifdef USE_THREAD_ALLOC
+static volatile int initialized = 0;
+static pthread_key_t	key;
+
+typedef struct allocMutex {
+    Tcl_Mutex       tlock;
+    pthread_mutex_t plock;
+} allocMutex;
+
+Tcl_Mutex *
+TclpNewAllocMutex(void)
+{
+    struct allocMutex *lockPtr;
+
+    lockPtr = malloc(sizeof(struct allocMutex));
+    if (lockPtr == NULL) {
+	panic("could not allocate lock");
+    }
+    lockPtr->tlock = (Tcl_Mutex) &lockPtr->plock;
+    pthread_mutex_init(&lockPtr->plock, NULL);
+    return &lockPtr->tlock;
+}
+
+void
+TclpFreeAllocMutex(mutex)
+    Tcl_Mutex *mutex; /* The alloc mutex to free. */
+{
+    allocMutex* lockPtr = (allocMutex*) mutex;
+    if (!lockPtr) return;
+    pthread_mutex_destroy(&lockPtr->plock);
+    free(lockPtr);
+}
+
+void TclpFreeAllocCache(ptr)
+    void *ptr;
+{
+    if (ptr != NULL) {
+        /*
+         * Called by the pthread lib when a thread exits
+         */
+        TclFreeAllocCache(ptr);
+    } else if (initialized) {
+        /*
+         * Called by us in TclFinalizeThreadAlloc() during
+         * the library finalization initiated from Tcl_Finalize()
+         */
+        pthread_key_delete(key);
+        initialized = 0;
+    }
+}
+
+void *
+TclpGetAllocCache(void)
+{
+    if (!initialized) {
+	pthread_mutex_lock(allocLockPtr);
+	if (!initialized) {
+	    pthread_key_create(&key, TclpFreeAllocCache);
+	    initialized = 1;
+	}
+	pthread_mutex_unlock(allocLockPtr);
+    }
+    return pthread_getspecific(key);
+}
+
+void
+TclpSetAllocCache(void *arg)
+{
+    pthread_setspecific(key, arg);
+}
+
+#endif /* USE_THREAD_ALLOC */
+#endif /* TCL_THREADS */

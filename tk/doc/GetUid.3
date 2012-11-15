@@ -5,8 +5,6 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" RCS: @(#) $Id$
-'\" 
 .so man.macros
 .TH Tk_GetUid 3 "" Tk "Tk Library Procedures"
 .BS
@@ -15,8 +13,6 @@ Tk_GetUid, Tk_Uid \- convert from string to unique identifier
 .SH SYNOPSIS
 .nf
 \fB#include <tk.h>\fR
-.sp
-\fB#typedef char *Tk_Uid\fR
 .sp
 Tk_Uid
 \fBTk_GetUid\fR(\fIstring\fR)
@@ -48,4 +44,3 @@ same string value as its argument (strcmp(Tk_GetUid(a), a) == 0).
 
 .SH KEYWORDS
 atom, unique identifier
-

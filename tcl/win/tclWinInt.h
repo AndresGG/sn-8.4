@@ -7,8 +7,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #ifndef _TCLWININT
@@ -27,7 +25,7 @@
  * to help avoid overflowing the stack in the case of infinite recursion.
  */
 
-#define TCL_WIN_STACK_THRESHOLD 0x2000
+#define TCL_WIN_STACK_THRESHOLD 0x8000
 
 #ifdef BUILD_tcl
 # undef TCL_STORAGE_CLASS
@@ -37,10 +35,14 @@
 /*
  * Some versions of Borland C have a define for the OSVERSIONINFO for
  * Win32s and for NT, but not for Windows 95.
+ * Define VER_PLATFORM_WIN32_CE for those without newer headers.
  */
 
 #ifndef VER_PLATFORM_WIN32_WINDOWS
 #define VER_PLATFORM_WIN32_WINDOWS 1
+#endif
+#ifndef VER_PLATFORM_WIN32_CE
+#define VER_PLATFORM_WIN32_CE 3
 #endif
 
 /*
@@ -81,7 +83,7 @@ typedef struct TclWinProcs {
     DWORD (WINAPI *getTempPathProc)(DWORD, WCHAR *);
     BOOL (WINAPI *getVolumeInformationProc)(CONST TCHAR *, WCHAR *, DWORD, 
 	    LPDWORD, LPDWORD, LPDWORD, WCHAR *, DWORD);
-    HINSTANCE (WINAPI *loadLibraryProc)(CONST TCHAR *);
+    HINSTANCE (WINAPI *loadLibraryExProc)(const TCHAR *, HANDLE, DWORD);
     TCHAR (WINAPI *lstrcpyProc)(WCHAR *, CONST TCHAR *);
     BOOL (WINAPI *moveFileProc)(CONST TCHAR *, CONST TCHAR *);
     BOOL (WINAPI *removeDirectoryProc)(CONST TCHAR *);
@@ -89,23 +91,97 @@ typedef struct TclWinProcs {
 	    CONST TCHAR *, DWORD, WCHAR *, TCHAR **);
     BOOL (WINAPI *setCurrentDirectoryProc)(CONST TCHAR *);
     BOOL (WINAPI *setFileAttributesProc)(CONST TCHAR *, DWORD);
+    /* 
+     * These two function pointers will only be set when
+     * Tcl_FindExecutable is called.  If you don't ever call that
+     * function, the application will crash whenever WinTcl tries to call
+     * functions through these null pointers.  That is not a bug in Tcl
+     * -- Tcl_FindExecutable is obligatory in recent Tcl releases.
+     */
+    BOOL (WINAPI *getFileAttributesExProc)(CONST TCHAR *, 
+	    GET_FILEEX_INFO_LEVELS, LPVOID);
+    BOOL (WINAPI *createHardLinkProc)(CONST TCHAR*, CONST TCHAR*, 
+				      LPSECURITY_ATTRIBUTES);
+    
+    INT (__cdecl *utimeProc)(CONST TCHAR*, struct _utimbuf *);
+    /* These two are also NULL at start; see comment above */
+    HANDLE (WINAPI *findFirstFileExProc)(CONST TCHAR*, UINT,
+					 LPVOID, UINT,
+					 LPVOID, DWORD);
+    BOOL (WINAPI *getVolumeNameForVMPProc)(CONST TCHAR*, TCHAR*, DWORD);
+
+    DWORD (WINAPI *getLongPathNameProc)(CONST TCHAR*, TCHAR*, DWORD);
+    /* 
+     * These six are for the security sdk to get correct file
+     * permissions on NT, 2000, XP, etc.  On 95,98,ME they are
+     * always null.
+     */
+    BOOL (WINAPI *getFileSecurityProc)(LPCTSTR lpFileName,
+		     SECURITY_INFORMATION RequestedInformation,
+		     PSECURITY_DESCRIPTOR pSecurityDescriptor,
+		     DWORD nLength, 
+		     LPDWORD lpnLengthNeeded);
+    BOOL (WINAPI *impersonateSelfProc) (SECURITY_IMPERSONATION_LEVEL 
+		      ImpersonationLevel);
+    BOOL (WINAPI *openThreadTokenProc) (HANDLE ThreadHandle,
+		      DWORD DesiredAccess, BOOL OpenAsSelf,
+		      PHANDLE TokenHandle);
+    BOOL (WINAPI *revertToSelfProc) (void);
+    VOID (WINAPI *mapGenericMaskProc) (PDWORD AccessMask,
+		      PGENERIC_MAPPING GenericMapping);
+    BOOL (WINAPI *accessCheckProc)(PSECURITY_DESCRIPTOR pSecurityDescriptor,
+		    HANDLE ClientToken, DWORD DesiredAccess,
+		    PGENERIC_MAPPING GenericMapping,
+		    PPRIVILEGE_SET PrivilegeSet,
+		    LPDWORD PrivilegeSetLength,
+		    LPDWORD GrantedAccess,
+		    LPBOOL AccessStatus);
+   /*
+    * Unicode console support. WriteConsole and ReadConsole
+    */
+    BOOL (WINAPI *readConsoleProc)(HANDLE hConsoleInput,
+	                           LPVOID lpBuffer,
+	                           DWORD nNumberOfCharsToRead,
+	                           LPDWORD lpNumberOfCharsRead,
+	                           LPVOID lpReserved);
+    BOOL (WINAPI *writeConsoleProc)(HANDLE hConsoleOutput,
+				    const VOID* lpBuffer,
+				    DWORD nNumberOfCharsToWrite,
+				    LPDWORD lpNumberOfCharsWritten,
+				    LPVOID lpReserved);
 } TclWinProcs;
 
 EXTERN TclWinProcs *tclWinProcs;
-EXTERN Tcl_Encoding tclWinTCharEncoding;
 
 /*
  * Declarations of functions that are not accessible by way of the
  * stubs table.
  */
 
+EXTERN void		TclWinEncodingsCleanup();
+EXTERN void		TclWinResetInterfaceEncodings();
 EXTERN void		TclWinInit(HINSTANCE hInst);
+EXTERN int              TclWinSymLinkCopyDirectory(CONST TCHAR* LinkOriginal,
+						   CONST TCHAR* LinkCopy);
+EXTERN int              TclWinSymLinkDelete(CONST TCHAR* LinkOriginal, 
+					    int linkOnly);
+EXTERN char TclWinDriveLetterForVolMountPoint(CONST WCHAR *mountPoint);
+#if defined(TCL_THREADS) && defined(USE_THREAD_ALLOC)
+EXTERN void		TclWinFreeAllocCache(void);
+EXTERN void		TclFreeAllocCache(void *);
+EXTERN Tcl_Mutex	*TclpNewAllocMutex(void);
+EXTERN void		*TclpGetAllocCache(void);
+EXTERN void		TclpSetAllocCache(void *);
+#endif /* TCL_THREADS */
+
+/* Needed by tclWinFile.c and tclWinFCmd.c */
+#ifndef FILE_ATTRIBUTE_REPARSE_POINT
+#define FILE_ATTRIBUTE_REPARSE_POINT 0x00000400
+#endif
+
+#include "tclIntPlatDecls.h"
 
 # undef TCL_STORAGE_CLASS
 # define TCL_STORAGE_CLASS DLLIMPORT
 
-#include "tclIntPlatDecls.h"
-
 #endif	/* _TCLWININT */
-
-

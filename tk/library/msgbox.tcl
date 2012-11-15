@@ -3,8 +3,6 @@
 #	Implements messageboxes for platforms that do not have native
 #	messagebox support.
 #
-# RCS: @(#) $Id$
-#
 # Copyright (c) 1994-1997 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
@@ -114,7 +112,7 @@ static unsigned char w3_bits[] = {
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};"
 
-# tkMessageBox --
+# ::tk::MessageBox --
 #
 #	Pops up a messagebox with an application-supplied message with
 #	an icon and a list of buttons. This procedure will be called
@@ -130,11 +128,12 @@ static unsigned char w3_bits[] = {
 #
 #	See the user documentation for details on what tk_messageBox does.
 #
-proc tkMessageBox {args} {
-    global tkPriv tcl_platform tk_strictMotif
+proc ::tk::MessageBox {args} {
+    global tcl_platform tk_strictMotif
+    variable ::tk::Priv
 
-    set w tkPrivMsgBox
-    upvar #0 $w data
+    set w ::tk::PrivMsgBox
+    upvar $w data
 
     #
     # The default value of the title is space (" ") not the empty string
@@ -156,12 +155,16 @@ proc tkMessageBox {args} {
     if {[lsearch -exact {info warning error question} $data(-icon)] == -1} {
 	error "bad -icon value \"$data(-icon)\": must be error, info, question, or warning"
     }
-    if {[string equal $tcl_platform(platform) "macintosh"]} {
+    set windowingsystem [tk windowingsystem]
+    if {$windowingsystem eq "classic" || $windowingsystem eq "aqua"} {
 	switch -- $data(-icon) {
 	    "error"     {set data(-icon) "stop"}
 	    "warning"   {set data(-icon) "caution"}
 	    "info"      {set data(-icon) "note"}
 	}
+	option add *Dialog*background systemDialogBackgroundActive widgetDefault
+	option add *Dialog*Button.highlightBackground \
+		systemDialogBackgroundActive widgetDefault
     }
 
     if {![winfo exists $data(-parent)]} {
@@ -169,68 +172,70 @@ proc tkMessageBox {args} {
     }
 
     switch -- $data(-type) {
-	abortretryignore {
-	    set buttons {
-		{abort  -width 6 -text Abort -under 0}
-		{retry  -width 6 -text Retry -under 0}
-		{ignore -width 6 -text Ignore -under 0}
-	    }
+	abortretryignore { 
+	    set names [list abort retry ignore]
+	    set labels [list &Abort &Retry &Ignore]
+	    set cancel abort
 	}
 	ok {
-	    set buttons {
-		{ok -width 6 -text OK -under 0}
-	    }
-	    if {[string equal $data(-default) ""]} {
-		set data(-default) "ok"
-	    }
+	    set names [list ok]
+	    set labels {&OK}
+	    set cancel ok
 	}
 	okcancel {
-	    set buttons {
-		{ok     -width 6 -text OK     -under 0}
-		{cancel -width 6 -text Cancel -under 0}
-	    }
+	    set names [list ok cancel]
+	    set labels [list &OK &Cancel]
+	    set cancel cancel
 	}
 	retrycancel {
-	    set buttons {
-		{retry  -width 6 -text Retry  -under 0}
-		{cancel -width 6 -text Cancel -under 0}
-	    }
+	    set names [list retry cancel]
+	    set labels [list &Retry &Cancel]
+	    set cancel cancel
 	}
 	yesno {
-	    set buttons {
-		{yes    -width 6 -text Yes -under 0}
-		{no     -width 6 -text No  -under 0}
-	    }
+	    set names [list yes no]
+	    set labels [list &Yes &No]
+	    set cancel no
 	}
 	yesnocancel {
-	    set buttons {
-		{yes    -width 6 -text Yes -under 0}
-		{no     -width 6 -text No  -under 0}
-		{cancel -width 6 -text Cancel -under 0}
-	    }
+	    set names [list yes no cancel]
+	    set labels [list &Yes &No &Cancel]
+	    set cancel cancel
 	}
 	default {
-	    error "bad -type value \"$data(-type)\": must be abortretryignore, ok, okcancel, retrycancel, yesno, or yesnocancel"
+	    error "bad -type value \"$data(-type)\": must be\
+		    abortretryignore, ok, okcancel, retrycancel,\
+		    yesno, or yesnocancel"
 	}
     }
 
-    if {[string compare $data(-default) ""]} {
-	set valid 0
-	foreach btn $buttons {
-	    if {[string equal [lindex $btn 0] $data(-default)]} {
-		set valid 1
-		break
-	    }
+    set buttons {}
+    foreach name $names lab $labels {
+	lappend buttons [list $name -text [mc $lab]]
+    }
+
+    # If no default button was specified, the default default is the 
+    # first button (Bug: 2218).
+
+    if {$data(-default) eq ""} {
+	set data(-default) [lindex [lindex $buttons 0] 0]
+    }
+
+    set valid 0
+    foreach btn $buttons {
+	if {[lindex $btn 0] eq $data(-default)} {
+	    set valid 1
+	    break
 	}
-	if {!$valid} {
-	    error "invalid default button \"$data(-default)\""
-	}
+    }
+    if {!$valid} {
+	error "invalid default button \"$data(-default)\""
     }
 
     # 2. Set the dialog to be a child window of $parent
     #
     #
-    if {[string compare $data(-parent) .]} {
+    if {$data(-parent) ne "."} {
 	set w $data(-parent).__tk__messagebox
     } else {
 	set w .__tk__messagebox
@@ -243,7 +248,9 @@ proc tkMessageBox {args} {
     toplevel $w -class Dialog
     wm title $w $data(-title)
     wm iconname $w Dialog
-    wm protocol $w WM_DELETE_WINDOW { }
+    wm protocol $w WM_DELETE_WINDOW [list $w.$cancel invoke]
+    # There is only one background colour for the whole dialog
+    set bg [$w cget -background]
 
     # Message boxes should be transient with respect to their parent so that
     # they always stay on top of the parent window.  But some window managers
@@ -252,19 +259,21 @@ proc tkMessageBox {args} {
     # "grab"bed windows.  So only make the message box transient if the parent
     # is viewable.
     #
-    if { [winfo viewable [winfo toplevel $data(-parent)]] } {
+    if {[winfo viewable [winfo toplevel $data(-parent)]] } {
 	wm transient $w $data(-parent)
-    }    
-
-    if {[string equal $tcl_platform(platform) "macintosh"]} {
-	unsupported1 style $w dBoxProc
     }
 
-    frame $w.bot
+    if {$windowingsystem eq "classic" || $windowingsystem eq "aqua"} {
+	::tk::unsupported::MacWindowStyle style $w moveableModal {}
+    } elseif {$windowingsystem eq "x11"} {
+        wm attributes $w -type dialog
+    }
+
+    frame $w.bot -background $bg
     pack $w.bot -side bottom -fill both
-    frame $w.top
+    frame $w.top -background $bg
     pack $w.top -side top -fill both -expand 1
-    if {[string compare $tcl_platform(platform) "macintosh"]} {
+    if {$windowingsystem ne "classic" && $windowingsystem ne "aqua"} {
 	$w.bot configure -relief raised -bd 1
 	$w.top configure -relief raised -bd 1
     }
@@ -274,19 +283,21 @@ proc tkMessageBox {args} {
     # overridden by the caller).
 
     option add *Dialog.msg.wrapLength 3i widgetDefault
-    if {[string equal $tcl_platform(platform) "macintosh"]} {
+    if {$windowingsystem eq "classic" || $windowingsystem eq "aqua"} {
 	option add *Dialog.msg.font system widgetDefault
     } else {
-	option add *Dialog.msg.font {Times 18} widgetDefault
+	option add *Dialog.msg.font {Times 14} widgetDefault
     }
 
-    label $w.msg -anchor nw -justify left -text $data(-message)
-    if {[string compare $data(-icon) ""]} {
-	if {[string equal $tcl_platform(platform) "macintosh"] \
+    label $w.msg -anchor nw -justify left -text $data(-message) \
+	    -background $bg
+    if {$data(-icon) ne ""} {
+	if {($windowingsystem eq "classic" || $windowingsystem eq "aqua")
 		|| ([winfo depth $w] < 4) || $tk_strictMotif} {
-	    label $w.bitmap -bitmap $data(-icon)
+	    label $w.bitmap -bitmap $data(-icon) -background $bg
 	} else {
-	    canvas $w.bitmap -width 32 -height 32 -highlightthickness 0
+	    canvas $w.bitmap -width 32 -height 32 -highlightthickness 0 \
+		    -background $bg
 	    switch $data(-icon) {
 		error {
 		    $w.bitmap create oval 0 0 31 31 -fill red -outline black
@@ -336,49 +347,66 @@ proc tkMessageBox {args} {
 	    set opts [list -text $capName]
 	}
 
-	eval button [list $w.$name] $opts [list -command [list set tkPriv(button) $name]]
+	eval [list tk::AmpWidget button $w.$name -padx 3m] $opts \
+		[list -command [list set tk::Priv(button) $name]]
 
-	if {[string equal $name $data(-default)]} {
+	if {$name eq $data(-default)} {
 	    $w.$name configure -default active
+	} else {
+	    $w.$name configure -default normal
 	}
-	pack $w.$name -in $w.bot -side left -expand 1 -padx 3m -pady 2m
+	grid $w.$name -in $w.bot -row 0 -column $i -padx 3m -pady 2m -sticky ew
+	grid columnconfigure $w.bot $i -uniform buttons
+	# We boost the size of some Mac buttons for l&f
+	if {$windowingsystem eq "classic" || $windowingsystem eq "aqua"} {
+	    set tmp [string tolower $name]
+	    if {$tmp eq "ok" || $tmp eq "cancel" || $tmp eq "yes" ||
+		    $tmp eq "no" || $tmp eq "abort" || $tmp eq "retry" ||
+		    $tmp eq "ignore"} {
+		grid columnconfigure $w.bot $i -minsize 90
+	    }
+	    grid configure $w.$name -pady 7
+	}
+        incr i
 
 	# create the binding for the key accelerator, based on the underline
 	#
-	set underIdx [$w.$name cget -under]
-	if {$underIdx >= 0} {
-	    set key [string index [$w.$name cget -text] $underIdx]
-	    bind $w <Alt-[string tolower $key]>  [list $w.$name invoke]
-	    bind $w <Alt-[string toupper $key]>  [list $w.$name invoke]
-	}
+        # set underIdx [$w.$name cget -under]
+        # if {$underIdx >= 0} {
+        #     set key [string index [$w.$name cget -text] $underIdx]
+        #     bind $w <Alt-[string tolower $key]>  [list $w.$name invoke]
+        #     bind $w <Alt-[string toupper $key]>  [list $w.$name invoke]
+        # }
 
         # CYGNUS LOCAL - bind all buttons so that <Return>
         # activates them
         bind $w.$name <Return> "$w.$name invoke"
-
-	incr i
     }
+    bind $w <Alt-Key> [list ::tk::AltKeyInDialog $w %A]
 
-    if {[string compare {} $data(-default)]} {
+    if {$data(-default) ne ""} {
 	bind $w <FocusIn> {
-	    if {[string equal Button [winfo class %W]]} {
+	    if {"Button" eq [winfo class %W]} {
 		%W configure -default active
 	    }
 	}
 	bind $w <FocusOut> {
-	    if {[string equal Button [winfo class %W]]} {
+	    if {"Button" eq [winfo class %W]} {
 		%W configure -default normal
 	    }
 	}
     }
 
-    # 6. Create a binding for <Return> on the dialog
+    # 6. Create bindings for <Return> and <Escape> on the dialog
 
     bind $w <Return> {
-	if {[string equal Button [winfo class %W]]} {
-	    tkButtonInvoke %W
+	if {"Button" eq [winfo class %W]} {
+	    tk::ButtonInvoke %W
 	}
     }
+
+    # Invoke the designated cancelling operation
+    bind $w <Escape> [list $w.$cancel invoke]
 
     # 7. Withdraw the window, then update all the geometry information
     # so we know how big it wants to be, then center the window in the
@@ -388,7 +416,7 @@ proc tkMessageBox {args} {
 
     # 8. Set a grab and claim the focus too.
 
-    if {[string compare $data(-default) ""]} {
+    if {$data(-default) ne ""} {
 	set focus $w.$data(-default)
     } else {
 	set focus $w
@@ -401,11 +429,9 @@ proc tkMessageBox {args} {
     # may take the focus away so we can't redirect it.  Finally,
     # restore any grab that was in effect.
 
-    tkwait variable tkPriv(button)
+    vwait ::tk::Priv(button)
 
     ::tk::RestoreFocusGrab $w $focus
 
-    return $tkPriv(button)
+    return $Priv(button)
 }
-
-

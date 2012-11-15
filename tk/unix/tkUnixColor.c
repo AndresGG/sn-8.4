@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include <tkColor.h>
@@ -130,6 +128,20 @@ TkpGetColor(tkwin, name)
     Colormap colormap = Tk_Colormap(tkwin);
     XColor color;
     TkColor *tkColPtr;
+    char buf[100];
+    unsigned len = strlen(name);
+
+    /*
+     * Make sure that we never exceed a reasonable length of color name. A
+     * good maximum length is 99, arbitrary, but larger than any known color
+     * name. [Bug 2809525]
+     */
+
+    if (len > 99) {
+	len = 99;
+    }
+    memcpy(buf, name, len);
+    buf[len] = '\0';
 
     /*
      * Map from the name to a pixel value.  Call XAllocNamedColor rather than
@@ -140,8 +152,7 @@ TkpGetColor(tkwin, name)
     if (*name != '#') {
 	XColor screen;
 
-	if (XAllocNamedColor(display, colormap, name, &screen,
-		&color) != 0) {
+	if (XAllocNamedColor(display, colormap, buf, &screen, &color) != 0) {
 	    DeleteStressedCmap(display, colormap);
 	} else {
 	    /*
@@ -151,14 +162,13 @@ TkpGetColor(tkwin, name)
 	     * pick an approximation to the desired color.
 	     */
 
-	    if (XLookupColor(display, colormap, name, &color,
-		    &screen) == 0) {
+	    if (XLookupColor(display, colormap, buf, &color, &screen) == 0) {
 		return (TkColor *) NULL;
 	    }
 	    FindClosestColor(tkwin, &screen, &color);
 	}
     } else {
-	if (XParseColor(display, colormap, name, &color) == 0) {
+	if (XParseColor(display, colormap, buf, &color) == 0) {
 	    return (TkColor *) NULL;
 	}
 	if (XAllocColor(display, colormap, &color) != 0) {
@@ -422,4 +432,3 @@ TkpCmapStressed(tkwin, colormap)
     }
     return 0;
 }
-

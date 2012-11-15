@@ -2,8 +2,6 @@
 #
 # This demonstration script creates a listbox widget that displays
 # the names of the 50 states in the United States of America.
-#
-# RCS: @(#) $Id$
 
 if {![info exists widgetDemo]} {
     error "This script should be run from the \"widget\" demo."
@@ -43,4 +41,3 @@ $w.frame.list insert 0 Alabama Alaska Arizona Arkansas California \
     "South Carolina" "South Dakota" \
     Tennessee Texas Utah Vermont Virginia Washington \
     "West Virginia" Wisconsin Wyoming
-

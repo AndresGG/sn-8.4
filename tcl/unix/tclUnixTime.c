@@ -1,29 +1,58 @@
-/* 
+/*
  * tclUnixTime.c --
  *
- *	Contains Unix specific versions of Tcl functions that
- *	obtain time values from the operating system.
+ *	Contains Unix specific versions of Tcl functions that obtain time
+ *	values from the operating system.
  *
  * Copyright (c) 1995 Sun Microsystems, Inc.
  *
- * See the file "license.terms" for information on usage and redistribution
- * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
+ * See the file "license.terms" for information on usage and redistribution of
+ * this file, and for a DISCLAIMER OF ALL WARRANTIES.
  */
 
 #include "tclInt.h"
 #include "tclPort.h"
+#include <locale.h>
 #define TM_YEAR_BASE 1900
-#define IsLeapYear(x)   ((x % 4 == 0) && (x % 100 != 0 || x % 400 == 0))
+#define IsLeapYear(x)	(((x)%4 == 0) && ((x)%100 != 0 || (x)%400 == 0))
+
+/*
+ * TclpGetDate is coded to return a pointer to a 'struct tm'. For thread
+ * safety, this structure must be in thread-specific data. The 'tmKey'
+ * variable is the key to this buffer.
+ */
+
+static Tcl_ThreadDataKey tmKey;
+typedef struct ThreadSpecificData {
+    struct tm gmtime_buf;
+    struct tm localtime_buf;
+} ThreadSpecificData;
+
+/*
+ * If we fall back on the thread-unsafe versions of gmtime and localtime, use
+ * this mutex to try to protect them.
+ */
+
+TCL_DECLARE_MUTEX(tmMutex)
+
+static char *lastTZ = NULL;	/* Holds the last setting of the TZ
+				 * environment variable, or an empty string if
+				 * the variable was not set. */
+
+/*
+ * Static functions declared in this file.
+ */
+
+static void SetTZIfNecessary _ANSI_ARGS_((void));
+static void CleanupMemory _ANSI_ARGS_((ClientData));
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------
  *
  * TclpGetSeconds --
  *
- *	This procedure returns the number of seconds from the epoch.  On
- *	most Unix systems the epoch is Midnight Jan 1, 1970 GMT.
+ *	This procedure returns the number of seconds from the epoch. On most
+ *	Unix systems the epoch is Midnight Jan 1, 1970 GMT.
  *
  * Results:
  *	Number of seconds from the epoch.
@@ -31,7 +60,7 @@
  * Side effects:
  *	None.
  *
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------
  */
 
 unsigned long
@@ -41,13 +70,13 @@ TclpGetSeconds()
 }
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------
  *
  * TclpGetClicks --
  *
  *	This procedure returns a value that represents the highest resolution
- *	clock available on the system.  There are no garantees on what the
- *	resolution will be.  In Tcl we will call this value a "click".  The
+ *	clock available on the system. There are no garantees on what the
+ *	resolution will be. In Tcl we will call this value a "click". The
  *	start time is also system dependant.
  *
  * Results:
@@ -56,24 +85,24 @@ TclpGetSeconds()
  * Side effects:
  *	None.
  *
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------
  */
 
 unsigned long
 TclpGetClicks()
 {
     unsigned long now;
+
 #ifdef NO_GETTOD
     struct tms dummy;
 #else
     struct timeval date;
-    struct timezone tz;
 #endif
 
 #ifdef NO_GETTOD
     now = (unsigned long) times(&dummy);
 #else
-    gettimeofday(&date, &tz);
+    gettimeofday(&date, NULL);
     now = date.tv_sec*1000000 + date.tv_usec;
 #endif
 
@@ -85,13 +114,12 @@ TclpGetClicks()
  *
  * TclpGetTimeZone --
  *
- *	Determines the current timezone.  The method varies wildly
- *	between different platform implementations, so its hidden in
- *	this function.
+ *	Determines the current timezone. The method varies wildly between
+ *	different platform implementations, so its hidden in this function.
  *
  * Results:
- *	The return value is the local time zone, measured in
- *	minutes away from GMT (-ve for east, +ve for west).
+ *	The return value is the local time zone, measured in minutes away from
+ *	GMT (-ve for east, +ve for west).
  *
  * Side effects:
  *	None.
@@ -100,126 +128,110 @@ TclpGetClicks()
  */
 
 int
-TclpGetTimeZone (currentTime)
-    unsigned long  currentTime;
+TclpGetTimeZone(currentTime)
+    Tcl_WideInt currentTime;
 {
-    /*
-     * Determine how a timezone is obtained from "struct tm".  If there is no
-     * time zone in this struct (very lame) then use the timezone variable.
-     * This is done in a way to make the timezone variable the method of last
-     * resort, as some systems have it in addition to a field in "struct tm".
-     * The gettimeofday system call can also be used to determine the time
-     * zone.
-     */
-    
-#if defined(HAVE_TM_TZADJ)
-#   define TCL_GOT_TIMEZONE
-    time_t      curTime = (time_t) currentTime;
-    struct tm  *timeDataPtr = localtime(&curTime);
-    int         timeZone;
+    int timeZone;
 
-    timeZone = timeDataPtr->tm_tzadj  / 60;
+    /*
+     * We prefer first to use the time zone in "struct tm" if the structure
+     * contains such a member. Following that, we try to locate the external
+     * 'timezone' variable and use its value. If both of those methods fail,
+     * we attempt to convert a known time to local time and use the difference
+     * from UTC as the local time zone. In all cases, we need to undo any
+     * Daylight Saving Time adjustment.
+     */
+
+#if defined(HAVE_TM_TZADJ)
+#define TCL_GOT_TIMEZONE
+    /*
+     * Struct tm contains tm_tzadj - that value may be used.
+     */
+
+    time_t curTime = (time_t) currentTime;
+    struct tm *timeDataPtr = TclpLocaltime((TclpTime_t) &curTime);
+
+    timeZone = timeDataPtr->tm_tzadj / 60;
     if (timeDataPtr->tm_isdst) {
-        timeZone += 60;
+	timeZone += 60;
     }
-    
-    return timeZone;
 #endif
 
 #if defined(HAVE_TM_GMTOFF) && !defined (TCL_GOT_TIMEZONE)
-#   define TCL_GOT_TIMEZONE
-    time_t     curTime = (time_t) currentTime;
-    struct tm *timeDataPtr = localtime(&curTime);
-    int        timeZone;
+#define TCL_GOT_TIMEZONE
+    /*
+     * Struct tm contains tm_gmtoff - that value may be used.
+     */
+
+    time_t curTime = (time_t) currentTime;
+    struct tm *timeDataPtr = TclpLocaltime((TclpTime_t) &curTime);
 
     timeZone = -(timeDataPtr->tm_gmtoff / 60);
     if (timeDataPtr->tm_isdst) {
-        timeZone += 60;
+	timeZone += 60;
     }
-    
-    return timeZone;
 #endif
 
-#if defined(USE_DELTA_FOR_TZ)
-#define TCL_GOT_TIMEZONE 1
+#if defined(HAVE_TIMEZONE_VAR) && !defined(TCL_GOT_TIMEZONE) && !defined(USE_DELTA_FOR_TZ)
+#define TCL_GOT_TIMEZONE
     /*
-     * This hack replaces using global var timezone or gettimeofday
-     * in situations where they are buggy such as on AIX when libbsd.a
-     * is linked in.
+     * The 'timezone' external var is present and may be used.
      */
 
-    int timeZone;
-    time_t tt;
-    struct tm *stm;
-    tt = 849268800L;      /*    1996-11-29 12:00:00  GMT */
-    stm = localtime(&tt); /* eg 1996-11-29  6:00:00  CST6CDT */
-    /* The calculation below assumes a max of +12 or -12 hours from GMT */
-    timeZone = (12 - stm->tm_hour)*60 + (0 - stm->tm_min);
-    return timeZone;  /* eg +360 for CST6CDT */
-#endif
+    SetTZIfNecessary();
 
     /*
-     * Must prefer timezone variable over gettimeofday, as gettimeofday does
-     * not return timezone information on many systems that have moved this
-     * information outside of the kernel.
-     */
-    
-#if defined(HAVE_TIMEZONE_VAR) && !defined (TCL_GOT_TIMEZONE)
-#   define TCL_GOT_TIMEZONE
-    static int setTZ = 0;
-#ifdef TCL_THREADS
-    static Tcl_Mutex tzMutex;
-#endif
-    int        timeZone;
-
-    Tcl_MutexLock(&tzMutex);
-    if (!setTZ) {
-        tzset();
-        setTZ = 1;
-    }
-    Tcl_MutexUnlock(&tzMutex);
-
-    /*
-     * Note: this is not a typo in "timezone" below!  See tzset
-     * documentation for details.
+     * Note: this is not a typo in "timezone" below! See tzset documentation
+     * for details.
      */
 
     timeZone = timezone / 60;
-
-    return timeZone;
 #endif
 
-#if !defined(NO_GETTOD) && !defined (TCL_GOT_TIMEZONE)
-#   define TCL_GOT_TIMEZONE
-    struct timeval  tv;
-    struct timezone tz;
-    int timeZone;
+#if !defined(TCL_GOT_TIMEZONE)
+#define TCL_GOT_TIMEZONE
+    /*
+     * Fallback - determine time zone with a known reference time.
+     */
 
-    gettimeofday(&tv, &tz);
-    timeZone = tz.tz_minuteswest;
-    if (tz.tz_dsttime) {
-        timeZone += 60;
+    time_t tt;
+    struct tm *stm;
+
+    tt = 849268800L;		/* 1996-11-29 12:00:00  GMT */
+    stm = TclpLocaltime((TclpTime_t) &tt);	/* eg 1996-11-29  6:00:00  CST6CDT */
+
+    /*
+     * The calculation below assumes a max of +12 or -12 hours from GMT.
+     */
+
+    timeZone = (12 - stm->tm_hour)*60 + (0 - stm->tm_min);
+    if (stm->tm_isdst) {
+	timeZone += 60;
     }
-    
-    return timeZone;
+
+    /*
+     * Now have offset for our known reference time, eg +360 for CST6CDT.
+     */
 #endif
 
 #ifndef TCL_GOT_TIMEZONE
     /*
-     * Cause compile error, we don't know how to get timezone.
+     * Cause fatal compile error, we don't know how to get timezone.
      */
-    error: autoconf did not figure out how to determine the timezone. 
+
+#error autoconf did not figure out how to determine the timezone.
 #endif
 
+    return timeZone;
 }
 
 /*
  *----------------------------------------------------------------------
  *
- * TclpGetTime --
+ * Tcl_GetTime --
  *
- *	Gets the current system time in seconds and microseconds
- *	since the beginning of the epoch: 00:00 UCT, January 1, 1970.
+ *	Gets the current system time in seconds and microseconds since the
+ *	beginning of the epoch: 00:00 UCT, January 1, 1970.
  *
  * Results:
  *	Returns the current time in timePtr.
@@ -231,13 +243,12 @@ TclpGetTimeZone (currentTime)
  */
 
 void
-TclpGetTime(timePtr)
+Tcl_GetTime(timePtr)
     Tcl_Time *timePtr;		/* Location to store time information. */
 {
     struct timeval tv;
-    struct timezone tz;
     
-    (void) gettimeofday(&tv, &tz);
+    (void) gettimeofday(&tv, NULL);
     timePtr->sec = tv.tv_sec;
     timePtr->usec = tv.tv_usec;
 }
@@ -247,9 +258,9 @@ TclpGetTime(timePtr)
  *
  * TclpGetDate --
  *
- *	This function converts between seconds and struct tm.  If
- *	useGMT is true, then the returned date will be in Greenwich
- *	Mean Time (GMT).  Otherwise, it will be in the local time zone.
+ *	This function converts between seconds and struct tm. If useGMT is
+ *	true, then the returned date will be in Greenwich Mean Time (GMT).
+ *	Otherwise, it will be in the local time zone.
  *
  * Results:
  *	Returns a static tm structure.
@@ -265,12 +276,10 @@ TclpGetDate(time, useGMT)
     TclpTime_t time;
     int useGMT;
 {
-    CONST time_t *tp = (CONST time_t *)time;
-
     if (useGMT) {
-	return gmtime(tp);
+	return TclpGmtime(time);
     } else {
-	return localtime(tp);
+	return TclpLocaltime(time);
     }
 }
 
@@ -279,7 +288,8 @@ TclpGetDate(time, useGMT)
  *
  * TclpStrftime --
  *
- *	On Unix, we can safely call the native strftime implementation.
+ *	On Unix, we can safely call the native strftime implementation,
+ *	and also ignore the useGMT parameter.
  *
  * Results:
  *	The normal strftime result.
@@ -291,11 +301,12 @@ TclpGetDate(time, useGMT)
  */
 
 size_t
-TclpStrftime(s, maxsize, format, t)
+TclpStrftime(s, maxsize, format, t, useGMT)
     char *s;
     size_t maxsize;
     CONST char *format;
     CONST struct tm *t;
+    int useGMT;
 {
     if (format[0] == '%' && format[1] == 'Q') {
 	/* Format as a stardate */
@@ -306,5 +317,163 @@ TclpStrftime(s, maxsize, format, t)
 		(((t->tm_hour * 60) + t->tm_min)/144));
 	return(strlen(s));
     }
+    setlocale(LC_TIME, "");
     return strftime(s, maxsize, format, t);
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclpGmtime --
+ *
+ *	Wrapper around the 'gmtime' library function to make it thread
+ *	safe.
+ *
+ * Results:
+ *	Returns a pointer to a 'struct tm' in thread-specific data.
+ *
+ * Side effects:
+ *	Invokes gmtime or gmtime_r as appropriate.
+ *
+ *----------------------------------------------------------------------
+ */
+
+struct tm *
+TclpGmtime(tt)
+    TclpTime_t_CONST tt;
+{
+    CONST time_t *timePtr = (CONST time_t *) tt;
+				/* Pointer to the number of seconds
+				 * since the local system's epoch */
+
+    /*
+     * Get a thread-local buffer to hold the returned time.
+     */
+
+    ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&tmKey);
+#ifdef HAVE_GMTIME_R
+    gmtime_r(timePtr, &(tsdPtr->gmtime_buf));
+#else
+    Tcl_MutexLock(&tmMutex);
+    memcpy((VOID *) &(tsdPtr->gmtime_buf),
+	    (VOID *) gmtime(timePtr),
+	    sizeof(struct tm));
+    Tcl_MutexUnlock(&tmMutex);
+#endif
+    return &(tsdPtr->gmtime_buf);
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclpLocaltime --
+ *
+ *	Wrapper around the 'localtime' library function to make it thread
+ *	safe.
+ *
+ * Results:
+ *	Returns a pointer to a 'struct tm' in thread-specific data.
+ *
+ * Side effects:
+ *	Invokes localtime or localtime_r as appropriate.
+ *
+ *----------------------------------------------------------------------
+ */
+
+struct tm *
+TclpLocaltime(tt)
+    TclpTime_t_CONST tt;
+{
+    CONST time_t *timePtr = (CONST time_t *) tt;
+				/* Pointer to the number of seconds
+				 * since the local system's epoch */
+    /*
+     * Get a thread-local buffer to hold the returned time.
+     */
+
+    ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&tmKey);
+    SetTZIfNecessary();
+#ifdef HAVE_LOCALTIME_R
+    localtime_r(timePtr, &(tsdPtr->localtime_buf));
+#else
+    Tcl_MutexLock(&tmMutex);
+    memcpy((VOID *) &(tsdPtr -> localtime_buf),
+	    (VOID *) localtime(timePtr),
+	    sizeof(struct tm));
+    Tcl_MutexUnlock(&tmMutex);
+#endif
+    return &(tsdPtr->localtime_buf);
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SetTZIfNecessary --
+ *
+ *	Determines whether a call to 'tzset' is needed prior to the next call
+ *	to 'localtime' or examination of the 'timezone' variable.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	If 'tzset' has never been called in the current process, or if the
+ *	value of the environment variable TZ has changed since the last call
+ *	to 'tzset', then 'tzset' is called again.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+SetTZIfNecessary()
+{
+    CONST char *newTZ = getenv("TZ");
+
+    Tcl_MutexLock(&tmMutex);
+    if (newTZ == NULL) {
+	newTZ = "";
+    }
+    if (lastTZ == NULL || strcmp(lastTZ, newTZ)) {
+	tzset();
+	if (lastTZ == NULL) {
+	    Tcl_CreateExitHandler(CleanupMemory, (ClientData) NULL);
+	} else {
+	    Tcl_Free(lastTZ);
+	}
+	lastTZ = ckalloc(strlen(newTZ) + 1);
+	strcpy(lastTZ, newTZ);
+    }
+    Tcl_MutexUnlock(&tmMutex);
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CleanupMemory --
+ *
+ *	Releases the private copy of the TZ environment variable upon exit
+ *	from Tcl.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Frees allocated memory.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+CleanupMemory(ignored)
+    ClientData ignored;
+{
+    ckfree(lastTZ);
+}
+
+/*
+ * Local Variables:
+ * mode: c
+ * c-basic-offset: 4
+ * fill-column: 78
+ * End:
+ */

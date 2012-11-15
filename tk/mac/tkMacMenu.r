@@ -10,8 +10,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include <Types.r>
@@ -45,4 +43,3 @@ resource 'SICN' (128, preload, locked) {
 		$"0FE0 1FF0 3FF8"
 	}
 };
-

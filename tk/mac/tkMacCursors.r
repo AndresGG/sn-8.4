@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 /*
@@ -127,5 +125,4 @@ data 'crsr' (1001, "fist") {
 	$"FFFF 0001 FFFF CCCC 9999 0003 0000 0000"
 	$"0000"                                   
 };
-
 

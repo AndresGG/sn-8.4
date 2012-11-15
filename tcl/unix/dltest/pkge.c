@@ -9,8 +9,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tcl.h"
@@ -44,5 +42,3 @@ Pkge_Init(interp)
     }
     return Tcl_Eval(interp, script);
 }
-
-

@@ -1,10 +1,6 @@
-Tk 8.3 for Windows
+Tk 8.4 for Windows
 
-by Scott Stanton
-Scriptics Corporation
-scott.stanton@scriptics.com
-
-RCS: @(#) $Id$
+Originally by Scott Stanton while at Sun Microsystems Labs
 
 This is the directory where you configure and compile the Windows
 version of Tk.  This directory also contains source files for Tk
@@ -22,4 +18,4 @@ locate the necessary Tcl files.  Otherwise you may need to
 edit makefile.vc and adjust the path to Tcl accordingly.
 
 Information about compiling for windows is maintained at:
-    http://dev.scriptics.com/doc/howto/compile.html
+    http://www.tcl.tk/doc/howto/compile.html

@@ -8,9 +8,6 @@ if [catch {
 # man2tcl program to generate a HTML files from Tcl manual entries.
 #
 # Copyright (c) 1996 by Sun Microsystems, Inc.
-#
-# SCCS: @(#) man2html.tcl 1.5 96/04/11 20:21:43
-#
 
 set homeDir /home/rjohnson/Projects/tools/generic
 
@@ -75,7 +72,7 @@ proc footer {packages} {
 # dir -			Name of the directory.
 
 proc doDir dir {
-    foreach f [lsort [glob $dir/*.\[13n\]]] {
+    foreach f [lsort [glob -directory $dir "*.\[13n\]"]] {
 	do $f	;# defined in man2html1.tcl & man2html2.tcl
     }
 }

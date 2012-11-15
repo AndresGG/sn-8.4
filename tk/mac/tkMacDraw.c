@@ -9,8 +9,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkInt.h"
@@ -370,6 +368,9 @@ TkPutImage(
 	pixmap.pmTable = NULL;
 	pixmap.pmReserved = 0;
 	pixmap.baseAddr = image->data;
+    if (image->bytes_per_line >= 0x4000) {
+    	panic("TkImage too wide!");
+    }
 	pixmap.rowBytes = image->bytes_per_line | 0x8000;
 	
 	CopyBits((BitMap *) &pixmap, &((GrafPtr) destPort)->portBits, 
@@ -1153,7 +1154,7 @@ InvertByte(
 /*
  *----------------------------------------------------------------------
  *
- * TkpDrawpHighlightBorder --
+ * TkpDrawHighlightBorder --
  *
  *	This procedure draws a rectangular ring around the outside of
  *	a widget to indicate that it has received the input focus.
@@ -1191,4 +1192,30 @@ TkpDrawHighlightBorder (
         }
     }
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TkpDrawFrame --
+ *
+ *	This procedure draws the rectangular frame area.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Draws inside the tkwin area.
+ *
+ *----------------------------------------------------------------------
+ */
 
+void
+TkpDrawFrame (Tk_Window tkwin, Tk_3DBorder border,
+	int highlightWidth, int borderWidth, int relief)
+{
+    Tk_Fill3DRectangle(tkwin, Tk_WindowId(tkwin),
+	    border, highlightWidth, highlightWidth,
+	    Tk_Width(tkwin) - 2 * highlightWidth,
+	    Tk_Height(tkwin) - 2 * highlightWidth,
+	    borderWidth, relief);
+}

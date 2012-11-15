@@ -12,8 +12,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- *  RCS: @(#) $Id$
  */
 
 #include "tkInt.h"
@@ -232,10 +230,11 @@ TkpUseWindow(
 				 * if string is bogus. */
     Tk_Window tkwin,		/* Tk window that does not yet have an
 				 * associated X window. */
-    char *string)		/* String identifying an X window to use
+    CONST char *string)		/* String identifying an X window to use
 				 * for tkwin;  must be an integer value. */
 {
     TkWindow *winPtr = (TkWindow *) tkwin;
+    TkWindow *usePtr;
     MacDrawable *parent, *macWin;
     Container *containerPtr;
     XEvent event;
@@ -257,6 +256,20 @@ TkpUseWindow(
      
     if (Tcl_GetInt(interp, string, &result) != TCL_OK) {
 	return TCL_ERROR;
+    }
+
+    usePtr = (TkWindow *) Tk_IdToWindow(winPtr->display, (Window) result);
+
+    if (usePtr == NULL) {
+        Tcl_AppendResult(interp, "Tk window does not correspond to id \"",
+                string, "\"", (char *) NULL);
+        return TCL_ERROR;
+    } else {
+        if (!(usePtr->flags & TK_CONTAINER)) {
+	    Tcl_AppendResult(interp, "window \"", usePtr->pathName,
+                    "\" doesn't have -container option set", (char *) NULL);
+	    return TCL_ERROR;
+        }
     }
 
     parent = (MacDrawable *) result;
@@ -620,7 +633,7 @@ TkpTestembedCmd(
     ClientData clientData,		/* Main window for application. */
     Tcl_Interp *interp,			/* Current interpreter. */
     int argc,				/* Number of arguments. */
-    char **argv)			/* Argument strings. */
+    CONST char **argv)			/* Argument strings. */
 {
     int all;
     Container *containerPtr;
@@ -1190,4 +1203,3 @@ EmbedWindowDeleted(winPtr)
     }
 }
 
-

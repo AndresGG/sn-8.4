@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tclWinInt.h"
@@ -25,8 +23,9 @@
 
 static CRITICAL_SECTION masterLock;
 static int init = 0;
-#define MASTER_LOCK  EnterCriticalSection(&masterLock)
-#define MASTER_UNLOCK  LeaveCriticalSection(&masterLock)
+#define MASTER_LOCK TclpMasterLock() 
+#define MASTER_UNLOCK TclpMasterUnlock() 
+
 
 /*
  * This is the master lock used to serialize initialization and finalization
@@ -40,8 +39,22 @@ static CRITICAL_SECTION initLock;
  * For obvious reasons, cannot use any dyamically allocated storage.
  */
 
+#ifdef TCL_THREADS
+
 static CRITICAL_SECTION allocLock;
 static Tcl_Mutex allocLockPtr = (Tcl_Mutex) &allocLock;
+static int allocOnce = 0;
+
+#endif /* TCL_THREADS */
+
+/*
+ * The joinLock serializes Create- and ExitThread. This is necessary to
+ * prevent a race where a new joinable thread exits before the creating
+ * thread had the time to create the necessary data structures in the
+ * emulation layer.
+ */
+
+static CRITICAL_SECTION joinLock;
 
 /*
  * Condition variables are implemented with a combination of a 
@@ -60,6 +73,8 @@ static Tcl_Mutex allocLockPtr = (Tcl_Mutex) &allocLock;
  * The per-thread event and queue pointers.
  */
 
+#ifdef TCL_THREADS
+
 typedef struct ThreadSpecificData {
     HANDLE condEvent;			/* Per-thread condition event */
     struct ThreadSpecificData *nextPtr;	/* Queue pointers */
@@ -68,19 +83,33 @@ typedef struct ThreadSpecificData {
 } ThreadSpecificData;
 static Tcl_ThreadDataKey dataKey;
 
+#endif /* TCL_THREADS */
+
+/*
+ * Additions by AOL for specialized thread memory allocator.
+ */
+
+#if defined(USE_THREAD_ALLOC) && !defined(TCL_MEM_DEBUG)
+static int   once;
+static DWORD tlsKey;
+
+typedef struct allocMutex {
+    Tcl_Mutex        tlock;
+    CRITICAL_SECTION wlock;
+} allocMutex;
+#endif
+
 /*
  * State bits for the thread.
  * WIN_THREAD_UNINIT		Uninitialized.  Must be zero because
  *				of the way ThreadSpecificData is created.
  * WIN_THREAD_RUNNING		Running, not waiting.
  * WIN_THREAD_BLOCKED		Waiting, or trying to wait.
- * WIN_THREAD_DEAD		Dying - no per-thread event anymore.
  */ 
 
 #define WIN_THREAD_UNINIT	0x0
 #define WIN_THREAD_RUNNING	0x1
 #define WIN_THREAD_BLOCKED	0x2
-#define WIN_THREAD_DEAD		0x4
 
 /*
  * The per condition queue pointers and the
@@ -93,13 +122,11 @@ typedef struct WinCondition {
     struct ThreadSpecificData *lastPtr;
 } WinCondition;
 
-static void FinalizeConditionEvent(ClientData data);
-
 
 /*
  *----------------------------------------------------------------------
  *
- * Tcl_CreateThread --
+ * TclpThreadCreate --
  *
  *	This procedure creates a new thread.
  *
@@ -114,7 +141,7 @@ static void FinalizeConditionEvent(ClientData data);
  */
 
 int
-Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
+TclpThreadCreate(idPtr, proc, clientData, stackSize, flags)
     Tcl_ThreadId *idPtr;		/* Return, the ID of the thread */
     Tcl_ThreadCreateProc proc;		/* Main() function of the thread */
     ClientData clientData;		/* The one argument to Main() */
@@ -124,21 +151,61 @@ Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
 {
     HANDLE tHandle;
 
-#ifdef __CYGWIN__
-    tHandle = CreateThread(NULL, (DWORD) stackSize,
-        (LPTHREAD_START_ROUTINE) proc, (LPVOID) clientData,
-        (DWORD) 0, (LPDWORD)idPtr);
-    if (tHandle == NULL) {
+    EnterCriticalSection(&joinLock);
+
+#if defined(_MSC_VER) || defined(__MSVCRT__) || defined(__BORLANDC__)
+    tHandle = (HANDLE) _beginthreadex(NULL, (unsigned) stackSize, proc,
+	clientData, 0, (unsigned *)idPtr);
 #else
-      tHandle = (HANDLE) _beginthreadex(NULL, (unsigned)stackSize, proc,
-        clientData, (unsigned) 0, (unsigned *)idPtr);
-    if (tHandle == 0) {
-#endif /* __CYGWIN__ */
+    tHandle = CreateThread(NULL, (DWORD) stackSize,
+	    (LPTHREAD_START_ROUTINE) proc, (LPVOID) clientData,
+	    (DWORD) 0, (LPDWORD)idPtr);
+#endif
+
+    if (tHandle == NULL) {
+        LeaveCriticalSection(&joinLock);
 	return TCL_ERROR;
     } else {
+        if (flags & TCL_THREAD_JOINABLE) {
+	    TclRememberJoinableThread (*idPtr);
+	}
+
+	/*
+	 * The only purpose of this is to decrement the reference count so the
+	 * OS resources will be reaquired when the thread closes.
+	 */
+
 	CloseHandle(tHandle);
+	LeaveCriticalSection(&joinLock);
 	return TCL_OK;
     }
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_JoinThread --
+ *
+ *	This procedure waits upon the exit of the specified thread.
+ *
+ * Results:
+ *	TCL_OK if the wait was successful, TCL_ERROR else.
+ *
+ * Side effects:
+ *	The result area is set to the exit code of the thread we
+ *	waited upon.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Tcl_JoinThread(threadId, result)
+    Tcl_ThreadId threadId;  /* Id of the thread to wait upon */
+    int*     result;	    /* Reference to the storage the result
+			     * of the thread we wait upon will be
+			     * written into. */
+{
+    return TclJoinThread (threadId, result);
 }
 
 /*
@@ -161,13 +228,16 @@ void
 TclpThreadExit(status)
     int status;
 {
-#ifdef __CYGWIN__
-    ExitThread((DWORD) status);
-#else
-    _endthreadex((unsigned) status);
-#endif /* __CYGWIN__ */
-}
+    EnterCriticalSection(&joinLock);
+    TclSignalExitThread (Tcl_GetCurrentThread (), status);
+    LeaveCriticalSection(&joinLock);
 
+#if defined(_MSC_VER) || defined(__MSVCRT__) || defined(__BORLANDC__)
+    _endthreadex((unsigned) status);
+#else
+    ExitThread((DWORD) status);
+#endif
+}
 
 /*
  *----------------------------------------------------------------------
@@ -190,7 +260,6 @@ Tcl_GetCurrentThread()
 {
     return (Tcl_ThreadId)GetCurrentThreadId();
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -222,12 +291,12 @@ TclpInitLock()
 	 * more threads that create interpreters in parallel.
 	 */
 	init = 1;
+	InitializeCriticalSection(&joinLock);
 	InitializeCriticalSection(&initLock);
 	InitializeCriticalSection(&masterLock);
     }
     EnterCriticalSection(&initLock);
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -251,7 +320,6 @@ TclpInitUnlock()
 {
     LeaveCriticalSection(&initLock);
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -284,12 +352,35 @@ TclpMasterLock()
 	 * more threads that create interpreters in parallel.
 	 */
 	init = 1;
+	InitializeCriticalSection(&joinLock);
 	InitializeCriticalSection(&initLock);
 	InitializeCriticalSection(&masterLock);
     }
     EnterCriticalSection(&masterLock);
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclpMasterUnlock
+ *
+ *	This procedure is used to release a lock that serializes creation
+ *	and deletion of synchronization objects.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Release the master mutex.
+ *
+ *----------------------------------------------------------------------
+ */
 
+void
+TclpMasterUnlock()
+{
+    LeaveCriticalSection(&masterLock);
+}
 
 /*
  *----------------------------------------------------------------------
@@ -314,37 +405,54 @@ Tcl_Mutex *
 Tcl_GetAllocMutex()
 {
 #ifdef TCL_THREADS
-    InitializeCriticalSection(&allocLock);
+    if (!allocOnce) {
+	InitializeCriticalSection(&allocLock);
+	allocOnce = 1;
+    }
     return &allocLockPtr;
 #else
     return NULL;
 #endif
 }
-
 
-#ifdef TCL_THREADS
 /*
  *----------------------------------------------------------------------
  *
- * TclpMasterUnlock
+ * TclpFinalizeLock
  *
- *	This procedure is used to release a lock that serializes creation
- *	and deletion of synchronization objects.
+ *	This procedure is used to destroy all private resources used in
+ *	this file.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	Release the master mutex.
+ *	Destroys everything private.  TclpInitLock must be held
+ *	entering this function.
  *
  *----------------------------------------------------------------------
  */
 
 void
-TclpMasterUnlock()
+TclFinalizeLock ()
 {
-    LeaveCriticalSection(&masterLock);
+    MASTER_LOCK;
+    DeleteCriticalSection(&joinLock);
+    /* Destroy the critical section that we are holding! */
+    DeleteCriticalSection(&masterLock);
+    init = 0;
+#ifdef TCL_THREADS
+    DeleteCriticalSection(&allocLock);
+    allocOnce = 0;
+#endif
+    /* Destroy the critical section that we are holding! */
+    DeleteCriticalSection(&initLock);
 }
+
+#ifdef TCL_THREADS
+
+/* locally used prototype */
+static void FinalizeConditionEvent(ClientData data);
 
 
 /*
@@ -389,7 +497,6 @@ Tcl_MutexLock(mutexPtr)
     csPtr = *((CRITICAL_SECTION **)mutexPtr);
     EnterCriticalSection(csPtr);
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -414,7 +521,6 @@ Tcl_MutexUnlock(mutexPtr)
     CRITICAL_SECTION *csPtr = *((CRITICAL_SECTION **)mutexPtr);
     LeaveCriticalSection(csPtr);
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -439,11 +545,11 @@ TclpFinalizeMutex(mutexPtr)
 {
     CRITICAL_SECTION *csPtr = *(CRITICAL_SECTION **)mutexPtr;
     if (csPtr != NULL) {
+	DeleteCriticalSection(csPtr);
 	ckfree((char *)csPtr);
 	*mutexPtr = NULL;
     }
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -476,17 +582,22 @@ TclpThreadDataKeyInit(keyPtr)
 				 * really (DWORD **) */
 {
     DWORD *indexPtr;
+    DWORD newKey;
 
     MASTER_LOCK;
     if (*keyPtr == NULL) {
 	indexPtr = (DWORD *)ckalloc(sizeof(DWORD));
-	*indexPtr = TlsAlloc();
+	newKey = TlsAlloc();
+        if (newKey != TLS_OUT_OF_INDEXES) {
+            *indexPtr = newKey;
+        } else {
+            panic("TlsAlloc failed from TclpThreadDataKeyInit!"); /* this should be a fatal error */
+        }
 	*keyPtr = (Tcl_ThreadDataKey)indexPtr;
 	TclRememberDataKey(keyPtr);
     }
     MASTER_UNLOCK;
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -511,13 +622,17 @@ TclpThreadDataKeyGet(keyPtr)
 				 * really (DWORD **) */
 {
     DWORD *indexPtr = *(DWORD **)keyPtr;
+    LPVOID result;
     if (indexPtr == NULL) {
 	return NULL;
     } else {
-	return (VOID *) TlsGetValue(*indexPtr);
+        result = TlsGetValue(*indexPtr);
+        if ((result == NULL) && (GetLastError() != NO_ERROR)) {
+            panic("TlsGetValue failed from TclpThreadDataKeyGet!");
+        }
+	return result;
     }
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -543,9 +658,12 @@ TclpThreadDataKeySet(keyPtr, data)
     VOID *data;			/* Thread local storage */
 {
     DWORD *indexPtr = *(DWORD **)keyPtr;
-    TlsSetValue(*indexPtr, (void *)data);
+    BOOL success;
+    success = TlsSetValue(*indexPtr, (void *)data);
+    if (!success) {
+        panic("TlsSetValue failed from TclpThreadDataKeySet!");
+    }
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -570,13 +688,27 @@ TclpFinalizeThreadData(keyPtr)
 {
     VOID *result;
     DWORD *indexPtr;
+    BOOL success;
 
     if (*keyPtr != NULL) {
 	indexPtr = *(DWORD **)keyPtr;
 	result = (VOID *)TlsGetValue(*indexPtr);
 	if (result != NULL) {
+#if defined(USE_THREAD_ALLOC) && !defined(TCL_MEM_DEBUG)
+	    if (indexPtr == &tlsKey) {
+		TclpFreeAllocCache(result);
+		return;
+	    }
+#endif
 	    ckfree((char *)result);
-	    TlsSetValue(*indexPtr, (void *)NULL);
+	    success = TlsSetValue(*indexPtr, (void *)NULL);
+            if (!success) {
+                panic("TlsSetValue failed from TclpFinalizeThreadData!");
+            }
+	} else {
+            if (GetLastError() != NO_ERROR) {
+                panic("TlsGetValue failed from TclpFinalizeThreadData!");
+            }
 	}
     }
 }
@@ -606,9 +738,13 @@ TclpFinalizeThreadDataKey(keyPtr)
     Tcl_ThreadDataKey *keyPtr;
 {
     DWORD *indexPtr;
+    BOOL success;
     if (*keyPtr != NULL) {
 	indexPtr = *(DWORD **)keyPtr;
-	TlsFree(*indexPtr);
+	success = TlsFree(*indexPtr);
+        if (!success) {
+            panic("TlsFree failed from TclpFinalizeThreadDataKey!");
+        }
 	ckfree((char *)indexPtr);
 	*keyPtr = NULL;
     }
@@ -620,7 +756,7 @@ TclpFinalizeThreadDataKey(keyPtr)
  * Tcl_ConditionWait --
  *
  *	This procedure is invoked to wait on a condition variable.
- *	The mutex is automically released as part of the wait, and
+ *	The mutex is atomically released as part of the wait, and
  *	automatically grabbed when the condition is signaled.
  *
  *	The mutex must be held when this procedure is called.
@@ -649,16 +785,8 @@ Tcl_ConditionWait(condPtr, mutexPtr, timePtr)
     int doExit = 0;		/* True if we need to do exit setup */
     ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKey);
 
-    if (tsdPtr->flags & WIN_THREAD_DEAD) {
-	/*
-	 * No more per-thread event on which to wait.
-	 */
-
-	return;
-    }
-
     /*
-     * Self initialize the two parts of the contition.
+     * Self initialize the two parts of the condition.
      * The per-condition and per-thread parts need to be
      * handled independently.
      */
@@ -683,7 +811,7 @@ Tcl_ConditionWait(condPtr, mutexPtr, timePtr)
 	if (doExit) {
 	    /*
 	     * Create a per-thread exit handler to clean up the condEvent.
-	     * We must be careful do do this outside the Master Lock
+	     * We must be careful to do this outside the Master Lock
 	     * because Tcl_CreateThreadExitHandler uses its own
 	     * ThreadSpecificData, and initializing that may drop
 	     * back into the Master Lock.
@@ -759,7 +887,7 @@ Tcl_ConditionWait(condPtr, mutexPtr, timePtr)
 
     /*
      * Be careful on timeouts because the signal might arrive right around
-     * time time limit and someone else could have taken us off the queue.
+     * the time limit and someone else could have taken us off the queue.
      */
     
     if (timeout) {
@@ -790,7 +918,6 @@ Tcl_ConditionWait(condPtr, mutexPtr, timePtr)
     LeaveCriticalSection(&winCondPtr->condLock);
     EnterCriticalSection(csPtr);
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -817,8 +944,13 @@ Tcl_ConditionNotify(condPtr)
 {
     WinCondition *winCondPtr;
     ThreadSpecificData *tsdPtr;
+
     if (condPtr != NULL) {
 	winCondPtr = *((WinCondition **)condPtr);
+
+	if (winCondPtr == NULL) {
+	    return;
+	}
 
 	/*
 	 * Loop through all the threads waiting on the condition
@@ -845,7 +977,6 @@ Tcl_ConditionNotify(condPtr)
 	 */
     }
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -870,7 +1001,7 @@ FinalizeConditionEvent(data)
     ClientData data;
 {
     ThreadSpecificData *tsdPtr = (ThreadSpecificData *)data;
-    tsdPtr->flags = WIN_THREAD_DEAD;
+    tsdPtr->flags = WIN_THREAD_UNINIT;
     CloseHandle(tsdPtr->condEvent);
 }
 
@@ -907,8 +1038,102 @@ TclpFinalizeCondition(condPtr)
      */
 
     if (winCondPtr != NULL) {
+	DeleteCriticalSection(&winCondPtr->condLock);
 	ckfree((char *)winCondPtr);
 	*condPtr = NULL;
     }
 }
+
+/*
+ * Additions by AOL for specialized thread memory allocator.
+ */
+
+#if defined(USE_THREAD_ALLOC) && !defined(TCL_MEM_DEBUG)
+Tcl_Mutex *
+TclpNewAllocMutex(void)
+{
+    struct allocMutex *lockPtr;
+
+    lockPtr = malloc(sizeof(struct allocMutex));
+    if (lockPtr == NULL) {
+	panic("could not allocate lock");
+    }
+    lockPtr->tlock = (Tcl_Mutex) &lockPtr->wlock;
+    InitializeCriticalSection(&lockPtr->wlock);
+    return &lockPtr->tlock;
+}
+
+void
+TclpFreeAllocMutex(mutex)
+    Tcl_Mutex *mutex; /* The alloc mutex to free. */
+{
+    allocMutex* lockPtr = (allocMutex*) mutex;
+    if (!lockPtr) return;
+    DeleteCriticalSection(&lockPtr->wlock);
+    free(lockPtr);
+}
+
+void *
+TclpGetAllocCache(void)
+{
+    VOID *result;
+
+    if (!once) {
+	/*
+	 * We need to make sure that TclpFreeAllocCache is called
+	 * on each thread that calls this, but only on threads that
+	 * call this.
+	 */
+    	tlsKey = TlsAlloc();
+	once = 1;
+	if (tlsKey == TLS_OUT_OF_INDEXES) {
+	    panic("could not allocate thread local storage");
+	}
+    }
+
+    result = TlsGetValue(tlsKey);
+    if ((result == NULL) && (GetLastError() != NO_ERROR)) {
+        panic("TlsGetValue failed from TclpGetAllocCache!");
+    }
+    return result;
+}
+
+void
+TclpSetAllocCache(void *ptr)
+{
+    BOOL success;
+    success = TlsSetValue(tlsKey, ptr);
+    if (!success) {
+        panic("TlsSetValue failed from TclpSetAllocCache!");
+    }
+}
+
+void
+TclpFreeAllocCache(void *ptr)
+{
+    BOOL success;
+
+    if (ptr != NULL) {
+        /*
+         * Called by the pthread lib when a thread exits
+         */
+        TclFreeAllocCache(ptr);
+        success = TlsSetValue(tlsKey, NULL);
+        if (!success) {
+            panic("TlsSetValue failed from TclpFreeAllocCache!");
+        }
+    } else if (once) { 
+        /*
+         * Called by us in TclFinalizeThreadAlloc() during
+         * the library finalization initiated from Tcl_Finalize()
+         */
+        success = TlsFree(tlsKey);
+        if (!success) {
+            Tcl_Panic("TlsFree failed from TclpFreeAllocCache!");
+        }
+        once = 0; /* reset for next time. */
+    }
+}
+
+#endif /* USE_THREAD_ALLOC */
 #endif /* TCL_THREADS */

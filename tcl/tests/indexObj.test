@@ -7,8 +7,6 @@
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
-#
-# RCS: @(#) $Id$
 
 if {[lsearch [namespace children] ::tcltest] == -1} {
     package require tcltest
@@ -43,6 +41,12 @@ test indexObj-1.6 {forced exact match} {
 test indexObj-1.7 {forced exact match} {
     testindexobj 1 0 x abc def xalb xyz alm x
 } {5}
+test indexObj-1.8 {exact match of empty values} {
+    testindexobj 1 1 {} a aa aaa {} b bb bbb
+} 3
+test indexObj-1.9 {exact match of empty values} {
+    testindexobj 1 0 {} a aa aaa {} b bb bbb
+} 3
 
 test indexObj-2.1 {no match} {
     list [catch {testindexobj 1 1 dddd abc def xalb xyz alm x} msg] $msg
@@ -59,6 +63,22 @@ test indexObj-2.4 {ambiguous value} {
 test indexObj-2.5 {omit error message} {
     list [catch {testindexobj 0 1 d x} msg] $msg
 } {1 {}}
+test indexObj-2.6 {TCL_EXACT => no "ambiguous" error message} {
+    list [catch {testindexobj 1 0 d dumb daughter a c} msg] $msg
+} {1 {bad token "d": must be dumb, daughter, a, or c}}
+test indexObj-2.7 {exact match of empty values} {
+    list [catch {testindexobj 1 1 {} a b c} msg] $msg
+} {1 {ambiguous token "": must be a, b, or c}}
+test indexObj-2.8 {exact match of empty values: singleton case} {
+    list [catch {testindexobj 1 0 {} a} msg] $msg
+} {1 {bad token "": must be a}}
+test indexObj-2.9 {non-exact match of empty values: singleton case} {
+    # NOTE this is a special case.  Although the empty string is a
+    # unique prefix, we have an established history of rejecting
+    # empty lookup keys, requiring any unique prefix match to have
+    # at least one character.
+    list [catch {testindexobj 1 1 {} a} msg] $msg
+} {1 {bad token "": must be a}}
 
 test indexObj-3.1 {cache result to skip next lookup} {
     testindexobj check 42
@@ -70,19 +90,49 @@ test indexObj-4.1 {free old internal representation} {
     testindexobj 1 1 $x abc def {a b} zzz
 } {2}
 
+test indexObj-5.1 {Tcl_WrongNumArgs} {
+    testwrongnumargs 1 "?option?" mycmd
+} "wrong # args: should be \"mycmd ?option?\""
+test indexObj-5.2 {Tcl_WrongNumArgs} {
+    testwrongnumargs 2 "bar" mycmd foo
+} "wrong # args: should be \"mycmd foo bar\""
+test indexObj-5.3 {Tcl_WrongNumArgs} {
+    testwrongnumargs 0 "bar" mycmd foo
+} "wrong # args: should be \"bar\""
+test indexObj-5.4 {Tcl_WrongNumArgs} {
+    testwrongnumargs 0 "" mycmd foo
+} "wrong # args: should be \"\""
+test indexObj-5.5 {Tcl_WrongNumArgs} {
+    testwrongnumargs 1 "" mycmd foo
+} "wrong # args: should be \"mycmd\""
+test indexObj-5.6 {Tcl_WrongNumArgs} {
+    testwrongnumargs 2 "" mycmd foo
+} "wrong # args: should be \"mycmd foo\""
+# Contrast this with test proc-3.6; they have to be like this because
+# of [Bug 1066837] so Itcl won't break.
+test indexObj-5.7 {Tcl_WrongNumArgs} testindexobj {
+    testwrongnumargs 2 "fee fi" "fo fum" foo bar
+} "wrong # args: should be \"fo fum foo fee fi\""
+
+test indexObj-6.1 {Tcl_GetIndexFromObjStruct} {
+    set x a
+    testgetindexfromobjstruct $x 0
+} "wrong # args: should be \"testgetindexfromobjstruct a 0\""
+test indexObj-6.2 {Tcl_GetIndexFromObjStruct} {
+    set x a
+    testgetindexfromobjstruct $x 0
+    testgetindexfromobjstruct $x 0
+} "wrong # args: should be \"testgetindexfromobjstruct a 0\""
+test indexObj-6.3 {Tcl_GetIndexFromObjStruct} {
+    set x c
+    testgetindexfromobjstruct $x 1
+} "wrong # args: should be \"testgetindexfromobjstruct c 1\""
+test indexObj-6.4 {Tcl_GetIndexFromObjStruct} {
+    set x c
+    testgetindexfromobjstruct $x 1
+    testgetindexfromobjstruct $x 1
+} "wrong # args: should be \"testgetindexfromobjstruct c 1\""
+
 # cleanup
 ::tcltest::cleanupTests
 return
-
-
-
-
-
-
-
-
-
-
-
-
-

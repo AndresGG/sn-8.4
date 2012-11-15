@@ -10,12 +10,11 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$ */
-
-#if defined(TCL_THREADS) && defined(USE_THREAD_ALLOC)
+ */
 
 #include "tclInt.h"
+
+#if defined(TCL_THREADS) && defined(USE_THREAD_ALLOC) && !defined(TCL_MEM_DEBUG)
 
 #ifdef WIN32
 #include "tclWinInt.h"
@@ -49,12 +48,14 @@ extern void TclpSetAllocCache(void *);
 #define NOBJHIGH	1200
 
 /*
- * The following defines the number of buckets in the bucket
- * cache and those block sizes from (1<<4) to (1<<(3+NBUCKETS))
+ * Alignment for allocated memory.
  */
 
-#define NBUCKETS	  11
-#define MAXALLOC	  16284
+#if defined(__APPLE__)
+#define ALLOCALIGN	16
+#else
+#define ALLOCALIGN	8
+#endif
 
 /*
  * The following union stores accounting information for
@@ -64,23 +65,36 @@ extern void TclpSetAllocCache(void *);
  * the Block overhead) is also maintained.
  */
  
-typedef struct Block {
-    union {
-    	struct Block *next;	  /* Next in free list. */
-    	struct {
-	    unsigned char magic1; /* First magic number. */
-	    unsigned char bucket; /* Bucket block allocated from. */
-	    unsigned char unused; /* Padding. */
-	    unsigned char magic2; /* Second magic number. */
-        } b_s;
-    } b_u;
-    size_t b_reqsize;		  /* Requested allocation size. */
+typedef union Block {
+    struct {
+	union {
+	    union Block *next;		/* Next in free list. */
+	    struct {
+		unsigned char magic1;	/* First magic number. */
+		unsigned char bucket;	/* Bucket block allocated from. */
+		unsigned char unused;	/* Padding. */
+		unsigned char magic2;	/* Second magic number. */
+	    } s;
+	} u;
+	size_t reqSize;			/* Requested allocation size. */
+    } b;
+    unsigned char padding[ALLOCALIGN];
 } Block;
-#define b_next		b_u.next
-#define b_bucket	b_u.b_s.bucket
-#define b_magic1	b_u.b_s.magic1
-#define b_magic2	b_u.b_s.magic2
+#define b_next		b.u.next
+#define b_bucket	b.u.s.bucket
+#define b_magic1	b.u.s.magic1
+#define b_magic2	b.u.s.magic2
 #define MAGIC		0xef
+#define b_reqsize	b.reqSize
+
+/*
+ * The following defines the minimum and and maximum block sizes and the number
+ * of buckets in the bucket cache.
+ */
+
+#define MINALLOC	((sizeof(Block) + 8 + (ALLOCALIGN-1)) & ~(ALLOCALIGN-1))
+#define NBUCKETS	(11 - (MINALLOC >> 5))
+#define MAXALLOC	(MINALLOC << (NBUCKETS - 1))
 
 /*
  * The following structure defines a bucket of blocks with
@@ -89,12 +103,12 @@ typedef struct Block {
 
 typedef struct Bucket {
     Block *firstPtr;
-    int nfree;
-    int nget;
-    int nput;
-    int nwait;
-    int nlock;
-    int nrequest;
+    long nfree;
+    long nget;
+    long nput;
+    long nwait;
+    long nlock;
+    long nrequest;
 } Bucket;
 
 /*
@@ -121,19 +135,7 @@ struct binfo {
     int maxblocks;	/* Max blocks before move to share. */
     int nmove;		/* Num blocks to move to share. */
     Tcl_Mutex *lockPtr; /* Share bucket lock. */
-} binfo[NBUCKETS] = {
-    {   16, 1024, 512, NULL},
-    {   32,  512, 256, NULL},
-    {   64,  256, 128, NULL},
-    {  128,  128,  64, NULL},
-    {  256,   64,  32, NULL},
-    {  512,   32,  16, NULL},
-    { 1024,   16,   8, NULL},
-    { 2048,    8,   4, NULL},
-    { 4096,    4,   2, NULL},
-    { 8192,    2,   1, NULL},
-    {16284,    1,   1, NULL},
-};
+} binfo[NBUCKETS];
 
 /*
  * Static functions defined in this file.
@@ -186,7 +188,7 @@ GetCache(void)
 
     if (listLockPtr == NULL) {
 	Tcl_Mutex *initLockPtr;
-    	int i;
+	unsigned int i;
 
 	initLockPtr = Tcl_GetAllocMutex();
 	Tcl_MutexLock(initLockPtr);
@@ -194,6 +196,9 @@ GetCache(void)
 	    listLockPtr = TclpNewAllocMutex();
 	    objLockPtr = TclpNewAllocMutex();
 	    for (i = 0; i < NBUCKETS; ++i) {
+		binfo[i].blocksize = MINALLOC << i;
+		binfo[i].maxblocks = 1 << (NBUCKETS - 1 - i);
+		binfo[i].nmove = i < NBUCKETS-1 ? 1 << (NBUCKETS - 2 - i) : 1;
 	        binfo[i].lockPtr = TclpNewAllocMutex();
 	    }
 	}
@@ -242,7 +247,7 @@ TclFreeAllocCache(void *arg)
 {
     Cache *cachePtr = arg;
     Cache **nextPtrPtr;
-    register int   bucket;
+    register unsigned int bucket;
 
     /*
      * Flush blocks.
@@ -276,11 +281,7 @@ TclFreeAllocCache(void *arg)
     *nextPtrPtr = cachePtr->nextPtr;
     cachePtr->nextPtr = NULL;
     Tcl_MutexUnlock(listLockPtr);
-#ifdef WIN32
-    TlsFree((DWORD) cachePtr);
-#else
     free(cachePtr);
-#endif
 }
 
 
@@ -303,11 +304,23 @@ TclFreeAllocCache(void *arg)
 char *
 TclpAlloc(unsigned int reqsize)
 {
-    Cache         *cachePtr = TclpGetAllocCache();
+    Cache         *cachePtr;
     Block         *blockPtr;
     register int   bucket;
     size_t  	   size;
 
+    if (sizeof(int) >= sizeof(size_t)) {
+	/* An unsigned int overflow can also be a size_t overflow */
+	const size_t zero = 0;
+	const size_t max = ~zero;
+
+	if (((size_t) reqsize) > max - sizeof(Block) - RCHECK) {
+	    /* Requested allocation exceeds memory */
+	    return NULL;
+	}
+    }
+
+    cachePtr = TclpGetAllocCache();
     if (cachePtr == NULL) {
 	cachePtr = GetCache();
     }
@@ -426,7 +439,7 @@ TclpFree(char *ptr)
 char *
 TclpRealloc(char *ptr, unsigned int reqsize)
 {
-    Cache *cachePtr = TclpGetAllocCache();
+    Cache *cachePtr;
     Block *blockPtr;
     void *new;
     size_t size, min;
@@ -436,6 +449,18 @@ TclpRealloc(char *ptr, unsigned int reqsize)
 	return TclpAlloc(reqsize);
     }
 
+    if (sizeof(int) >= sizeof(size_t)) {
+	/* An unsigned int overflow can also be a size_t overflow */
+	const size_t zero = 0;
+	const size_t max = ~zero;
+
+	if (((size_t) reqsize) > max - sizeof(Block) - RCHECK) {
+	    /* Requested allocation exceeds memory */
+	    return NULL;
+	}
+    }
+
+    cachePtr = TclpGetAllocCache();
     if (cachePtr == NULL) {
 	cachePtr = GetCache();
     }
@@ -627,7 +652,7 @@ Tcl_GetMemoryInfo(Tcl_DString *dsPtr)
 {
     Cache *cachePtr;
     char buf[200];
-    int n;
+    unsigned int n;
 
     Tcl_MutexLock(listLockPtr);
     cachePtr = firstCachePtr;
@@ -640,8 +665,8 @@ Tcl_GetMemoryInfo(Tcl_DString *dsPtr)
     	    Tcl_DStringAppendElement(dsPtr, buf);
 	}
 	for (n = 0; n < NBUCKETS; ++n) {
-    	    sprintf(buf, "%d %d %d %d %d %d %d",
-		(int) binfo[n].blocksize,
+    	    sprintf(buf, "%lu %ld %ld %ld %ld %ld %ld",
+		(unsigned long) binfo[n].blocksize,
 		cachePtr->buckets[n].nfree,
 		cachePtr->buckets[n].nget,
 		cachePtr->buckets[n].nput,
@@ -950,6 +975,67 @@ GetBlocks(Cache *cachePtr, int bucket)
 	blockPtr->b_next = NULL;
     }
     return 1;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclFinalizeThreadAlloc --
+ *
+ *	This procedure is used to destroy all private resources used in
+ *	this file.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+TclFinalizeThreadAlloc()
+{
+    unsigned int i;
+
+    for (i = 0; i < NBUCKETS; ++i) {
+        TclpFreeAllocMutex(binfo[i].lockPtr); 
+        binfo[i].lockPtr = NULL;
+    }
+
+    TclpFreeAllocMutex(objLockPtr);
+    objLockPtr = NULL;
+
+    TclpFreeAllocMutex(listLockPtr);
+    listLockPtr = NULL;
+
+    TclpFreeAllocCache(NULL);
+}
+
+#else /* ! defined(TCL_THREADS) && ! defined(USE_THREAD_ALLOC) */
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclFinalizeThreadAlloc --
+ *
+ *	This procedure is used to destroy all private resources used in
+ *	this file.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+TclFinalizeThreadAlloc()
+{
+    Tcl_Panic("TclFinalizeThreadAlloc called when threaded memory allocator not in use.");
 }
 
 #endif /* TCL_THREADS */

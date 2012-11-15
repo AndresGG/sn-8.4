@@ -9,8 +9,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkMenubutton.h"
@@ -34,6 +32,15 @@ static char *directionStrings[] = {
 
 static char *stateStrings[] = {
     "active", "disabled", "normal", (char *) NULL
+};
+
+/*
+ * The following table defines the legal values for the -compound option.
+ * It is used with the "enum compound" declaration in tkMenuButton.h
+ */
+
+static char *compoundStrings[] = {
+    "bottom", "center", "left", "none", "right", "top", (char *) NULL
 };
 
 /*
@@ -113,6 +120,9 @@ static Tk_OptionSpec optionSpecs[] = {
     {TK_OPTION_RELIEF, "-relief", "relief", "Relief",
 	DEF_MENUBUTTON_RELIEF, -1, Tk_Offset(TkMenuButton, relief), 
         0, 0, 0},
+    {TK_OPTION_STRING_TABLE, "-compound", "compound", "Compound",
+         DEF_BUTTON_COMPOUND, -1, Tk_Offset(TkMenuButton, compound), 0,
+         (ClientData) compoundStrings, 0},
     {TK_OPTION_STRING_TABLE, "-state", "state", "State",
 	DEF_MENUBUTTON_STATE, -1, Tk_Offset(TkMenuButton, state),
 	0, (ClientData) stateStrings, 0},
@@ -143,7 +153,7 @@ static Tk_OptionSpec optionSpecs[] = {
  * to dispatch the scale widget command.
  */
 
-static char *commandNames[] = {
+static CONST char *commandNames[] = {
     "cget", "configure", (char *) NULL
 };
 
@@ -164,7 +174,7 @@ static void		MenuButtonImageProc _ANSI_ARGS_((ClientData clientData,
 			    int imgHeight));
 static char *		MenuButtonTextVarProc _ANSI_ARGS_((
 			    ClientData clientData, Tcl_Interp *interp,
-			    char *name1, char *name2, int flags));
+			    CONST char *name1, CONST char *name2, int flags));
 static int		MenuButtonWidgetObjCmd _ANSI_ARGS_((
                             ClientData clientData, Tcl_Interp *interp, 
 			    int objc, Tcl_Obj *CONST objv[]));
@@ -193,8 +203,7 @@ static void		DestroyMenuButton _ANSI_ARGS_((char *memPtr));
 
 int
 Tk_MenubuttonObjCmd(clientData, interp, objc, objv)
-    ClientData clientData;	/* Either NULL or pointer to 
-				 * option table. */
+    ClientData clientData;	/* NULL. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int objc;			/* Number of arguments. */
     Tcl_Obj *CONST objv[];	/* Argument objects. */
@@ -202,25 +211,6 @@ Tk_MenubuttonObjCmd(clientData, interp, objc, objv)
     register TkMenuButton *mbPtr;
     Tk_OptionTable optionTable;
     Tk_Window tkwin;
-
-    optionTable = (Tk_OptionTable) clientData;
-    if (optionTable == NULL) {
-	Tcl_CmdInfo info;
-	char *name;
-
-	/*
-	 * We haven't created the option table for this widget class
-	 * yet.  Do it now and save the table as the clientData for
-	 * the command, so we'll have access to it in future
-	 * invocations of the command.
-	 */
-
-	optionTable = Tk_CreateOptionTable(interp, optionSpecs);
-	name = Tcl_GetString(objv[0]);
-	Tcl_GetCommandInfo(interp, name, &info);
-	info.objClientData = (ClientData) optionTable;
-	Tcl_SetCommandInfo(interp, name, &info);
-    }
 
     if (objc < 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "pathName ?options?");
@@ -231,16 +221,23 @@ Tk_MenubuttonObjCmd(clientData, interp, objc, objv)
      * Create the new window.
      */
 
-    tkwin = Tk_CreateWindowFromPath(interp, 
-        Tk_MainWindow(interp), Tcl_GetString(objv[1]), (char *) NULL);
+    tkwin = Tk_CreateWindowFromPath(interp, Tk_MainWindow(interp),
+	    Tcl_GetString(objv[1]), (char *) NULL);
     if (tkwin == NULL) {
 	return TCL_ERROR;
     }
 
+    /*
+     * Create the option table for this widget class.  If it has already
+     * been created, the cached pointer will be returned.
+     */
+
+    optionTable = Tk_CreateOptionTable(interp, optionSpecs);
+
     Tk_SetClass(tkwin, "Menubutton");
     mbPtr = TkpCreateMenuButton(tkwin);
 
-    TkSetClassProcs(tkwin, &tkpMenubuttonClass, (ClientData) mbPtr);
+    Tk_SetClassProcs(tkwin, &tkpMenubuttonClass, (ClientData) mbPtr);
 
     /*
      * Initialize the data structure for the button.
@@ -277,6 +274,7 @@ Tk_MenubuttonObjCmd(clientData, interp, objc, objv)
     mbPtr->activeTextGC = None;
     mbPtr->gray = None;
     mbPtr->disabledGC = None;
+    mbPtr->stippleGC = None;
     mbPtr->leftBearing = 0;
     mbPtr->rightBearing = 0;
     mbPtr->widthString = NULL;
@@ -301,8 +299,7 @@ Tk_MenubuttonObjCmd(clientData, interp, objc, objv)
 	    ExposureMask|StructureNotifyMask|FocusChangeMask,
 	    MenuButtonEventProc, (ClientData) mbPtr);
 
-    if (Tk_InitOptions(interp, (char *) mbPtr, optionTable, tkwin)
-            != TCL_OK) {
+    if (Tk_InitOptions(interp, (char *) mbPtr, optionTable, tkwin) != TCL_OK) {
 	Tk_DestroyWindow(mbPtr->tkwin);
 	return TCL_ERROR;
     }
@@ -312,8 +309,7 @@ Tk_MenubuttonObjCmd(clientData, interp, objc, objv)
 	return TCL_ERROR;
     }
 
-    Tcl_SetStringObj(Tcl_GetObjResult(interp), Tk_PathName(mbPtr->tkwin),
-            -1);
+    Tcl_SetStringObj(Tcl_GetObjResult(interp), Tk_PathName(mbPtr->tkwin), -1);
     return TCL_OK;
 }
 
@@ -454,14 +450,16 @@ DestroyMenuButton(memPtr)
     if (mbPtr->disabledGC != None) {
 	Tk_FreeGC(mbPtr->display, mbPtr->disabledGC);
     }
+    if (mbPtr->stippleGC != None) {
+	Tk_FreeGC(mbPtr->display, mbPtr->stippleGC);
+    }
     if (mbPtr->gray != None) {
 	Tk_FreeBitmap(mbPtr->display, mbPtr->gray);
     }
     if (mbPtr->textLayout != NULL) {
         Tk_FreeTextLayout(mbPtr->textLayout);
     }
-    Tk_FreeConfigOptions((char *) mbPtr, mbPtr->optionTable,
-	    mbPtr->tkwin);
+    Tk_FreeConfigOptions((char *) mbPtr, mbPtr->optionTable, mbPtr->tkwin);
     mbPtr->tkwin = NULL;
     Tcl_EventuallyFree((ClientData) mbPtr, TCL_DYNAMIC);
 }
@@ -620,32 +618,28 @@ ConfigureMenuButton(interp, mbPtr, objc, objv)
       Tk_FreeSavedOptions(&savedOptions);
     }
 
-    if ((mbPtr->image == NULL) && (mbPtr->bitmap == None)
-	    && (mbPtr->textVarName != NULL)) {
+    if (mbPtr->textVarName != NULL) {
+	/*
+	 * If no image or -compound is used, display the value of a variable.
+	 * Set up a trace to watch for any changes in it, create the variable
+	 * if it doesn't exist, and fetch its current value.
+	 */
+	CONST char *value;
 
-      /*
-       * The menubutton displays the value of a variable.  
-       * Set up a trace to watch for any changes in it, create
-       * the variable if it doesn't exist, and fetch its
-       * current value.
-       */
-
-      char *value;
-
-      value = Tcl_GetVar(interp, mbPtr->textVarName, TCL_GLOBAL_ONLY);
-      if (value == NULL) {
-	  Tcl_SetVar(interp, mbPtr->textVarName, mbPtr->text,
-		     TCL_GLOBAL_ONLY);
-      } else {
-	  if (mbPtr->text != NULL) {
-	      ckfree(mbPtr->text);
-	  }
-	  mbPtr->text = (char *) ckalloc((unsigned) (strlen(value) + 1));
-	  strcpy(mbPtr->text, value);
-      }
-      Tcl_TraceVar(interp, mbPtr->textVarName,
-		   TCL_GLOBAL_ONLY|TCL_TRACE_WRITES|TCL_TRACE_UNSETS,
-		   MenuButtonTextVarProc, (ClientData) mbPtr);
+	value = Tcl_GetVar(interp, mbPtr->textVarName, TCL_GLOBAL_ONLY);
+	if (value == NULL) {
+	    Tcl_SetVar(interp, mbPtr->textVarName, mbPtr->text,
+		    TCL_GLOBAL_ONLY);
+	} else {
+	    if (mbPtr->text != NULL) {
+		ckfree(mbPtr->text);
+	    }
+	    mbPtr->text = (char *) ckalloc((unsigned) (strlen(value) + 1));
+	    strcpy(mbPtr->text, value);
+	}
+	Tcl_TraceVar(interp, mbPtr->textVarName,
+		TCL_GLOBAL_ONLY|TCL_TRACE_WRITES|TCL_TRACE_UNSETS,
+		MenuButtonTextVarProc, (ClientData) mbPtr);
     }
 
     TkMenuButtonWorldChanged((ClientData) mbPtr);
@@ -684,7 +678,6 @@ TkMenuButtonWorldChanged(instanceData)
     GC gc;
     unsigned long mask;
     TkMenuButton *mbPtr;
-    XColor *foreground, *background;
 
     mbPtr = (TkMenuButton *) instanceData;
 
@@ -706,7 +699,6 @@ TkMenuButtonWorldChanged(instanceData)
     }
     mbPtr->normalTextGC = gc;
 
-    gcValues.font = Tk_FontId(mbPtr->tkfont);
     gcValues.foreground = mbPtr->activeFg->pixel;
     gcValues.background = Tk_3DBorderColor(mbPtr->activeBorder)->pixel;
     mask = GCForeground | GCBackground | GCFont;
@@ -716,27 +708,36 @@ TkMenuButtonWorldChanged(instanceData)
     }
     mbPtr->activeTextGC = gc;
 
-    gcValues.font = Tk_FontId(mbPtr->tkfont);
-    background = Tk_3DBorderColor(mbPtr->normalBorder);
-    gcValues.background = background->pixel;
-    if ((mbPtr->disabledFg != NULL) && (mbPtr->imageString == NULL)) {
-        foreground = mbPtr->disabledFg;
-	gcValues.foreground = foreground->pixel;
-	mask = GCForeground | GCBackground | GCFont;
-    } else {
-        foreground = background;
-	background = NULL;
+    gcValues.background = Tk_3DBorderColor(mbPtr->normalBorder)->pixel;
+
+    /*
+     * Create the GC that can be used for stippling
+     */
+
+    if (mbPtr->stippleGC == None) {
 	gcValues.foreground = gcValues.background;
 	mask = GCForeground;
 	if (mbPtr->gray == None) {
-	    mbPtr->gray = Tk_GetBitmap(NULL, mbPtr->tkwin,
-		    Tk_GetUid("gray50"));
+	    mbPtr->gray = Tk_GetBitmap(NULL, mbPtr->tkwin, "gray50");
 	}
 	if (mbPtr->gray != None) {
 	    gcValues.fill_style = FillStippled;
 	    gcValues.stipple = mbPtr->gray;
 	    mask |= GCFillStyle | GCStipple;
 	}
+	mbPtr->stippleGC = Tk_GetGC(mbPtr->tkwin, mask, &gcValues);
+    }
+
+    /*
+     * Allocate the disabled graphics context, for drawing text in
+     * its disabled state.
+     */
+
+    mask = GCForeground | GCBackground | GCFont;
+    if (mbPtr->disabledFg != NULL) {
+	gcValues.foreground = mbPtr->disabledFg->pixel;
+    } else {
+	gcValues.foreground = gcValues.background;
     }
     gc = Tk_GetGC(mbPtr->tkwin, mask, &gcValues);
     if (mbPtr->disabledGC != None) {
@@ -875,12 +876,12 @@ static char *
 MenuButtonTextVarProc(clientData, interp, name1, name2, flags)
     ClientData clientData;	/* Information about button. */
     Tcl_Interp *interp;		/* Interpreter containing variable. */
-    char *name1;		/* Name of variable. */
-    char *name2;		/* Second part of variable name. */
+    CONST char *name1;		/* Name of variable. */
+    CONST char *name2;		/* Second part of variable name. */
     int flags;			/* Information about what happened. */
 {
     register TkMenuButton *mbPtr = (TkMenuButton *) clientData;
-    char *value;
+    CONST char *value;
 
     /*
      * If the variable is unset, then immediately recreate it unless
@@ -954,4 +955,3 @@ MenuButtonImageProc(clientData, x, y, width, height, imgWidth, imgHeight)
 	}
     }
 }
-

@@ -1,6 +1,5 @@
 /*
  * This file is generated from $(INCLUDESRC)/keysymdef.h.  Do not edit.
- * RCS: $Id$ 
  */
 { "BackSpace", 0xFF08 },
 { "Tab", 0xFF09 },
@@ -118,8 +117,8 @@
 { "R11", 0xFFDC },
 { "F32", 0xFFDD },
 { "R12", 0xFFDD },
-{ "R13", 0xFFDE },
 { "F33", 0xFFDE },
+{ "R13", 0xFFDE },
 { "F34", 0xFFDF },
 { "R14", 0xFFDF },
 { "F35", 0xFFE0 },
@@ -921,5 +920,3 @@
 { "hebrew_shin", 0xcf9 },
 { "hebrew_taf", 0xcfa },
 { "Hebrew_switch", 0xFF7E },
-
-

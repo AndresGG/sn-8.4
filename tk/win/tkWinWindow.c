@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkWinInt.h"
@@ -27,8 +25,6 @@ static Tcl_ThreadDataKey dataKey;
 
 static void		NotifyVisibility _ANSI_ARGS_((XEvent *eventPtr,
 			    TkWindow *winPtr));
-static void 		StackWindow _ANSI_ARGS_((Window w, Window sibling,
-			    int stack_mode));
 
 /*
  *----------------------------------------------------------------------
@@ -146,8 +142,7 @@ HWND
 Tk_GetHWND(window)
     Window window;
 {
-    TkWinDrawable *twdPtr = (TkWinDrawable *) window;
-    return twdPtr->window.handle;
+    return ((TkWinDrawable *) window)->window.handle;
 }
 
 /*
@@ -175,7 +170,11 @@ TkpPrintWindowId(buf, window)
     Window window;		/* Window to be printed into buffer. */
 {
     HWND hwnd = (window) ? Tk_GetHWND(window) : 0;
-    sprintf(buf, "0x%x", (unsigned int) hwnd);
+    /*
+     * Use pointer representation, because Win64 is P64 (*not* LP64).
+     * Windows doesn't print the 0x for %p, so we do it.
+     */
+    sprintf(buf, "0x%p", hwnd);
 }
 
 /*
@@ -203,16 +202,25 @@ TkpPrintWindowId(buf, window)
 int
 TkpScanWindowId(interp, string, idPtr)
     Tcl_Interp *interp;		/* Interpreter to use for error reporting. */
-    char *string;		/* String containing a (possibly signed)
+    CONST char *string;		/* String containing a (possibly signed)
 				 * integer in a form acceptable to strtol. */
-    int *idPtr;			/* Place to store converted result. */
+    Window *idPtr;		/* Place to store converted result. */
 {
-    int number;
     Tk_Window tkwin;
+    VOID *number;
 
-    if (Tcl_GetInt(interp, string, &number) != TCL_OK) {
+    /*
+     * We want sscanf for the 64-bit check, but if that doesn't work,
+     * then Tcl_GetInt manages the error correctly.
+     */
+    if (
+#ifdef _WIN64
+	(sscanf(string, "0x%p", &number) != 1) &&
+#endif
+	Tcl_GetInt(interp, string, (int *)&number) != TCL_OK) {
 	return TCL_ERROR;
     }
+
     tkwin = Tk_HWNDToWindow((HWND)number);
     if (tkwin) {
 	*idPtr = Tk_WindowId(tkwin);
@@ -352,7 +360,7 @@ XMapWindow(display, w)
 
     display->request++;
 
-    ShowWindow(TkWinGetHWND(w), SW_SHOWNORMAL);
+    ShowWindow(Tk_GetHWND(w), SW_SHOWNORMAL);
     winPtr->flags |= TK_MAPPED;
 
     /*
@@ -361,13 +369,13 @@ XMapWindow(display, w)
      * its mapped children have just become visible.
      */
 
-    if (!(winPtr->flags & TK_TOP_LEVEL)) {
+    if (!(winPtr->flags & TK_TOP_HIERARCHY)) {
 	for (parentPtr = winPtr->parentPtr; ;
 	        parentPtr = parentPtr->parentPtr) {
 	    if ((parentPtr == NULL) || !(parentPtr->flags & TK_MAPPED)) {
 		return;
 	    }
-	    if (parentPtr->flags & TK_TOP_LEVEL) {
+	    if (parentPtr->flags & TK_TOP_HIERARCHY) {
 		break;
 	    }
 	}
@@ -465,10 +473,10 @@ XUnmapWindow(display, w)
      * it will be cleared before XUnmapWindow is called.
      */
 
-    ShowWindow(TkWinGetHWND(w), SW_HIDE);
+    ShowWindow(Tk_GetHWND(w), SW_HIDE);
     winPtr->flags &= ~TK_MAPPED;
 
-    if (winPtr->flags & TK_TOP_LEVEL) {
+    if (winPtr->flags & TK_WIN_MANAGED) {
 	event.type = UnmapNotify;
 	event.xunmap.serial = display->request;
 	event.xunmap.send_event = False;
@@ -506,7 +514,7 @@ XMoveResizeWindow(display, w, x, y, width, height)
     unsigned int height;
 {
     display->request++;
-    MoveWindow(TkWinGetHWND(w), x, y, width, height, TRUE);
+    MoveWindow(Tk_GetHWND(w), x, y, width, height, TRUE);
 }
 
 /*
@@ -536,7 +544,7 @@ XMoveWindow(display, w, x, y)
 
     display->request++;
 
-    MoveWindow(TkWinGetHWND(w), x, y, winPtr->changes.width,
+    MoveWindow(Tk_GetHWND(w), x, y, winPtr->changes.width,
 	    winPtr->changes.height, TRUE);
 }
 
@@ -567,7 +575,7 @@ XResizeWindow(display, w, width, height)
 
     display->request++;
 
-    MoveWindow(TkWinGetHWND(w), winPtr->changes.x, winPtr->changes.y, width,
+    MoveWindow(Tk_GetHWND(w), winPtr->changes.x, winPtr->changes.y, width,
 	    height, TRUE);
 }
 
@@ -592,7 +600,7 @@ XRaiseWindow(display, w)
     Display* display;
     Window w;
 {
-    HWND window = TkWinGetHWND(w);
+    HWND window = Tk_GetHWND(w);
 
     display->request++;
     SetWindowPos(window, HWND_TOPMOST, 0, 0, 0, 0,
@@ -626,7 +634,7 @@ XConfigureWindow(display, w, value_mask, values)
     XWindowChanges* values;
 {
     TkWindow *winPtr = TkWinGetWinPtr(w);
-    HWND hwnd = TkWinGetHWND(w);
+    HWND hwnd = Tk_GetHWND(w);
 
     display->request++;
 
@@ -679,7 +687,7 @@ XClearWindow(display, w)
     HBRUSH brush;
     HPALETTE oldPalette, palette;
     TkWindow *winPtr;
-    HWND hwnd = TkWinGetHWND(w);
+    HWND hwnd = Tk_GetHWND(w);
     HDC dc = GetDC(hwnd);
 
     palette = TkWinGetPalette(display->screens[0].cmap);
@@ -801,4 +809,3 @@ TkpWindowWasRecentlyDeleted(win, dispPtr)
 {
     return 0;
 }
-

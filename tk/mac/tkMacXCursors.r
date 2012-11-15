@@ -10,8 +10,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 /*
@@ -958,5 +956,4 @@ data 'crsr' (3075, "watch", purgeable) {
 	$"EEEE 0003 BBBB BBBB BBBB 000F 0000 0000"
 	$"0000"                                   
 };
-
 

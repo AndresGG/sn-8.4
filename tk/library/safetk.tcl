@@ -2,8 +2,6 @@
 #
 # Support procs to use Tk in safe interpreters.
 #
-# RCS: @(#) $Id$
-#
 # Copyright (c) 1997 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
@@ -40,7 +38,7 @@ namespace eval ::safe {
 	# We have to make sure that the tk_library variable uses a file
 	# pathname that works better in Tk (of the style returned by
 	# [file join], ie C:/path/to/tk/lib, not C:\path\to\tk\lib
-	set tk_library [eval [list file join] [file split $tk_library]]
+	set tk_library [file join $tk_library]
 
 	# Clear Tk's access for that interp (path).
 	allowTk $slave $argv
@@ -126,7 +124,7 @@ proc ::safe::loadTk {} {}
 		set nDisplay $display
 	    }
 	}
-	if {[string compare $nDisplay $display]} {
+	if {$nDisplay ne $display} {
 	    if {$displayGiven} {
 		error "conflicting -display $display and -use\
 			$use -> $nDisplay"
@@ -275,5 +273,3 @@ proc ::safe::tkTopLevel {slave display} {
 }
 
 }
-
-

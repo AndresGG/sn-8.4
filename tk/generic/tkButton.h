@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #ifndef _TKBUTTON
@@ -23,6 +21,15 @@
 # undef TCL_STORAGE_CLASS
 # define TCL_STORAGE_CLASS DLLEXPORT
 #endif
+
+/*
+ * Legal values for the "compound" field of TkButton records.
+ */
+
+enum compound {
+    COMPOUND_BOTTOM, COMPOUND_CENTER, COMPOUND_LEFT, COMPOUND_NONE,
+	COMPOUND_RIGHT, COMPOUND_TOP
+};
 
 /*
  * Legal values for the "state" field of TkButton records.
@@ -107,6 +114,15 @@ typedef struct {
     int relief;			/* Value of -relief option: specifies 3-d
 				 * effect for border, such as
 				 * TK_RELIEF_RAISED. */
+    int overRelief;		/* Value of -overrelief option: specifies a 3-d
+				 * effect for the border, such as
+				 * TK_RELIEF_RAISED, to be used when the mouse
+				 * is over the button. */
+    int offRelief;		/* Value of -offrelief option: specifies a 3-d
+				 * effect for the border, such as
+				 * TK_RELIEF_RAISED, to be used when a
+				 * checkbutton or radiobutton without 
+				 * indicator is off */
     Tcl_Obj *highlightWidthPtr;	/* Value of -highlightthickness option:
 				 * specifies width in pixels of highlight to
 				 * draw around widget when it has the focus.
@@ -141,12 +157,10 @@ typedef struct {
 				 * screen. */
     GC activeTextGC;		/* GC for drawing text in active mode (NULL
 				 * means use normalTextGC). */
-    GC disabledGC;		/* Used to produce disabled effect.  If
-				 * disabledFg isn't NULL, this GC is used to
-				 * draw button text or icon.  Otherwise
-				 * text or icon is drawn with normalGC and
-				 * this GC is used to stipple background
-				 * across it.  For labels this is None. */
+    GC disabledGC;		/* Used to produce disabled effect for text
+				 * and check/radio marks. */
+    GC stippleGC;		/* Used to produce disabled stipple effect
+				 * for images when disabled. */
     Pixmap gray;		/* Pixmap for displaying disabled text if
 				 * disabledFg is NULL. */
     GC copyGC;			/* Used for copying information from an
@@ -226,6 +240,15 @@ typedef struct {
 				 * to execute when button is invoked.  If
 				 * widget is label or has no command, this
 				 * is NULL. */
+    int compound;		/* Value of -compound option; specifies whether
+				 * the button should show both an image and
+				 * text, and, if so, how. */
+    int repeatDelay;		/* Value of -repeatdelay option; specifies
+				 * the number of ms after which the button will
+				 * start to auto-repeat its command. */
+    int repeatInterval;		/* Value of -repeatinterval option; specifies
+				 * the number of ms between auto-repeat
+				 * invocataions of the button command. */
     int flags;			/* Various flags;  see below for
 				 * definitions. */
 } TkButton;
@@ -257,16 +280,17 @@ typedef struct {
  *				deleted.
  */
 
-#define REDRAW_PENDING		1
-#define SELECTED		2
-#define GOT_FOCUS		4
-#define BUTTON_DELETED		0x8
-
+#define REDRAW_PENDING		(1 << 0)
+#define SELECTED		(1 << 1)
+#define GOT_FOCUS		(1 << 2)
+#define BUTTON_DELETED		(1 << 3)
 /*
- * Declaration of variables shared between the files in the button module.
+ * Declaration of button class functions structure
+ * and button/label defaults, for use in optionSpecs.
  */
 
-extern TkClassProcs tkpButtonProcs;
+extern Tk_ClassProcs tkpButtonProcs;
+extern char tkDefButtonBorderWidth[TCL_INTEGER_SPACE];
 
 /*
  * Declaration of procedures used in the implementation of the button
@@ -294,4 +318,3 @@ EXTERN int		TkInvokeButton  _ANSI_ARGS_((TkButton *butPtr));
 # define TCL_STORAGE_CLASS DLLIMPORT
 
 #endif /* _TKBUTTON */
-

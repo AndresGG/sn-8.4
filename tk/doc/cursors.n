@@ -2,15 +2,15 @@
 '\" Copyright (c) 1998-2000 by Scriptics Corporation.
 '\" All rights reserved.
 '\" 
-'\" RCS: @(#) $Id$
+'\" Copyright (c) 2006-2007 Daniel A. Steffen <das@users.sourceforge.net>
 '\" 
-'\"
 .so man.macros
 .TH cursors n 8.3 Tk "Tk Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
 cursors \- mouse cursors available in Tk
+.BE
 
 .SH DESCRIPTION
 .PP
@@ -131,8 +131,8 @@ The \fBno\fR cursor can be specified to eliminate the cursor.
 .RE
 
 .TP
-\fBMacintosh\fR
-On Macintosh systems, the following cursors are mapped to native cursors:
+\fBMac OS X\fR
+On Mac OS X systems, the following cursors are mapped to native cursors:
 .RS
 .CS
 arrow
@@ -143,10 +143,29 @@ plus
 watch
 xterm
 .CE
-And the following additional cursors are available:
+And the following additional native cursors are available:
 .CS
+copyarrow
+aliasarrow
+contextualmenuarrow
 text
 cross-hair
+closedhand
+openhand
+pointinghand
+resizeleft
+resizeright
+resizeleftright
+resizeup
+resizedown
+resizeupdown
+none
+notallowed
+poof
+countinguphand
+countingdownhand
+countingupanddownhand
+spinning
 .CE
 .RE
 

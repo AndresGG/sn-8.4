@@ -10,8 +10,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkWinInt.h"
@@ -110,7 +108,7 @@ TkpTestembedCmd(clientData, interp, argc, argv)
     ClientData clientData;
     Tcl_Interp *interp;
     int argc;
-    char **argv;
+    CONST char **argv;
 {
     return TCL_OK;
 }
@@ -144,10 +142,11 @@ TkpUseWindow(interp, tkwin, string)
 				 * if string is bogus. */
     Tk_Window tkwin;		/* Tk window that does not yet have an
 				 * associated X window. */
-    char *string;		/* String identifying an X window to use
+    CONST char *string;		/* String identifying an X window to use
 				 * for tkwin;  must be an integer value. */
 {
     TkWindow *winPtr = (TkWindow *) tkwin;
+    TkWindow *usePtr;
     int id;
     HWND hwnd;
     Container *containerPtr;
@@ -177,6 +176,15 @@ TkpUseWindow(interp, tkwin, string)
         return TCL_ERROR;
     }
 
+    usePtr = (TkWindow *) Tk_HWNDToWindow(hwnd);
+    if (usePtr != NULL) {
+        if (!(usePtr->flags & TK_CONTAINER)) {
+	    Tcl_AppendResult(interp, "window \"", usePtr->pathName,
+                    "\" doesn't have -container option set", (char *) NULL);
+	    return TCL_ERROR;
+	}
+    }
+
     /*
      * Store the parent window in the platform private data slot so
      * TkWmMapWindow can use it when creating the wrapper window.
@@ -198,7 +206,7 @@ TkpUseWindow(interp, tkwin, string)
      */
 
     if (tsdPtr->firstContainerPtr == (Container *) NULL) {
-        Tcl_CreateExitHandler(CleanupContainerList, (ClientData) NULL);
+        TkCreateExitHandler(CleanupContainerList, (ClientData) NULL);
     }
     
     /*
@@ -274,7 +282,7 @@ TkpMakeContainer(tkwin)
      */
 
     if (tsdPtr->firstContainerPtr == (Container *) NULL) {
-        Tcl_CreateExitHandler(CleanupContainerList, (ClientData) NULL);
+        TkCreateExitHandler(CleanupContainerList, (ClientData) NULL);
     }
     
     /*
@@ -375,11 +383,13 @@ TkWinEmbeddedEventProc(hwnd, message, wParam, lParam)
      */
 
     for (containerPtr = tsdPtr->firstContainerPtr;
-	    containerPtr->parentHWnd != hwnd;
+	    containerPtr && containerPtr->parentHWnd != hwnd;
 	    containerPtr = containerPtr->nextPtr) {
-	if (containerPtr == NULL) {
-	    panic("TkWinContainerProc couldn't find Container record");
-	}
+	/* empty loop body */
+    }
+
+    if (containerPtr == NULL) {
+	Tcl_Panic("TkWinContainerProc couldn't find Container record");
     }
 
     switch (message) {
@@ -397,7 +407,7 @@ TkWinEmbeddedEventProc(hwnd, message, wParam, lParam)
 
 	break;
       case TK_GEOMETRYREQ:
-	EmbedGeometryRequest(containerPtr, wParam, lParam);
+	EmbedGeometryRequest(containerPtr, (int) wParam, lParam);
 	break;
     }
     return 1;
@@ -530,7 +540,6 @@ TkpGetOtherWindow(winPtr)
 	    return containerPtr->embeddedPtr;
 	}
     }
-    panic("TkpGetOtherWindow couldn't find window");
     return NULL;
 }
 
@@ -628,10 +637,12 @@ EmbedWindowDeleted(winPtr)
      * Find the Container structure for this window work.  Delete the
      * information about the embedded application and free the container's
      * record.
+     * The main container may be null. [Bug #476176]
      */
 
     prevPtr = NULL;
     containerPtr = tsdPtr->firstContainerPtr;
+    if (containerPtr == NULL) return;
     while (1) {
 	if (containerPtr->embeddedPtr == winPtr) {
 	    containerPtr->embeddedHWnd = NULL;
@@ -658,4 +669,3 @@ EmbedWindowDeleted(winPtr)
 	ckfree((char *) containerPtr);
     }
 }
-

@@ -10,8 +10,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkInt.h"
@@ -393,7 +391,7 @@ TkBTreeInsertChars(indexPtr, string)
 					 * index is no longer valid because
 					 * of changes to the segment
 					 * structure. */
-    char *string;			/* Pointer to bytes to insert (may
+    CONST char *string;			/* Pointer to bytes to insert (may
 					 * contain newlines, must be null-
 					 * terminated). */
 {
@@ -410,7 +408,7 @@ TkBTreeInsertChars(indexPtr, string)
     register TkTextSegment *segPtr;
     TkTextLine *newLinePtr;
     int chunkSize;			/* # characters in current chunk. */
-    register char *eol;			/* Pointer to character just after last
+    register CONST char *eol;		/* Pointer to character just after last
 					 * one in current chunk. */
     int changeToLineCount;		/* Counts change to total number of
 					 * lines in file. */
@@ -444,7 +442,7 @@ TkBTreeInsertChars(indexPtr, string)
 	    curPtr->nextPtr = segPtr;
 	}
 	segPtr->size = chunkSize;
-	strncpy(segPtr->body.chars, string, (size_t) chunkSize);
+	memcpy(segPtr->body.chars, string, (size_t) chunkSize);
 	segPtr->body.chars[chunkSize] = 0;
 
 	if (eol[-1] != '\n') {
@@ -2466,7 +2464,7 @@ TkTextIsElided(textPtr, indexPtr)
     register Node *nodePtr;
     register TkTextLine *siblingLinePtr;
     register TkTextSegment *segPtr;
-    register TkTextTag *tagPtr;
+    register TkTextTag *tagPtr = NULL; /* silence gcc 4 warning */
     register int i, index;
 
 	/* almost always avoid malloc, so stay out of system calls */
@@ -2550,13 +2548,18 @@ TkTextIsElided(textPtr, indexPtr)
 
     for (i = numTags-1; i >=0; i--) {
 	if (tagCnts[i] & 1) {
-#ifndef ALWAYS_SHOW_SELECTION
 	    /* who would make the selection elided? */
-	    if ((tagPtr == textPtr->selTagPtr)
+	    if (
+#ifndef MAC_OSX_TK
+		    !TkpAlwaysShowSelection(textPtr->tkwin)
+#else
+		    /* Don't show inactive selection in disabled widgets. */
+		    textPtr->state == TK_STATE_DISABLED
+#endif
+		    && (tagPtr == textPtr->selTagPtr)
 		    && !(textPtr->flags & GOT_FOCUS)) {
 		continue;
 	    }
-#endif
 	    elide = tagPtrs[i]->elide;
 	    break;
 	}
@@ -3374,12 +3377,13 @@ CharSplitProc(segPtr, index)
     newPtr1->typePtr = &tkTextCharType;
     newPtr1->nextPtr = newPtr2;
     newPtr1->size = index;
-    strncpy(newPtr1->body.chars, segPtr->body.chars, (size_t) index);
+    memcpy(newPtr1->body.chars, segPtr->body.chars, (size_t) index);
     newPtr1->body.chars[index] = 0;
     newPtr2->typePtr = &tkTextCharType;
     newPtr2->nextPtr = segPtr->nextPtr;
     newPtr2->size = segPtr->size - index;
-    strcpy(newPtr2->body.chars, segPtr->body.chars + index);
+    memcpy(newPtr2->body.chars, segPtr->body.chars + index, newPtr2->size);
+    newPtr2->body.chars[newPtr2->size] = 0;
     ckfree((char*) segPtr);
     return newPtr1;
 }
@@ -3421,8 +3425,9 @@ CharCleanupProc(segPtr, linePtr)
     newPtr->typePtr = &tkTextCharType;
     newPtr->nextPtr = segPtr2->nextPtr;
     newPtr->size = segPtr->size + segPtr2->size;
-    strcpy(newPtr->body.chars, segPtr->body.chars);
-    strcpy(newPtr->body.chars + segPtr->size, segPtr2->body.chars);
+    memcpy(newPtr->body.chars, segPtr->body.chars, segPtr->size);
+    memcpy(newPtr->body.chars + segPtr->size, segPtr2->body.chars, segPtr2->size);
+    newPtr->body.chars[newPtr->size] = 0;
     ckfree((char*) segPtr);
     ckfree((char*) segPtr2);
     return newPtr;
@@ -3753,4 +3758,3 @@ TkBTreeBytesInLine(linePtr)
     }
     return count;
 }
-

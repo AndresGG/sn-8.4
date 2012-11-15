@@ -17,8 +17,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkPort.h"
@@ -147,7 +145,7 @@ static Tk_OptionSpec optionSpecs[] = {
  * to dispatch the scale widget command.
  */
 
-static char *commandNames[] = {
+static CONST char *commandNames[] = {
     "cget", "configure", "coords", "get", "identify", "set", (char *) NULL
 };
 
@@ -171,8 +169,8 @@ static void		ScaleCmdDeletedProc _ANSI_ARGS_((
 static void		ScaleEventProc _ANSI_ARGS_((ClientData clientData,
 			    XEvent *eventPtr));
 static char *		ScaleVarProc _ANSI_ARGS_((ClientData clientData,
-			    Tcl_Interp *interp, char *name1, char *name2,
-			    int flags));
+			    Tcl_Interp *interp, CONST char *name1,
+			    CONST char *name2, int flags));
 static int		ScaleWidgetObjCmd _ANSI_ARGS_((ClientData clientData,
 			    Tcl_Interp *interp, int objc, 
 			    Tcl_Obj *CONST objv[]));
@@ -185,10 +183,9 @@ static void		ScaleSetVariable _ANSI_ARGS_((TkScale *scalePtr));
  * that can be invoked from generic window code.
  */
 
-static TkClassProcs scaleClass = {
-    NULL,			/* createProc. */
-    ScaleWorldChanged,		/* geometryProc. */
-    NULL			/* modalProc. */
+static Tk_ClassProcs scaleClass = {
+    sizeof(Tk_ClassProcs),	/* size */
+    ScaleWorldChanged,		/* worldChangedProc */
 };
 
 
@@ -212,7 +209,7 @@ static TkClassProcs scaleClass = {
 
 int
 Tk_ScaleObjCmd(clientData, interp, objc, objv)
-    ClientData clientData;	/* Either NULL or pointer to option table. */
+    ClientData clientData;	/* NULL. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int objc;			/* Number of arguments. */
     Tcl_Obj *CONST objv[];	/* Argument values. */
@@ -220,25 +217,6 @@ Tk_ScaleObjCmd(clientData, interp, objc, objv)
     register TkScale *scalePtr;
     Tk_OptionTable optionTable;
     Tk_Window tkwin;
-
-    optionTable = (Tk_OptionTable) clientData;
-    if (optionTable == NULL) {
-	Tcl_CmdInfo info;
-	char *name;
-
-	/*
-	 * We haven't created the option table for this widget class
-	 * yet.  Do it now and save the table as the clientData for
-	 * the command, so we'll have access to it in future
-	 * invocations of the command.
-	 */
-
-	optionTable = Tk_CreateOptionTable(interp, optionSpecs);
-	name = Tcl_GetString(objv[0]);
-	Tcl_GetCommandInfo(interp, name, &info);
-	info.objClientData = (ClientData) optionTable;
-	Tcl_SetCommandInfo(interp, name, &info);
-    }
 
     if (objc < 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "pathName ?options?");
@@ -250,6 +228,13 @@ Tk_ScaleObjCmd(clientData, interp, objc, objv)
     if (tkwin == NULL) {
 	return TCL_ERROR;
     }
+
+    /*
+     * Create the option table for this widget class.  If it has already
+     * been created, the cached pointer will be returned.
+     */
+
+    optionTable = Tk_CreateOptionTable(interp, optionSpecs);
 
     Tk_SetClass(tkwin, "Scale");
     scalePtr = TkpCreateScale(tkwin);
@@ -314,7 +299,7 @@ Tk_ScaleObjCmd(clientData, interp, objc, objv)
     scalePtr->takeFocusPtr	= NULL;
     scalePtr->flags		= NEVER_SET;
 
-    TkSetClassProcs(scalePtr->tkwin, &scaleClass, (ClientData) scalePtr);
+    Tk_SetClassProcs(scalePtr->tkwin, &scaleClass, (ClientData) scalePtr);
     Tk_CreateEventHandler(scalePtr->tkwin,
 	    ExposureMask|StructureNotifyMask|FocusChangeMask,
 	    ScaleEventProc, (ClientData) scalePtr);
@@ -593,7 +578,7 @@ ConfigureScale(interp, scalePtr, objc, objv)
     Tk_SavedOptions savedOptions;
     Tcl_Obj *errorResult = NULL;
     int error;
-    double oldValue = scalePtr->value;
+    double varValue;
 
     /*
      * Eliminate any existing trace on a variable monitored by the scale.
@@ -703,10 +688,17 @@ ConfigureScale(interp, scalePtr, objc, objv)
 	 */
 	valuePtr = Tcl_ObjGetVar2(interp, scalePtr->varNamePtr, NULL,
 		TCL_GLOBAL_ONLY);
-	if ((valuePtr == NULL) || (scalePtr->value != oldValue)
-		|| (Tcl_GetDoubleFromObj(NULL, valuePtr, &oldValue) != TCL_OK)
-		|| (scalePtr->value != oldValue)) {
+	if ((valuePtr == NULL) || (Tcl_GetDoubleFromObj(NULL,
+		valuePtr, &varValue) != TCL_OK)) {
 	    ScaleSetVariable(scalePtr);
+	} else {
+	    char varString[TCL_DOUBLE_SPACE];
+	    char scaleString[TCL_DOUBLE_SPACE];
+	    sprintf(varString, scalePtr->format, varValue);
+	    sprintf(scaleString, scalePtr->format, scalePtr->value);
+	    if (strcmp(varString, scaleString)) {
+		ScaleSetVariable(scalePtr);
+	    }
 	}
         Tcl_TraceVar(interp, Tcl_GetString(scalePtr->varNamePtr),
 	        TCL_GLOBAL_ONLY|TCL_TRACE_WRITES|TCL_TRACE_UNSETS,
@@ -1198,8 +1190,8 @@ static char *
 ScaleVarProc(clientData, interp, name1, name2, flags)
     ClientData clientData;	/* Information about button. */
     Tcl_Interp *interp;		/* Interpreter containing variable. */
-    char *name1;		/* Name of variable. */
-    char *name2;		/* Second part of variable name. */
+    CONST char *name1;		/* Name of variable. */
+    CONST char *name2;		/* Second part of variable name. */
     int flags;			/* Information about what happened. */
 {
     register TkScale *scalePtr = (TkScale *) clientData;

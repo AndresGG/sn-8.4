@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include <stdio.h>
@@ -92,8 +90,8 @@ static Tk_ConfigSpec configSpecs[] = {
  */
 
 static int		BitmapCoords _ANSI_ARGS_((Tcl_Interp *interp,
-			    Tk_Canvas canvas, Tk_Item *itemPtr, int argc,
-			    Tcl_Obj *CONST argv[]));
+			    Tk_Canvas canvas, Tk_Item *itemPtr, int objc,
+			    Tcl_Obj *CONST objv[]));
 static int		BitmapToArea _ANSI_ARGS_((Tk_Canvas canvas,
 			    Tk_Item *itemPtr, double *rectPtr));
 static double		BitmapToPoint _ANSI_ARGS_((Tk_Canvas canvas,
@@ -103,11 +101,11 @@ static int		BitmapToPostscript _ANSI_ARGS_((Tcl_Interp *interp,
 static void		ComputeBitmapBbox _ANSI_ARGS_((Tk_Canvas canvas,
 			    BitmapItem *bmapPtr));
 static int		ConfigureBitmap _ANSI_ARGS_((Tcl_Interp *interp,
-			    Tk_Canvas canvas, Tk_Item *itemPtr, int argc,
-			    Tcl_Obj *CONST argv[], int flags));
-static int		CreateBitmap _ANSI_ARGS_((Tcl_Interp *interp,
+			    Tk_Canvas canvas, Tk_Item *itemPtr, int objc,
+			    Tcl_Obj *CONST objv[], int flags));
+static int		TkcCreateBitmap _ANSI_ARGS_((Tcl_Interp *interp,
 			    Tk_Canvas canvas, struct Tk_Item *itemPtr,
-			    int argc, Tcl_Obj *CONST argv[]));
+			    int objc, Tcl_Obj *CONST objv[]));
 static void		DeleteBitmap _ANSI_ARGS_((Tk_Canvas canvas,
 			    Tk_Item *itemPtr, Display *display));
 static void		DisplayBitmap _ANSI_ARGS_((Tk_Canvas canvas,
@@ -127,7 +125,7 @@ static void		TranslateBitmap _ANSI_ARGS_((Tk_Canvas canvas,
 Tk_ItemType tkBitmapType = {
     "bitmap",				/* name */
     sizeof(BitmapItem),			/* itemSize */
-    CreateBitmap,			/* createProc */
+    TkcCreateBitmap,			/* createProc */
     configSpecs,			/* configSpecs */
     ConfigureBitmap,			/* configureProc */
     BitmapCoords,			/* coordProc */
@@ -150,7 +148,7 @@ Tk_ItemType tkBitmapType = {
 /*
  *--------------------------------------------------------------
  *
- * CreateBitmap --
+ * TkcCreateBitmap --
  *
  *	This procedure is invoked to create a new bitmap
  *	item in a canvas.
@@ -168,35 +166,19 @@ Tk_ItemType tkBitmapType = {
  */
 
 static int
-CreateBitmap(interp, canvas, itemPtr, argc, argv)
+TkcCreateBitmap(interp, canvas, itemPtr, objc, objv)
     Tcl_Interp *interp;			/* Interpreter for error reporting. */
     Tk_Canvas canvas;			/* Canvas to hold new item. */
     Tk_Item *itemPtr;			/* Record to hold new item;  header
 					 * has been initialized by caller. */
-    int argc;				/* Number of arguments in argv. */
-    Tcl_Obj *CONST argv[];		/* Arguments describing rectangle. */
+    int objc;				/* Number of arguments in objv. */
+    Tcl_Obj *CONST objv[];		/* Arguments describing rectangle. */
 {
     BitmapItem *bmapPtr = (BitmapItem *) itemPtr;
     int i;
 
-    if (argc==1) {
-	i = 1;
-    } else {
-	char *arg = Tcl_GetStringFromObj(argv[1], NULL);
-	if (((argc>1) && (arg[0] == '-')
-		&& (arg[1] >= 'a') && (arg[1] <= 'z'))) {
-	    i = 1;
-	} else {
-	    i = 2;
-	}
-    }
-
-    if (argc < i) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"",
-		Tk_PathName(Tk_CanvasTkwin(canvas)), " create ",
-		itemPtr->typePtr->name, " x y ?options?\"",
-		(char *) NULL);
-	return TCL_ERROR;
+    if (objc == 0) {
+	Tcl_Panic("canvas did not pass any coords\n");
     }
 
     /*
@@ -217,12 +199,23 @@ CreateBitmap(interp, canvas, itemPtr, argc, argv)
 
     /*
      * Process the arguments to fill in the item record.
+     * Only 1 (list) or 2 (x y) coords are allowed.
      */
 
-    if ((BitmapCoords(interp, canvas, itemPtr, i, argv) != TCL_OK)) {
+    if (objc == 1) {
+	i = 1;
+    } else {
+	char *arg = Tcl_GetString(objv[1]);
+	i = 2;
+	if ((arg[0] == '-') && (arg[1] >= 'a') && (arg[1] <= 'z')) {
+	    i = 1;
+	}
+    }
+    if (BitmapCoords(interp, canvas, itemPtr, i, objv) != TCL_OK) {
 	goto error;
     }
-    if (ConfigureBitmap(interp, canvas, itemPtr, argc-i, argv+i, 0) == TCL_OK) {
+    if (ConfigureBitmap(interp, canvas, itemPtr, objc-i, objv+i, 0)
+	    == TCL_OK) {
 	return TCL_OK;
     }
 
@@ -250,48 +243,49 @@ CreateBitmap(interp, canvas, itemPtr, argc, argv)
  */
 
 static int
-BitmapCoords(interp, canvas, itemPtr, argc, argv)
+BitmapCoords(interp, canvas, itemPtr, objc, objv)
     Tcl_Interp *interp;			/* Used for error reporting. */
     Tk_Canvas canvas;			/* Canvas containing item. */
     Tk_Item *itemPtr;			/* Item whose coordinates are to be
 					 * read or modified. */
-    int argc;				/* Number of coordinates supplied in
-					 * argv. */
-    Tcl_Obj *CONST argv[];		/* Array of coordinates: x1, y1,
+    int objc;				/* Number of coordinates supplied in
+					 * objv. */
+    Tcl_Obj *CONST objv[];		/* Array of coordinates: x1, y1,
 					 * x2, y2, ... */
 {
     BitmapItem *bmapPtr = (BitmapItem *) itemPtr;
 
-    if (argc == 0) {
+    if (objc == 0) {
 	Tcl_Obj *obj = Tcl_NewObj();
 	Tcl_Obj *subobj = Tcl_NewDoubleObj(bmapPtr->x);
 	Tcl_ListObjAppendElement(interp, obj, subobj);
 	subobj = Tcl_NewDoubleObj(bmapPtr->y);
 	Tcl_ListObjAppendElement(interp, obj, subobj);
 	Tcl_SetObjResult(interp, obj);
-    } else if (argc <3) {
-	if (argc==1) {
-	    if (Tcl_ListObjGetElements(interp, argv[0], &argc,
-		    (Tcl_Obj ***) &argv) != TCL_OK) {
+    } else if (objc < 3) {
+	if (objc == 1) {
+	    if (Tcl_ListObjGetElements(interp, objv[0], &objc,
+		    (Tcl_Obj ***) &objv) != TCL_OK) {
 		return TCL_ERROR;
-	    } else if (argc != 2) {
+	    } else if (objc != 2) {
 		char buf[64 + TCL_INTEGER_SPACE];
 
-		sprintf(buf, "wrong # coordinates: expected 2, got %d", argc);
+		sprintf(buf, "wrong # coordinates: expected 2, got %d", objc);
 		Tcl_SetResult(interp, buf, TCL_VOLATILE);
 		return TCL_ERROR;
 	    }
 	}
-	if ((Tk_CanvasGetCoordFromObj(interp, canvas, argv[0], &bmapPtr->x) != TCL_OK)
-		|| (Tk_CanvasGetCoordFromObj(interp, canvas, argv[1], &bmapPtr->y)
- 		    != TCL_OK)) {
+	if ((Tk_CanvasGetCoordFromObj(interp, canvas, objv[0],
+		&bmapPtr->x) != TCL_OK)
+		|| (Tk_CanvasGetCoordFromObj(interp, canvas, objv[1],
+			&bmapPtr->y) != TCL_OK)) {
 	    return TCL_ERROR;
 	}
 	ComputeBitmapBbox(canvas, bmapPtr);
     } else {
 	char buf[64 + TCL_INTEGER_SPACE];
 
-	sprintf(buf, "wrong # coordinates: expected 0 or 2, got %d", argc);
+	sprintf(buf, "wrong # coordinates: expected 0 or 2, got %d", objc);
 	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 	return TCL_ERROR;
     }
@@ -317,12 +311,12 @@ BitmapCoords(interp, canvas, itemPtr, argc, argv)
  */
 
 static int
-ConfigureBitmap(interp, canvas, itemPtr, argc, argv, flags)
+ConfigureBitmap(interp, canvas, itemPtr, objc, objv, flags)
     Tcl_Interp *interp;		/* Used for error reporting. */
     Tk_Canvas canvas;		/* Canvas containing itemPtr. */
     Tk_Item *itemPtr;		/* Bitmap item to reconfigure. */
-    int argc;			/* Number of elements in argv.  */
-    Tcl_Obj *CONST argv[];	/* Arguments describing things to configure. */
+    int objc;			/* Number of elements in objv.  */
+    Tcl_Obj *CONST objv[];	/* Arguments describing things to configure. */
     int flags;			/* Flags to pass to Tk_ConfigureWidget. */
 {
     BitmapItem *bmapPtr = (BitmapItem *) itemPtr;
@@ -336,8 +330,8 @@ ConfigureBitmap(interp, canvas, itemPtr, argc, argv, flags)
     Tk_State state;
 
     tkwin = Tk_CanvasTkwin(canvas);
-    if (Tk_ConfigureWidget(interp, tkwin, configSpecs, argc, (char **) argv,
-	    (char *) bmapPtr, flags|TK_CONFIG_OBJS) != TCL_OK) {
+    if (TCL_OK != Tk_ConfigureWidget(interp, tkwin, configSpecs, objc,
+	    (CONST char **) objv, (char *) bmapPtr, flags|TK_CONFIG_OBJS)) {
 	return TCL_ERROR;
     }
 
@@ -356,12 +350,12 @@ ConfigureBitmap(interp, canvas, itemPtr, argc, argv, flags)
 	itemPtr->redraw_flags &= ~TK_ITEM_STATE_DEPENDANT;
     }
 
-    if(state == TK_STATE_NULL) {
+    if (state == TK_STATE_NULL) {
 	state = ((TkCanvas *)canvas)->canvas_state;
     }
-    if (state==TK_STATE_HIDDEN) {
+    if (state == TK_STATE_HIDDEN) {
 	ComputeBitmapBbox(canvas, bmapPtr);
-	return TCL_OK;	
+	return TCL_OK;
     }
     fgColor = bmapPtr->fgColor;
     bgColor = bmapPtr->bgColor;
@@ -376,7 +370,7 @@ ConfigureBitmap(interp, canvas, itemPtr, argc, argv, flags)
 	if (bmapPtr->activeBitmap!=None) {
 	    bitmap = bmapPtr->activeBitmap;
 	}
-    } else if (state==TK_STATE_DISABLED) {
+    } else if (state == TK_STATE_DISABLED) {
 	if (bmapPtr->disabledFgColor!=NULL) {
 	    fgColor = bmapPtr->disabledFgColor;
 	}
@@ -388,23 +382,18 @@ ConfigureBitmap(interp, canvas, itemPtr, argc, argv, flags)
 	}
     }
 
-    if (state==TK_STATE_DISABLED || bitmap == None) {
-	ComputeBitmapBbox(canvas, bmapPtr);
-	return TCL_OK;
-    }
-
-    gcValues.foreground = fgColor->pixel;
-    mask = GCForeground;
-    if (bgColor != NULL) {
-	gcValues.background = bgColor->pixel;
-	mask |= GCBackground;
-    } else {
-	gcValues.clip_mask = bitmap;
-	mask |= GCClipMask;
-    }
     if (bitmap == None) {
 	newGC = None;
     } else {
+	gcValues.foreground = fgColor->pixel;
+	mask = GCForeground;
+	if (bgColor != NULL) {
+	    gcValues.background = bgColor->pixel;
+	    mask |= GCBackground;
+	} else {
+	    gcValues.clip_mask = bitmap;
+	    mask |= GCClipMask;
+	}
 	newGC = Tk_GetGC(tkwin, mask, &gcValues);
     }
     if (bmapPtr->gc != None) {
@@ -413,7 +402,6 @@ ConfigureBitmap(interp, canvas, itemPtr, argc, argv, flags)
     bmapPtr->gc = newGC;
 
     ComputeBitmapBbox(canvas, bmapPtr);
-
     return TCL_OK;
 }
 
@@ -507,7 +495,7 @@ ComputeBitmapBbox(canvas, bmapPtr)
     Pixmap bitmap;
     Tk_State state = bmapPtr->header.state;
 
-    if(state == TK_STATE_NULL) {
+    if (state == TK_STATE_NULL) {
 	state = ((TkCanvas *)canvas)->canvas_state;
     }
     bitmap = bmapPtr->bitmap;
@@ -534,7 +522,7 @@ ComputeBitmapBbox(canvas, bmapPtr)
      * Compute location and size of bitmap, using anchor information.
      */
 
-    Tk_SizeOfBitmap(Tk_Display(Tk_CanvasTkwin(canvas)), bmapPtr->bitmap,
+    Tk_SizeOfBitmap(Tk_Display(Tk_CanvasTkwin(canvas)), bitmap,
 	    &width, &height);
     switch (bmapPtr->anchor) {
 	case TK_ANCHOR_N:
@@ -610,8 +598,6 @@ DisplayBitmap(canvas, itemPtr, display, drawable, x, y, width, height)
     BitmapItem *bmapPtr = (BitmapItem *) itemPtr;
     int bmapX, bmapY, bmapWidth, bmapHeight;
     short drawableX, drawableY;
-    XColor *fgColor;
-    XColor *bgColor;
     Pixmap bitmap;
     Tk_State state = itemPtr->state;
 
@@ -621,29 +607,15 @@ DisplayBitmap(canvas, itemPtr, display, drawable, x, y, width, height)
      * redisplay.
      */
 
-    if(state == TK_STATE_NULL) {
+    if (state == TK_STATE_NULL) {
 	state = ((TkCanvas *)canvas)->canvas_state;
     }
-    fgColor = bmapPtr->fgColor;
-    bgColor = bmapPtr->bgColor;
     bitmap = bmapPtr->bitmap;
     if (((TkCanvas *)canvas)->currentItemPtr == itemPtr) {
-	if (bmapPtr->activeFgColor!=NULL) {
-	    fgColor = bmapPtr->activeFgColor;
-	}
-	if (bmapPtr->activeBgColor!=NULL) {
-	    bgColor = bmapPtr->activeBgColor;
-	}
 	if (bmapPtr->activeBitmap!=None) {
 	    bitmap = bmapPtr->activeBitmap;
 	}
-    } else if (state==TK_STATE_DISABLED) {
-	if (bmapPtr->disabledFgColor!=NULL) {
-	    fgColor = bmapPtr->disabledFgColor;
-	}
-	if (bmapPtr->disabledBgColor!=NULL) {
-	    bgColor = bmapPtr->disabledBgColor;
-	}
+    } else if (state == TK_STATE_DISABLED) {
 	if (bmapPtr->disabledBitmap!=None) {
 	    bitmap = bmapPtr->disabledBitmap;
 	}
@@ -682,7 +654,7 @@ DisplayBitmap(canvas, itemPtr, display, drawable, x, y, width, height)
 	 * to line up with the bitmap's origin (in order to make
 	 * bitmaps with "-background {}" work right).
 	 */
- 
+
 	XSetClipOrigin(display, bmapPtr->gc, drawableX - bmapX,
 		drawableY - bmapY);
 	XCopyPlane(display, bitmap, drawable,
@@ -901,8 +873,40 @@ BitmapToPostscript(interp, canvas, itemPtr, prepass)
     int width, height, rowsAtOnce, rowsThisTime;
     int curRow;
     char buffer[100 + TCL_DOUBLE_SPACE * 2 + TCL_INTEGER_SPACE * 4];
+    XColor *fgColor;
+    XColor *bgColor;
+    Pixmap bitmap;
+    Tk_State state = itemPtr->state;
 
-    if (bmapPtr->bitmap == None) {
+    if (state == TK_STATE_NULL) {
+	state = ((TkCanvas *)canvas)->canvas_state;
+    }
+    fgColor = bmapPtr->fgColor;
+    bgColor = bmapPtr->bgColor;
+    bitmap = bmapPtr->bitmap;
+    if (((TkCanvas *)canvas)->currentItemPtr == itemPtr) {
+	if (bmapPtr->activeFgColor!=NULL) {
+	    fgColor = bmapPtr->activeFgColor;
+	}
+	if (bmapPtr->activeBgColor!=NULL) {
+	    bgColor = bmapPtr->activeBgColor;
+	}
+	if (bmapPtr->activeBitmap!=None) {
+	    bitmap = bmapPtr->activeBitmap;
+	}
+    } else if (state == TK_STATE_DISABLED) {
+	if (bmapPtr->disabledFgColor!=NULL) {
+	    fgColor = bmapPtr->disabledFgColor;
+	}
+	if (bmapPtr->disabledBgColor!=NULL) {
+	    bgColor = bmapPtr->disabledBgColor;
+	}
+	if (bmapPtr->disabledBitmap!=None) {
+	    bitmap = bmapPtr->disabledBitmap;
+	}
+    }
+
+    if (bitmap == None) {
 	return TCL_OK;
     }
 
@@ -913,7 +917,7 @@ BitmapToPostscript(interp, canvas, itemPtr, prepass)
 
     x = bmapPtr->x;
     y = Tk_CanvasPsY(canvas, bmapPtr->y);
-    Tk_SizeOfBitmap(Tk_Display(Tk_CanvasTkwin(canvas)), bmapPtr->bitmap,
+    Tk_SizeOfBitmap(Tk_Display(Tk_CanvasTkwin(canvas)), bitmap,
 	    &width, &height);
     switch (bmapPtr->anchor) {
 	case TK_ANCHOR_NW:			y -= height;		break;
@@ -931,12 +935,12 @@ BitmapToPostscript(interp, canvas, itemPtr, prepass)
      * Color the background, if there is one.
      */
 
-    if (bmapPtr->bgColor != NULL) {
+    if (bgColor != NULL) {
 	sprintf(buffer,
 		"%.15g %.15g moveto %d 0 rlineto 0 %d rlineto %d %s\n",
 		x, y, width, height, -width, "0 rlineto closepath");
 	Tcl_AppendResult(interp, buffer, (char *) NULL);
-	if (Tk_CanvasPsColor(interp, canvas, bmapPtr->bgColor) != TCL_OK) {
+	if (Tk_CanvasPsColor(interp, canvas, bgColor) != TCL_OK) {
 	    return TCL_ERROR;
 	}
 	Tcl_AppendResult(interp, "fill\n", (char *) NULL);
@@ -949,8 +953,8 @@ BitmapToPostscript(interp, canvas, itemPtr, prepass)
      * can't handle single strings longer than 64 KBytes long.
      */
 
-    if (bmapPtr->fgColor != NULL) {
-	if (Tk_CanvasPsColor(interp, canvas, bmapPtr->fgColor) != TCL_OK) {
+    if (fgColor != NULL) {
+	if (Tk_CanvasPsColor(interp, canvas, fgColor) != TCL_OK) {
 	    return TCL_ERROR;
 	}
 	if (width > 60000) {
@@ -974,7 +978,7 @@ BitmapToPostscript(interp, canvas, itemPtr, prepass)
 	    sprintf(buffer, "0 -%.15g translate\n%d %d true matrix {\n",
 		    (double) rowsThisTime, width, rowsThisTime);
 	    Tcl_AppendResult(interp, buffer, (char *) NULL);
-	    if (Tk_CanvasPsBitmap(interp, canvas, bmapPtr->bitmap,
+	    if (Tk_CanvasPsBitmap(interp, canvas, bitmap,
 		    0, curRow, width, rowsThisTime) != TCL_OK) {
 		return TCL_ERROR;
 	    }

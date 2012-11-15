@@ -9,8 +9,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #ifndef _WINPORT
@@ -42,9 +40,10 @@
 #endif
 
 #include <time.h>
-
-#ifdef _MSC_VER
-#include <tchar.h>
+#ifdef __CYGWIN__
+#    define _T(x) L##x
+#else
+#    include <tchar.h>
 #endif
 
 #ifdef _MSC_VER
@@ -58,7 +57,9 @@
 
 #define NBBY 8
 
+#ifndef OPEN_MAX
 #define OPEN_MAX 32
+#endif
 
 /*
  * The following define causes Tk to use its internal keysym hash table
@@ -116,7 +117,7 @@
 #define TkpCreateNativeBitmap(display, source) None
 #define TkpGetNativeAppBitmap(display, name, w, h) None
 
-/*
+ /*
  * This macro indicates that entry and text widgets should display
  * the selection highlight regardless of which window has the focus.
  */
@@ -140,10 +141,9 @@ struct timezone {
 };
 
 #endif
-
+ 
 #ifndef _TCLINT
 #include <tclInt.h>
 #endif
 
 #endif /* _WINPORT */
-

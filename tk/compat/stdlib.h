@@ -13,8 +13,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #ifndef _STDLIB
@@ -43,4 +41,3 @@ extern unsigned long	strtoul _ANSI_ARGS_((CONST char *string,
 			    char **endPtr, int base));
 
 #endif /* _STDLIB */
-

@@ -9,8 +9,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include <stdio.h>
@@ -83,13 +81,13 @@ static int		ArrowheadPostscript _ANSI_ARGS_((Tcl_Interp *interp,
 static void		ComputeLineBbox _ANSI_ARGS_((Tk_Canvas canvas,
 			    LineItem *linePtr));
 static int		ConfigureLine _ANSI_ARGS_((Tcl_Interp *interp,
-			    Tk_Canvas canvas, Tk_Item *itemPtr, int argc,
-			    Tcl_Obj *CONST argv[], int flags));
+			    Tk_Canvas canvas, Tk_Item *itemPtr, int objc,
+			    Tcl_Obj *CONST objv[], int flags));
 static int		ConfigureArrows _ANSI_ARGS_((Tk_Canvas canvas,
 			    LineItem *linePtr));
 static int		CreateLine _ANSI_ARGS_((Tcl_Interp *interp,
 			    Tk_Canvas canvas, struct Tk_Item *itemPtr,
-			    int argc, Tcl_Obj *CONST argv[]));
+			    int objc, Tcl_Obj *CONST objv[]));
 static void		DeleteLine _ANSI_ARGS_((Tk_Canvas canvas,
 			    Tk_Item *itemPtr, Display *display));
 static void		DisplayLine _ANSI_ARGS_((Tk_Canvas canvas,
@@ -100,7 +98,7 @@ static int		GetLineIndex _ANSI_ARGS_((Tcl_Interp *interp,
 			    Tcl_Obj *obj, int *indexPtr));
 static int		LineCoords _ANSI_ARGS_((Tcl_Interp *interp,
 			    Tk_Canvas canvas, Tk_Item *itemPtr,
-			    int argc, Tcl_Obj *CONST argv[]));
+			    int objc, Tcl_Obj *CONST objv[]));
 static void		LineDeleteCoords _ANSI_ARGS_((Tk_Canvas canvas,
 			    Tk_Item *itemPtr, int first, int last));
 static void		LineInsert _ANSI_ARGS_((Tk_Canvas canvas,
@@ -291,16 +289,20 @@ Tk_ItemType tkLineType = {
  */
 
 static int
-CreateLine(interp, canvas, itemPtr, argc, argv)
+CreateLine(interp, canvas, itemPtr, objc, objv)
     Tcl_Interp *interp;			/* Interpreter for error reporting. */
     Tk_Canvas canvas;			/* Canvas to hold new item. */
     Tk_Item *itemPtr;			/* Record to hold new item;  header
 					 * has been initialized by caller. */
-    int argc;				/* Number of arguments in argv. */
-    Tcl_Obj *CONST argv[];		/* Arguments describing line. */
+    int objc;				/* Number of arguments in objv. */
+    Tcl_Obj *CONST objv[];		/* Arguments describing line. */
 {
     LineItem *linePtr = (LineItem *) itemPtr;
     int i;
+
+    if (objc == 0) {
+	panic("canvas did not pass any coords\n");
+    }
 
     /*
      * Carry out initialization that is needed to set defaults and to
@@ -330,17 +332,16 @@ CreateLine(interp, canvas, itemPtr, argc, argv)
      * start with a digit or a minus sign followed by a digit.
      */
 
-    for (i = 0; i < argc; i++) {
-	char *arg = Tcl_GetStringFromObj(argv[i], NULL);
-	if ((arg[0] == '-') && (arg[1] >= 'a')
-		&& (arg[1] <= 'z')) {
+    for (i = 1; i < objc; i++) {
+	char *arg = Tcl_GetString(objv[i]);
+	if ((arg[0] == '-') && (arg[1] >= 'a') && (arg[1] <= 'z')) {
 	    break;
 	}
     }
-    if (i && (LineCoords(interp, canvas, itemPtr, i, argv) != TCL_OK)) {
+    if (LineCoords(interp, canvas, itemPtr, i, objv) != TCL_OK) {
 	goto error;
     }
-    if (ConfigureLine(interp, canvas, itemPtr, argc-i, argv+i, 0) == TCL_OK) {
+    if (ConfigureLine(interp, canvas, itemPtr, objc-i, objv+i, 0) == TCL_OK) {
 	return TCL_OK;
     }
 
@@ -368,21 +369,21 @@ CreateLine(interp, canvas, itemPtr, argc, argv)
  */
 
 static int
-LineCoords(interp, canvas, itemPtr, argc, argv)
+LineCoords(interp, canvas, itemPtr, objc, objv)
     Tcl_Interp *interp;			/* Used for error reporting. */
     Tk_Canvas canvas;			/* Canvas containing item. */
     Tk_Item *itemPtr;			/* Item whose coordinates are to be
 					 * read or modified. */
-    int argc;				/* Number of coordinates supplied in
-					 * argv. */
-    Tcl_Obj *CONST argv[];		/* Array of coordinates: x1, y1,
+    int objc;				/* Number of coordinates supplied in
+					 * objv. */
+    Tcl_Obj *CONST objv[];		/* Array of coordinates: x1, y1,
 					 * x2, y2, ... */
 {
     LineItem *linePtr = (LineItem *) itemPtr;
     int i, numPoints;
     double *coordPtr;
 
-    if (argc == 0) {
+    if (objc == 0) {
 	int numCoords;
 	Tcl_Obj *subobj, *obj = Tcl_NewObj();
 
@@ -405,27 +406,28 @@ LineCoords(interp, canvas, itemPtr, argc, argv)
 	Tcl_SetObjResult(interp, obj);
 	return TCL_OK;
     }
-    if (argc == 1) {
-	if (Tcl_ListObjGetElements(interp, argv[0], &argc,
-		(Tcl_Obj ***) &argv) != TCL_OK) {
+    if (objc == 1) {
+	if (Tcl_ListObjGetElements(interp, objv[0], &objc,
+		(Tcl_Obj ***) &objv) != TCL_OK) {
 	    return TCL_ERROR;
 	}
     }
-    if (argc & 1) {
-	Tcl_AppendResult(interp,
-		"odd number of coordinates specified for line",
-		(char *) NULL);
+    if (objc & 1) {
+	char buf[64 + TCL_INTEGER_SPACE];
+	sprintf(buf, "wrong # coordinates: expected an even number, got %d",
+		objc);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 	return TCL_ERROR;
-    } else if (argc < 4) {
-	Tcl_AppendResult(interp,
-		"too few coordinates specified for line",
-		(char *) NULL);
+    } else if (objc < 4) {
+	char buf[64 + TCL_INTEGER_SPACE];
+	sprintf(buf, "wrong # coordinates: expected at least 4, got %d", objc);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 	return TCL_ERROR;
     } else {
-	numPoints = argc/2;
+	numPoints = objc/2;
 	if (linePtr->numPoints != numPoints) {
 	    coordPtr = (double *) ckalloc((unsigned)
-		    (sizeof(double) * argc));
+		    (sizeof(double) * objc));
 	    if (linePtr->coordPtr != NULL) {
 		ckfree((char *) linePtr->coordPtr);
 	    }
@@ -433,8 +435,8 @@ LineCoords(interp, canvas, itemPtr, argc, argv)
 	    linePtr->numPoints = numPoints;
 	}
 	coordPtr = linePtr->coordPtr;
-	for (i = 0; i <argc; i++) {
-	    if (Tk_CanvasGetCoordFromObj(interp, canvas, argv[i],
+	for (i = 0; i <objc; i++) {
+	    if (Tk_CanvasGetCoordFromObj(interp, canvas, objv[i],
 		    coordPtr++) != TCL_OK) {
   		return TCL_ERROR;
   	    }
@@ -481,12 +483,12 @@ LineCoords(interp, canvas, itemPtr, argc, argv)
  */
 
 static int
-ConfigureLine(interp, canvas, itemPtr, argc, argv, flags)
+ConfigureLine(interp, canvas, itemPtr, objc, objv, flags)
     Tcl_Interp *interp;		/* Used for error reporting. */
     Tk_Canvas canvas;		/* Canvas containing itemPtr. */
     Tk_Item *itemPtr;		/* Line item to reconfigure. */
-    int argc;			/* Number of elements in argv.  */
-    Tcl_Obj *CONST argv[];	/* Arguments describing things to configure. */
+    int objc;			/* Number of elements in objv.  */
+    Tcl_Obj *CONST objv[];	/* Arguments describing things to configure. */
     int flags;			/* Flags to pass to Tk_ConfigureWidget. */
 {
     LineItem *linePtr = (LineItem *) itemPtr;
@@ -497,8 +499,8 @@ ConfigureLine(interp, canvas, itemPtr, argc, argv, flags)
     Tk_State state;
 
     tkwin = Tk_CanvasTkwin(canvas);
-    if (Tk_ConfigureWidget(interp, tkwin, configSpecs, argc, (char **) argv,
-	    (char *) linePtr, flags|TK_CONFIG_OBJS) != TCL_OK) {
+    if (TCL_OK != Tk_ConfigureWidget(interp, tkwin, configSpecs, objc,
+	    (CONST char **) objv, (char *) linePtr, flags|TK_CONFIG_OBJS)) {
 	return TCL_ERROR;
     }
 
@@ -531,7 +533,15 @@ ConfigureLine(interp, canvas, itemPtr, argc, argv, flags)
 	gcValues.join_style = linePtr->joinStyle;
 	mask |= GCJoinStyle;
 	newGC = Tk_GetGC(tkwin, mask, &gcValues);
+#ifdef MAC_OSX_TK
+	/*
+	 * Mac OS X CG drawing needs access to linewidth even for 
+	 * arrow fills (as linewidth controls antialiasing).
+	 */
+	mask |= GCLineWidth;
+#else
 	gcValues.line_width = 0;
+#endif
 	arrowGC = Tk_GetGC(tkwin, mask, &gcValues);
     } else {
 	newGC = arrowGC = None;
@@ -849,13 +859,11 @@ DisplayLine(canvas, itemPtr, display, drawable, x, y, width, height)
 					 * must be redisplayed (not used). */
 {
     LineItem *linePtr = (LineItem *) itemPtr;
-    XPoint staticPoints[MAX_STATIC_POINTS];
+    XPoint staticPoints[MAX_STATIC_POINTS*3];
     XPoint *pointPtr;
-    XPoint *pPtr;
-    double *coordPtr, linewidth;
-    int i, numPoints;
+    double linewidth;
+    int numPoints;
     Tk_State state = itemPtr->state;
-    Pixmap stipple = linePtr->outline.stipple;
 
     if ((!linePtr->numPoints)||(linePtr->outline.gc==None)) {
 	return;
@@ -866,18 +874,12 @@ DisplayLine(canvas, itemPtr, display, drawable, x, y, width, height)
     }
     linewidth = linePtr->outline.width;
     if (((TkCanvas *)canvas)->currentItemPtr == itemPtr) {
-	if (linePtr->outline.activeStipple!=None) {
-	    stipple = linePtr->outline.activeStipple;
-	}
-	if (linePtr->outline.activeWidth>linewidth) {
+	if (linePtr->outline.activeWidth != linewidth) {
 	    linewidth = linePtr->outline.activeWidth;
 	}
     } else if (state==TK_STATE_DISABLED) {
-	if (linePtr->outline.disabledStipple!=None) {
-	    stipple = linePtr->outline.disabledStipple;
-	}
-	if (linePtr->outline.disabledWidth>linewidth) {
-	    linewidth = linePtr->outline.activeWidth;
+	if (linePtr->outline.disabledWidth != linewidth) {
+	    linewidth = linePtr->outline.disabledWidth;
 	}
     }
     /*
@@ -898,7 +900,7 @@ DisplayLine(canvas, itemPtr, display, drawable, x, y, width, height)
     if (numPoints <= MAX_STATIC_POINTS) {
 	pointPtr = staticPoints;
     } else {
-	pointPtr = (XPoint *) ckalloc((unsigned) (numPoints * sizeof(XPoint)));
+	pointPtr = (XPoint *)ckalloc((unsigned)(numPoints * 3*sizeof(XPoint)));
     }
 
     if ((linePtr->smooth) && (linePtr->numPoints > 2)) {
@@ -906,11 +908,8 @@ DisplayLine(canvas, itemPtr, display, drawable, x, y, width, height)
 		linePtr->numPoints, linePtr->splineSteps, pointPtr,
 		(double *) NULL);
     } else {
-	for (i = 0, coordPtr = linePtr->coordPtr, pPtr = pointPtr;
-		i < linePtr->numPoints;  i += 1, coordPtr += 2, pPtr++) {
-	    Tk_CanvasDrawableCoords(canvas, coordPtr[0], coordPtr[1],
-		    &pPtr->x, &pPtr->y);
-	}
+	numPoints = TkCanvTranslatePath((TkCanvas*)canvas, numPoints,
+		linePtr->coordPtr, 0, pointPtr);
     }
 
     /*
@@ -981,7 +980,7 @@ LineInsert(canvas, itemPtr, beforeThis, obj)
     Tcl_Obj *obj;		/* New coordinates to be inserted. */
 {
     LineItem *linePtr = (LineItem *) itemPtr;
-    int length, argc, i;
+    int length, objc, i;
     double *new, *coordPtr;
     Tk_State state = itemPtr->state;
     Tcl_Obj **objv;
@@ -990,8 +989,8 @@ LineInsert(canvas, itemPtr, beforeThis, obj)
 	state = ((TkCanvas *)canvas)->canvas_state;
     }
 
-    if (!obj || (Tcl_ListObjGetElements((Tcl_Interp *) NULL, obj, &argc, &objv) != TCL_OK)
-	    || !argc || argc&1) {
+    if (!obj || (Tcl_ListObjGetElements((Tcl_Interp *) NULL, obj, &objc, &objv) != TCL_OK)
+	    || !objc || objc&1) {
 	return;
     }
     length = 2*linePtr->numPoints;
@@ -1009,11 +1008,11 @@ LineInsert(canvas, itemPtr, beforeThis, obj)
 	linePtr->coordPtr[length-2] = linePtr->lastArrowPtr[0];
 	linePtr->coordPtr[length-1] = linePtr->lastArrowPtr[1];
     }
-    new = (double *) ckalloc((unsigned)(sizeof(double) * (length + argc)));
+    new = (double *) ckalloc((unsigned)(sizeof(double) * (length + objc)));
     for(i=0; i<beforeThis; i++) {
 	new[i] = linePtr->coordPtr[i];
     }
-    for(i=0; i<argc; i++) {
+    for(i=0; i<objc; i++) {
 	if (Tcl_GetDoubleFromObj((Tcl_Interp *) NULL,objv[i],
 		new+(i+beforeThis))!=TCL_OK) {
 	    Tcl_ResetResult(((TkCanvas *)canvas)->interp);
@@ -1023,11 +1022,14 @@ LineInsert(canvas, itemPtr, beforeThis, obj)
     }
 
     for(i=beforeThis; i<length; i++) {
-	new[i+argc] = linePtr->coordPtr[i];
+	new[i+objc] = linePtr->coordPtr[i];
     }
-    if(linePtr->coordPtr) ckfree((char *)linePtr->coordPtr);
+    if (linePtr->coordPtr) {
+	ckfree((char *) linePtr->coordPtr);
+    }
     linePtr->coordPtr = new;
-    linePtr->numPoints = (length + argc)/2;
+    length += objc;
+    linePtr->numPoints = length / 2;
 
     if ((length>3) && (state != TK_STATE_HIDDEN)) {
 	/*
@@ -1040,14 +1042,14 @@ LineInsert(canvas, itemPtr, beforeThis, obj)
 	 */
 	itemPtr->redraw_flags |= TK_ITEM_DONT_REDRAW;
 
-	if (beforeThis>0) {beforeThis -= 2; argc+=2; }
-	if ((beforeThis+argc)<length) argc+=2;
+	if (beforeThis>0) {beforeThis -= 2; objc+=2; }
+	if ((beforeThis+objc)<length) objc+=2;
 	if (linePtr->smooth) {
 	    if(beforeThis>0) {
-		beforeThis-=2; argc+=2;
+		beforeThis-=2; objc+=2;
 	    }
-	    if((beforeThis+argc+2)<length) {
-		argc+=2;
+	    if((beforeThis+objc+2)<length) {
+		objc+=2;
 	    }
 	}
 	itemPtr->x1 = itemPtr->x2 = (int) linePtr->coordPtr[beforeThis];
@@ -1059,7 +1061,7 @@ LineInsert(canvas, itemPtr, beforeThis, obj)
 		TkIncludePoint(itemPtr, coordPtr);
 	    }
 	}
-	if ((linePtr->lastArrowPtr != NULL) && ((beforeThis+argc)>=length)) {
+	if ((linePtr->lastArrowPtr != NULL) && ((beforeThis+objc)>=length)) {
 		/* include old last arrow */
 	    for (i = 0, coordPtr = linePtr->lastArrowPtr; i < PTS_IN_ARROW;
 		    i++, coordPtr += 2) {
@@ -1067,7 +1069,7 @@ LineInsert(canvas, itemPtr, beforeThis, obj)
 	    }
 	}
 	coordPtr = linePtr->coordPtr+beforeThis+2;
-	for(i=2; i<argc; i+=2) {
+	for(i=2; i<objc; i+=2) {
 	    TkIncludePoint(itemPtr, coordPtr);
 		coordPtr+=2;
 	}
@@ -1094,7 +1096,7 @@ LineInsert(canvas, itemPtr, beforeThis, obj)
 		TkIncludePoint(itemPtr, coordPtr);
 	    }
 	}
-	if ((linePtr->lastArrowPtr != NULL) && ((beforeThis+argc)<(length-2))) {
+	if ((linePtr->lastArrowPtr != NULL) && ((beforeThis+objc)<(length-2))) {
 	    /* include new right arrow */
 	    for (i = 0, coordPtr = linePtr->lastArrowPtr; i < PTS_IN_ARROW;
 		    i++, coordPtr += 2) {
@@ -1729,11 +1731,11 @@ GetLineIndex(interp, canvas, itemPtr, obj, indexPtr)
     int *indexPtr;		/* Where to store converted index. */
 {
     LineItem *linePtr = (LineItem *) itemPtr;
-    size_t length;
-    char *string = Tcl_GetStringFromObj(obj, (int *) &length);
+    int length;
+    char *string = Tcl_GetStringFromObj(obj, &length);
 
     if (string[0] == 'e') {
-	if (strncmp(string, "end", length) == 0) {
+	if (strncmp(string, "end", (unsigned) length) == 0) {
 	    *indexPtr = 2*linePtr->numPoints;
 	} else {
 	    badIndex:
@@ -1873,7 +1875,7 @@ ParseArrowShape(clientData, interp, tkwin, value, recordPtr, offset)
     LineItem *linePtr = (LineItem *) recordPtr;
     double a, b, c;
     int argc;
-    char **argv = NULL;
+    CONST char **argv = NULL;
 
     if (offset != Tk_Offset(LineItem, arrowShapeA)) {
 	panic("ParseArrowShape received bogus offset");
@@ -2466,4 +2468,3 @@ ArrowheadPostscript(interp, canvas, linePtr, arrowPtr)
     }
     return TCL_OK;
 }
-

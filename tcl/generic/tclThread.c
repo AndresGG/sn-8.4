@@ -8,8 +8,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tclInt.h"
@@ -30,9 +28,9 @@ typedef struct {
     char **list;	/* List of pointers */
 } SyncObjRecord;
 
-static SyncObjRecord keyRecord;
-static SyncObjRecord mutexRecord;
-static SyncObjRecord condRecord;
+static SyncObjRecord keyRecord = {0, 0, NULL};
+static SyncObjRecord mutexRecord = {0, 0, NULL};
+static SyncObjRecord condRecord = {0, 0, NULL};
 
 /*
  * Prototypes of functions used only in this file
@@ -187,6 +185,8 @@ TclThreadDataKeySet(keyPtr, data)
  *      Keep a list of (mutexes/condition variable/data key)
  *	used during finalization.
  *
+ *	Assume master lock is held.
+ *
  * Results:
  *	None.
  *
@@ -205,7 +205,17 @@ RememberSyncObject(objPtr, recPtr)
     int i, j;
 
     /*
-     * Save the pointer to the allocated object so it can be finalized.
+     * Reuse any free slot in the list. 
+     */
+
+    for (i=0 ; i < recPtr->num ; ++i) {
+	if (recPtr->list[i] == NULL) {
+	    recPtr->list[i] = objPtr;
+	    return;
+	} 
+    }
+
+    /*
      * Grow the list of pointers if necessary, copying only non-NULL
      * pointers to the new list.
      */
@@ -213,7 +223,7 @@ RememberSyncObject(objPtr, recPtr)
     if (recPtr->num >= recPtr->max) {
 	recPtr->max += 8;
 	newList = (char **)ckalloc(recPtr->max * sizeof(char *));
-	for (i=0,j=0 ; i<recPtr->num ; i++) {
+	for (i=0, j=0 ; i < recPtr->num ; i++) {
             if (recPtr->list[i] != NULL) {
 		newList[j++] = recPtr->list[i];
             }
@@ -224,6 +234,7 @@ RememberSyncObject(objPtr, recPtr)
 	recPtr->list = newList;
 	recPtr->num = j;
     }
+
     recPtr->list[recPtr->num] = objPtr;
     recPtr->num++;
 }
@@ -234,6 +245,7 @@ RememberSyncObject(objPtr, recPtr)
  * ForgetSyncObject
  *
  *      Remove a single object from the list.
+ *	Assume master lock is held.
  *
  * Results:
  *	None.
@@ -265,6 +277,7 @@ ForgetSyncObject(objPtr, recPtr)
  * TclRememberMutex
  *
  *      Keep a list of mutexes used during finalization.
+ *	Assume master lock is held.
  *
  * Results:
  *	None.
@@ -306,7 +319,9 @@ Tcl_MutexFinalize(mutexPtr)
 #ifdef TCL_THREADS
     TclpFinalizeMutex(mutexPtr);
 #endif
+    TclpMasterLock();
     ForgetSyncObject((char *)mutexPtr, &mutexRecord);
+    TclpMasterUnlock();
 }
 
 /*
@@ -315,6 +330,7 @@ Tcl_MutexFinalize(mutexPtr)
  * TclRememberDataKey
  *
  *      Keep a list of thread data keys used during finalization.
+ *	Assume master lock is held.
  *
  * Results:
  *	None.
@@ -338,6 +354,7 @@ TclRememberDataKey(keyPtr)
  * TclRememberCondition
  *
  *      Keep a list of condition variables used during finalization.
+ *	Assume master lock is held.
  *
  * Results:
  *	None.
@@ -379,7 +396,9 @@ Tcl_ConditionFinalize(condPtr)
 #ifdef TCL_THREADS
     TclpFinalizeCondition(condPtr);
 #endif
+    TclpMasterLock();
     ForgetSyncObject((char *)condPtr, &condRecord);
+    TclpMasterUnlock();
 }
 
 /*
@@ -417,9 +436,7 @@ TclFinalizeThreadData()
 	}
 #endif
     }
-#ifdef TCL_THREADS
     TclpMasterUnlock();
-#endif
 }
 
 /*
@@ -577,4 +594,3 @@ Tcl_MutexUnlock(mutexPtr)
 {
 }
 #endif
-

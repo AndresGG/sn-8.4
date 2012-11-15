@@ -2,8 +2,6 @@
 #
 # This demonstration script creates a text widget that illustrates the
 # various display styles that may be set for tags.
-#
-# RCS: @(#) $Id$
 
 if {![info exists widgetDemo]} {
     error "This script should be run from the \"widget\" demo."
@@ -150,4 +148,3 @@ $w.text insert end "in this example.\n" spacing
 $w.text insert end "To see where the space is, select ranges of " spacing
 $w.text insert end "text within these paragraphs.  The selection " spacing
 $w.text insert end "highlight will cover the extra space." spacing
-

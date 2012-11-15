@@ -8,7 +8,7 @@
  * source.  See the copyright notice below for details on redistribution
  * restrictions.  The "license.terms" file does not apply to this file.
  *
- * RCS: @(#) $Id$
+ * Changes 2002 Copyright (c) 2002 ActiveState Corporation.
  */
 
 /*
@@ -44,10 +44,6 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS)
-static char *rcsid = "$Id$";
-#endif /* LIBC_SCCS */
-
 #include <time.h>
 #include <string.h>
 #include <locale.h>
@@ -68,7 +64,13 @@ typedef struct {
     const char *t_fmt;
     const char *t_fmt_ampm;
 } _TimeLocale;
- 
+
+/*
+ * This is the C locale default.  On Windows, if we wanted to make this
+ * localized, we would use GetLocaleInfo to get the correct values.
+ * It may be acceptable to do localization of month/day names, as the
+ * numerical values would be considered the locale-independent versions.
+ */
 static const _TimeLocale _DefaultTimeLocale = 
 {
     {
@@ -97,6 +99,7 @@ static const _TimeLocale _DefaultTimeLocale =
 
 static const _TimeLocale *_CurrentTimeLocale = &_DefaultTimeLocale;
 
+static int isGMT;
 static size_t gsize;
 static char *pt;
 static int		 _add _ANSI_ARGS_((const char* str));
@@ -104,13 +107,15 @@ static int		_conv _ANSI_ARGS_((int n, int digits, int pad));
 static int		_secs _ANSI_ARGS_((const struct tm *t));
 static size_t		_fmt _ANSI_ARGS_((const char *format,
 			    const struct tm *t));
+static int ISO8601Week _ANSI_ARGS_((CONST struct tm* t, int *year ));
 
 size_t
-TclpStrftime(s, maxsize, format, t)
+TclpStrftime(s, maxsize, format, t, useGMT)
     char *s;
     size_t maxsize;
     const char *format;
     const struct tm *t;
+    int useGMT;
 {
     if (format[0] == '%' && format[1] == 'Q') {
 	/* Format as a stardate */
@@ -122,6 +127,11 @@ TclpStrftime(s, maxsize, format, t)
 	return(strlen(s));
     }
 
+    isGMT = useGMT;
+    /*
+     * We may be able to skip this for useGMT, but it should be harmless.
+     * -- hobbs
+     */
     tzset();
 
     pt = s;
@@ -144,6 +154,20 @@ _fmt(format, t)
     const char *format;
     const struct tm *t;
 {
+#ifdef WIN32
+#define BUF_SIZ 256
+    TCHAR buf[BUF_SIZ];
+    SYSTEMTIME syst = {
+	t->tm_year + 1900,
+	t->tm_mon + 1,
+	t->tm_wday,
+	t->tm_mday,
+	t->tm_hour,
+	t->tm_min,
+	t->tm_sec,
+	0,
+    };
+#endif
     for (; *format; ++format) {
 	if (*format == '%') {
 	    ++format;
@@ -188,10 +212,6 @@ _fmt(format, t)
 			    2, '0'))
 			return(0);
 		    continue;
-		case 'c':
-		    if (!_fmt(_CurrentTimeLocale->d_t_fmt, t))
-			return(0);
-		    continue;
 		case 'D':
 		    if (!_fmt("%m/%d/%y", t))
 			return(0);
@@ -204,6 +224,24 @@ _fmt(format, t)
 		    if (!_conv(t->tm_mday, 2, ' '))
 			return(0);
 		    continue;
+	        case 'g':
+		    {
+			int year;
+			ISO8601Week( t, &year );
+			if ( !_conv( year%100, 2, '0' ) ) {
+			    return( 0 );
+			}
+			continue;
+		    }
+	        case 'G':
+		    {
+			int year;
+			ISO8601Week( t, &year );
+			if ( !_conv( year, 4, '0' ) ) {
+			    return( 0 );
+			}
+			continue;
+		    }
 		case 'H':
 		    if (!_conv(t->tm_hour, 2, '0'))
 			return(0);
@@ -276,25 +314,7 @@ _fmt(format, t)
 		    continue;
 		case 'V':
 		{
-				/* ISO 8601 Week Of Year:
-				   If the week (Monday - Sunday) containing
-				   January 1 has four or more days in the new 
-				   year, then it is week 1; otherwise it is 
-				   week 53 of the previous year and the next
-				   week is week one. */
-				 
-		    int week = MON_WEEK(t);
-
-		    int days = (((t)->tm_yday + 7 - \
-			    ((t)->tm_wday ? (t)->tm_wday - 1 : 6)) % 7);
-
-
-		    if (days >= 4) {
-			week++;
-		    } else if (week == 0) {
-			week = 53;
-		    }
-
+		    int week = ISO8601Week( t, NULL );
 		    if (!_conv(week, 2, '0'))
 			return(0);
 		    continue;
@@ -307,6 +327,44 @@ _fmt(format, t)
 		    if (!_conv(t->tm_wday, 1, '0'))
 			return(0);
 		    continue;
+#ifdef WIN32
+		/*
+		 * To properly handle the localized time routines on Windows,
+		 * we must make use of the special localized calls.
+		 */
+		case 'c':
+		    if (!GetDateFormat(LOCALE_USER_DEFAULT,
+				       DATE_LONGDATE | LOCALE_USE_CP_ACP,
+				       &syst, NULL, buf, BUF_SIZ)
+			|| !_add(buf)
+			|| !_add(" ")) {
+			return(0);
+		    }
+		    /*
+		     * %c is created with LONGDATE + " " + TIME on Windows,
+		     * so continue to %X case here.
+		     */
+		case 'X':
+		    if (!GetTimeFormat(LOCALE_USER_DEFAULT,
+				       LOCALE_USE_CP_ACP,
+				       &syst, NULL, buf, BUF_SIZ)
+			|| !_add(buf)) {
+			return(0);
+		    }
+		    continue;
+		case 'x':
+		    if (!GetDateFormat(LOCALE_USER_DEFAULT,
+				       DATE_SHORTDATE | LOCALE_USE_CP_ACP,
+				       &syst, NULL, buf, BUF_SIZ)
+			|| !_add(buf)) {
+			return(0);
+		    }
+		    continue;
+#else
+		case 'c':
+		    if (!_fmt(_CurrentTimeLocale->d_t_fmt, t))
+			return(0);
+		    continue;
 		case 'x':
 		    if (!_fmt(_CurrentTimeLocale->d_fmt, t))
 			return(0);
@@ -315,6 +373,7 @@ _fmt(format, t)
 		    if (!_fmt(_CurrentTimeLocale->t_fmt, t))
 			return(0);
 		    continue;
+#endif
 		case 'y':
 		    if (!_conv((t->tm_year + TM_YEAR_BASE) % 100,
 			    2, '0'))
@@ -324,15 +383,15 @@ _fmt(format, t)
 		    if (!_conv((t->tm_year + TM_YEAR_BASE), 4, '0'))
 			return(0);
 		    continue;
-#ifndef MAC_TCL
 		case 'Z': {
-		    char *name = TclpGetTZName(t->tm_isdst);
-		    if (name && !_add(name)) {
-			return 0;
-		    }
+		    char *name = (isGMT ? "GMT" : TclpGetTZName(t->tm_isdst));
+		    int wrote;
+		    Tcl_UtfToExternal(NULL, NULL, name, -1, 0, NULL,
+				      pt, gsize, NULL, &wrote, NULL);
+		    pt += wrote;
+		    gsize -= wrote;
 		    continue;
 		}
-#endif
 		case '%':
 		    /*
 		     * X311J/88-090 (4.12.3.5): if conversion char is
@@ -375,8 +434,14 @@ _conv(n, digits, pad)
     static char buf[10];
     register char *p;
 
-    for (p = buf + sizeof(buf) - 2; n > 0 && p > buf; n /= 10, --digits)
-	*p-- = (char)(n % 10 + '0');
+    p = buf + sizeof( buf ) - 1;
+    *p-- = '\0';
+    if ( n == 0 ) {
+	*p-- = '0'; --digits;
+    } else {
+	for (; n > 0 && p > buf; n /= 10, --digits)
+	    *p-- = (char)(n % 10 + '0');
+    }
     while (p > buf && digits-- > 0)
 	*p-- = (char) pad;
     return(_add(++p));
@@ -392,4 +457,59 @@ _add(str)
 	if (!(*pt = *str++))
 	    return(1);
     }
+}
+
+static int
+ISO8601Week( t, year )
+    CONST struct tm* t;
+    int* year;
+{
+    /* Find the day-of-year of the Thursday in
+     * the week in question. */
+    
+    int ydayThursday;
+    int week;
+    if ( t->tm_wday == 0 ) {
+	ydayThursday = t->tm_yday - 3;
+    } else {
+	ydayThursday = t->tm_yday - t->tm_wday + 4;
+    }
+    
+    if ( ydayThursday < 0 ) {
+	
+	/* This is the last week of the previous year. */
+	if ( IsLeapYear(( t->tm_year + TM_YEAR_BASE - 1 )) ) {
+	    ydayThursday += 366;
+	} else {
+	    ydayThursday += 365;
+	}
+	week = ydayThursday / 7 + 1;
+	if ( year != NULL ) {
+	    *year = t->tm_year + 1899;
+	}
+	
+    } else if ( ( IsLeapYear(( t -> tm_year + TM_YEAR_BASE ))
+		  && ydayThursday >= 366 )
+		|| ( !IsLeapYear(( t -> tm_year
+				   + TM_YEAR_BASE ))
+		     && ydayThursday >= 365 ) ) {
+	
+	/* This is week 1 of the following year */
+	
+	week = 1;
+	if ( year != NULL ) {
+	    *year = t->tm_year + 1901;
+	}
+	
+    } else {
+	
+	week = ydayThursday / 7 + 1;
+	if ( year != NULL ) {
+	    *year = t->tm_year + 1900;
+	}
+	
+    }
+
+    return week;
+    
 }

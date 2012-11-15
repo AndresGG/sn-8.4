@@ -4,8 +4,6 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" RCS: @(#) $Id$
-'\" 
 .so man.macros
 .TH Filesystem 3 8.4 Tcl "Tcl Library Procedures"
 .BS
@@ -58,7 +56,8 @@ int
 \fBTcl_FSEvalFile\fR(\fIinterp, pathPtr\fR)
 .sp
 int
-\fBTcl_FSLoadFile\fR(\fIinterp, pathPtr, sym1, sym2, proc1Ptr, proc2Ptr, handlePtr, unloadProcPtr\fR)
+\fBTcl_FSLoadFile\fR(\fIinterp, pathPtr, sym1, sym2, proc1Ptr, proc2Ptr,
+               handlePtr, unloadProcPtr\fR)
 .sp
 int
 \fBTcl_FSMatchInDirectory\fR(\fIinterp, result, pathPtr, pattern, types\fR)
@@ -200,6 +199,8 @@ Name of a procedure to look up in the file's symbol table
 Filled with the init function for this code.
 .AP Tcl_PackageInitProc **proc2Ptr out
 Filled with the safe-init function for this code.
+.AP Tcl_LoadHandle *handlePtr out
+Filled with an abstract token representing the loaded file.
 .AP ClientData *clientDataPtr out
 Filled with the clientData value to pass to this code's unload
 function when it is called.
@@ -373,8 +374,8 @@ directories named in the path leading to the file.  The stat structure
 includes info regarding device, inode (always 0 on Windows),
 privilege mode, nlink (always 1 on Windows), user id (always 0 on
 Windows), group id (always 0 on Windows), rdev (same as device on
-Windows), size, last access time, last modification time, and creation
-time.
+Windows), size, last access time, last modification time, and
+last metadata change time.
 .PP
 If \fIpath\fR exists, \fBTcl_FSLstat\fR returns 0 and the stat structure
 is filled with data.  Otherwise, -1 is returned, and no stat info is
@@ -425,8 +426,8 @@ directories named in the path leading to the file.  The stat structure
 includes info regarding device, inode (always 0 on Windows),
 privilege mode, nlink (always 1 on Windows), user id (always 0 on
 Windows), group id (always 0 on Windows), rdev (same as device on
-Windows), size, last access time, last modification time, and creation
-time.
+Windows), size, last access time, last modification time, and
+last metadata change time.
 .PP
 If \fIpath\fR exists, \fBTcl_FSStat\fR returns 0 and the stat structure
 is filled with data.  Otherwise, -1 is returned, and no stat info is
@@ -546,14 +547,22 @@ not require additional conversions.
 \fBTcl_FSGetTranslatedPath\fR attempts to extract the translated path
 from the given Tcl_Obj.  
 .PP
-If the translation succeeds (i.e. the object is a valid path), then it
-is returned.  Otherwise NULL will be returned, and an error message may
-be left in the interpreter.  A "translated" path is one which
-contains no "~" or "~user" sequences (these have been expanded to
-their current representation in the filesystem).
+If the translation succeeds (i.e. the object is a valid path), then it is
+returned.  Otherwise NULL will be returned, and an error message may be
+left in the interpreter.  A "translated" path is one which contains no
+"~" or "~user" sequences (these have been expanded to their current
+representation in the filesystem).  The object returned is owned by the
+caller, which must store it or call Tcl_DecrRefCount to ensure memory is
+freed.  This function is of little practical use, and
+\fBTcl_FSGetNormalizedPath\fR or \fBTcl_GetNativePath\fR are usually
+better functions to use for most purposes.
 .PP
-\fBTcl_FSGetTranslatedStringPath\fR does the same as 
+\fBTcl_FSGetTranslatedStringPath\fR does the same as
 \fBTcl_FSGetTranslatedPath\fR, but returns a character string or NULL.
+The string returned is dynamically allocated and owned by the caller,
+which must store it or call ckfree to ensure it is freed.  Again,
+\fBTcl_FSGetNormalizedPath\fR or \fBTcl_GetNativePath\fR are usually
+better functions to use for most purposes.
 .PP
 \fBTcl_FSNewNativePath\fR performs something like that reverse of the
 usual obj->path->nativerep conversions.  If some code retrieves a path
@@ -779,18 +788,18 @@ representations.
 .SH PATHINFILESYSTEMPROC
 .PP
 The \fIpathInFilesystemProc\fR field contains the address of a function
-which is called to determine whether a given path object belongs to
-this filesystem or not.  Tcl will only call the rest of the filesystem
-functions with a path for which this function has returned
-\fBTCL_OK\fR. If the path does not belong, \fBTCL_ERROR\fR should be
-returned.  If \fBTCL_OK\fR is returned, then the optional
-\fBclientDataPtr\fR output parameter can be used to return an internal
-(filesystem specific) representation of the path, which will be cached
-inside the path object, and may be retrieved efficiently by the other
-filesystem functions.  Tcl will simultaneously cache the fact that this
-path belongs to this filesystem.  Such caches are invalidated when
-filesystem structures are added or removed from Tcl's internal list of
-known filesystems.
+which is called to determine whether a given path object belongs to this
+filesystem or not.  Tcl will only call the rest of the filesystem
+functions with a path for which this function has returned \fBTCL_OK\fR.
+If the path does not belong, -1 should be returned (the behaviour of Tcl
+for any other return value is not defined).  If \fBTCL_OK\fR is returned,
+then the optional \fBclientDataPtr\fR output parameter can be used to
+return an internal (filesystem specific) representation of the path,
+which will be cached inside the path object, and may be retrieved
+efficiently by the other filesystem functions.  Tcl will simultaneously
+cache the fact that this path belongs to this filesystem.  Such caches
+are invalidated when filesystem structures are added or removed from
+Tcl's internal list of known filesystems.
 .PP
 .CS
 typedef int Tcl_FSPathInFilesystemProc(
@@ -856,6 +865,12 @@ its case or other aspects should be made unique).  All other path
 components should be converted from symbolic links.  This one
 exception is required to agree with Tcl's semantics with 'file
 delete', 'file rename', 'file copy' operating on symbolic links.
+This function may be called with 'nextCheckpoint' either
+at the beginning of the path (i.e. zero), at the end of the path, or
+at any intermediate file separator in the path.  It will never
+point to any other arbitrary position in the path. In the last of
+the three valid cases, the implementation can assume that the path 
+up to and including the file separator is known and normalized.
 .PP
 .CS
 typedef int Tcl_FSNormalizePathProc(
@@ -921,8 +936,8 @@ to all directories named in the path leading to the file.  The stat
 structure includes info regarding device, inode (always 0 on Windows),
 privilege mode, nlink (always 1 on Windows), user id (always 0 on
 Windows), group id (always 0 on Windows), rdev (same as device on
-Windows), size, last access time, last modification time, and creation
-time.
+Windows), size, last access time, last modification time, and
+last metadata change time.
 .PP
 If the file represented by \fIpathPtr\fR exists, the
 \fBTcl_FSStatProc\fR returns 0 and the stat structure is filled with
@@ -997,26 +1012,56 @@ typedef int Tcl_FSMatchInDirectoryProc(
 	Tcl_GlobTypeData * \fItypes\fR);
 .CE
 .PP
-The function should return all files or directories (or other
-filesystem objects) which match the given pattern and accord with the
-\fItypes\fR specification given.  There are two ways in which this 
-function may be called.  If \fIpattern\fR is NULL, then \fIpathPtr\fR
-is a full path specification of a single file or directory which
-should be checked for existence and correct type.  Otherwise, \fIpathPtr\fR
-is a directory, the contents of which the function should search for 
-files or directories which have the correct type.  In either case,
-\fIpathPtr\fR can be assumed to be both non-NULL and non-empty.  
+The function should return all files or directories (or other filesystem
+objects) which match the given pattern and accord with the \fItypes\fR
+specification given.  There are two ways in which this function may be
+called.  If \fIpattern\fR is NULL, then \fIpathPtr\fR is a full path
+specification of a single file or directory which should be checked for
+existence and correct type.  Otherwise, \fIpathPtr\fR is a directory, the
+contents of which the function should search for files or directories
+which have the correct type.  In either case, \fIpathPtr\fR can be
+assumed to be both non-NULL and non-empty.  It is not currently
+documented whether \fIpathPtr\fR will have a file separator at its end of
+not, so code should be flexible to both possibilities.
 .PP
 The return value is a standard Tcl result indicating whether an error
-occurred in the matching process.  Error messages are placed in interp, 
-but on a TCL_OK result, the interpreter should not be modified, but
-rather results should be added to the \fIresult\fR object given
-(which can be assumed to be a valid Tcl list).  The matches added
+occurred in the matching process.  Error messages are placed in
+\fIinterp\fR; on a \fBTCL_OK\fR result, results should be added to the
+\fIresult\fR object given (which can be assumed to be a valid
+unshared Tcl list).  The matches added
 to \fIresult\fR should include any path prefix given in \fIpathPtr\fR 
 (this usually means they will be absolute path specifications). 
 Note that if no matches are found, that simply leads to an empty 
-result --- errors are only signaled for actual file or filesystem
+result; errors are only signaled for actual file or filesystem
 problems which may occur during the matching process.
+.PP
+The \fBTcl_GlobTypeData\fR structure passed in the \fItypes\fR 
+parameter contains the following fields:
+.CS
+typedef struct Tcl_GlobTypeData {
+      /* Corresponds to bcdpfls as in 'find -t' */
+      int \fItype\fR;
+      /* Corresponds to file permissions */
+      int \fIperm\fR;
+      /* Acceptable mac type */
+      Tcl_Obj *\fImacType\fR;
+      /* Acceptable mac creator */
+      Tcl_Obj *\fImacCreator\fR;
+} Tcl_GlobTypeData;
+.CE
+.PP
+There are two specific cases which it is important to handle correctly,
+both when \fItypes\fR is non-NULL. The two cases are when \fItypes->types
+& TCL_GLOB_TYPE_DIR\fR or \fItypes->types & TCL_GLOB_TYPE_MOUNT\fR are
+true (and in particular when the other flags are false).  In the first of
+these cases, the function must list the contained directories.  Tcl uses
+this to implement recursive globbing, so it is critical that filesystems
+implement directory matching correctly.  In the second of these cases,
+with \fBTCL_GLOB_TYPE_MOUNT\fR, the filesystem must list the mount points
+which lie within the given \fIpathPtr\fR (and in this case, \fIpathPtr\fR
+need not lie within the same filesystem - different to all other cases in
+which this function is called).  Support for this is critical if Tcl is
+to have seamless transitions between from one filesystem to another.
 .SH UTIMEPROC       
 .PP
 Function to process a \fBTcl_FSUtime()\fR call.  Required to allow setting

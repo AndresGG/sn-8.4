@@ -10,8 +10,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tkPort.h"
@@ -21,6 +19,12 @@
 #ifdef __WIN32__
 #include "tkWinInt.h"
 #endif
+
+#ifdef TK_NO_DOUBLE_BUFFERING
+#ifdef MAC_OSX_TK
+#include "tkMacOSXInt.h"
+#endif
+#endif /* TK_NO_DOUBLE_BUFFERING */
 
 /*
  * The following structure describes how to display a range of characters.
@@ -94,6 +98,16 @@ typedef struct TextStyle {
         && ((s1)->sValuePtr->borderWidth == (s2)->sValuePtr->borderWidth) \
         && ((s1)->sValuePtr->relief == (s2)->sValuePtr->relief) \
         && ((s1)->sValuePtr->bgStipple == (s2)->sValuePtr->bgStipple))
+
+/*
+ * The following macro is used to compare two floating-point numbers
+ * to within a certain degree of scale.  Direct comparison fails on
+ * processors where the processor and memory representations of FP
+ * numbers of a particular precision is different (e.g. Intel)
+ */
+
+#define FP_EQUAL_SCALE(double1, double2, scaleFactor) \
+    (fabs((double1)-(double2))*((scaleFactor)+1.0) < 0.3)
 
 /*
  * The following structure describes one line of the display, which may
@@ -536,15 +550,21 @@ GetStyle(textPtr, indexPtr)
 	tagPtr = tagPtrs[i];
 
 	/*
-	 * On Windows and Mac, we need to skip the selection tag if
-	 * we don't have focus.
+	 * Skip the selection tag if we don't have focus,
+	 * unless we always want to show the selection.
 	 */
 
-#ifndef ALWAYS_SHOW_SELECTION
-	if ((tagPtr == textPtr->selTagPtr) && !(textPtr->flags & GOT_FOCUS)) {
+	if (
+#ifndef MAC_OSX_TK
+		!TkpAlwaysShowSelection(textPtr->tkwin)
+#else
+		/* Don't show inactive selection in disabled widgets. */
+		textPtr->state == TK_STATE_DISABLED
+#endif
+		&& (tagPtr == textPtr->selTagPtr)
+		&& !(textPtr->flags & GOT_FOCUS)) {
 	    continue;
 	}
-#endif
 
 	if ((tagPtr->border != NULL) && (tagPtr->priority > borderPrio)) {
 	    styleValues.border = tagPtr->border;
@@ -1670,16 +1690,32 @@ DisplayDLine(textPtr, dlPtr, prevPtr, pixmap)
     TextDInfo *dInfoPtr = textPtr->dInfoPtr;
     Display *display;
     int height, x;
+#ifndef TK_NO_DOUBLE_BUFFERING
+    const int y = 0;
+#else
+    const int y = dlPtr->y;
+#endif /* TK_NO_DOUBLE_BUFFERING */
 
     if (dlPtr->chunkPtr == NULL) return;
+
+    display = Tk_Display(textPtr->tkwin);
+
+    height = dlPtr->height;
+    if ((height + dlPtr->y) > dInfoPtr->maxY) {
+	height = dInfoPtr->maxY - dlPtr->y;
+    }
+
+#ifdef TK_NO_DOUBLE_BUFFERING
+    TkpClipDrawableToRect(display, pixmap, dInfoPtr->x, y,
+	    dInfoPtr->maxX - dInfoPtr->x, height);
+#endif /* TK_NO_DOUBLE_BUFFERING */
 
     /*
      * First, clear the area of the line to the background color for the
      * text widget.
      */
 
-    display = Tk_Display(textPtr->tkwin);
-    Tk_Fill3DRectangle(textPtr->tkwin, pixmap, textPtr->border, 0, 0,
+    Tk_Fill3DRectangle(textPtr->tkwin, pixmap, textPtr->border, 0, y,
 	    Tk_Width(textPtr->tkwin), dlPtr->height, 0, TK_RELIEF_FLAT);
 
     /*
@@ -1701,7 +1737,7 @@ DisplayDLine(textPtr, dlPtr, prevPtr, pixmap)
 		chunkPtr = chunkPtr->nextPtr) {
 	    x = chunkPtr->x + dInfoPtr->x - dInfoPtr->curPixelOffset;
 	    if (chunkPtr->displayProc == TkTextInsertDisplayProc) {
-		(*chunkPtr->displayProc)(chunkPtr, x, dlPtr->spaceAbove,
+		(*chunkPtr->displayProc)(chunkPtr, x, y + dlPtr->spaceAbove,
 			dlPtr->height - dlPtr->spaceAbove - dlPtr->spaceBelow,
 			dlPtr->baseline - dlPtr->spaceAbove, display, pixmap,
 			dlPtr->y + dlPtr->spaceAbove);
@@ -1741,7 +1777,7 @@ DisplayDLine(textPtr, dlPtr, prevPtr, pixmap)
 
 	    if (chunkPtr->displayProc != NULL)
 	    (*chunkPtr->displayProc)(chunkPtr, -chunkPtr->width,
-		    dlPtr->spaceAbove,
+		    y + dlPtr->spaceAbove,
 		    dlPtr->height - dlPtr->spaceAbove - dlPtr->spaceBelow,
 		    dlPtr->baseline - dlPtr->spaceAbove, display, pixmap,
 		    dlPtr->y + dlPtr->spaceAbove);
@@ -1749,7 +1785,7 @@ DisplayDLine(textPtr, dlPtr, prevPtr, pixmap)
 	    /* don't call if elide.  This tax ok since not very many visible DLine's in
 		  an area, but potentially many elide ones */
 	    if (chunkPtr->displayProc != NULL)
-	    (*chunkPtr->displayProc)(chunkPtr, x, dlPtr->spaceAbove,
+	    (*chunkPtr->displayProc)(chunkPtr, x, y + dlPtr->spaceAbove,
 		    dlPtr->height - dlPtr->spaceAbove - dlPtr->spaceBelow,
 		    dlPtr->baseline - dlPtr->spaceAbove, display, pixmap,
 		    dlPtr->y + dlPtr->spaceAbove);
@@ -1759,6 +1795,7 @@ DisplayDLine(textPtr, dlPtr, prevPtr, pixmap)
 	}
     }
 
+#ifndef TK_NO_DOUBLE_BUFFERING
     /*
      * Copy the pixmap onto the screen.  If this is the last line on
      * the screen then copy a piece of the line, so that it doesn't
@@ -1768,13 +1805,12 @@ DisplayDLine(textPtr, dlPtr, prevPtr, pixmap)
      * to get as much of the cursor as possible.
      */
 
-    height = dlPtr->height;
-    if ((height + dlPtr->y) > dInfoPtr->maxY) {
-	height = dInfoPtr->maxY - dlPtr->y;
-    }
     XCopyArea(display, pixmap, Tk_WindowId(textPtr->tkwin), dInfoPtr->copyGC,
-	    dInfoPtr->x, 0, (unsigned) (dInfoPtr->maxX - dInfoPtr->x),
+	    dInfoPtr->x, y, (unsigned) (dInfoPtr->maxX - dInfoPtr->x),
 	    (unsigned) height, dInfoPtr->x, dlPtr->y);
+#else
+    TkpClipDrawableToRect(display, pixmap, 0, 0, -1, -1);
+#endif /* TK_NO_DOUBLE_BUFFERING */
     linesRedrawn++;
 }
 
@@ -1836,7 +1872,11 @@ DisplayLineBackground(textPtr, dlPtr, prevPtr, pixmap)
     int minX, maxX, xOffset;
     StyleValues *sValuePtr;
     Display *display;
-
+#ifndef TK_NO_DOUBLE_BUFFERING
+    const int y = 0;
+#else
+    const int y = dlPtr->y;
+#endif /* TK_NO_DOUBLE_BUFFERING */
 
     /*
      * Pass 1: scan through dlPtr from left to right.  For each range of
@@ -1880,16 +1920,35 @@ DisplayLineBackground(textPtr, dlPtr, prevPtr, pixmap)
 	    rightX = maxX;
 	}
 	if (chunkPtr->stylePtr->bgGC != None) {
+	    /* Not visible - bail out now */
+	    if (rightX + xOffset <= 0) {
+	        leftX = rightX;
+		continue;
+	    }
+
+	    /*
+	     * Trim the start position for drawing to be no further away than
+	     * -borderWidth. The reason is that on many X servers drawing from
+	     * -32768 (or less) to +something simply does not display
+	     * correctly. [Patch #541999]
+	     */
+	    if ((leftX + xOffset) < -(sValuePtr->borderWidth)) {
+	        leftX = -sValuePtr->borderWidth - xOffset;
+	    }
+	    if ((rightX - leftX) > 32767) {
+	        rightX = leftX + 32767;
+	    }
+
 	    XFillRectangle(display, pixmap, chunkPtr->stylePtr->bgGC,
-		    leftX + xOffset, 0, (unsigned int) (rightX - leftX),
+		    leftX + xOffset, y, (unsigned int) (rightX - leftX),
 		    (unsigned int) dlPtr->height);
 	    if (sValuePtr->relief != TK_RELIEF_FLAT) {
 		Tk_3DVerticalBevel(textPtr->tkwin, pixmap, sValuePtr->border,
-			leftX + xOffset, 0, sValuePtr->borderWidth,
+			leftX + xOffset, y, sValuePtr->borderWidth,
 			dlPtr->height, 1, sValuePtr->relief);
 		Tk_3DVerticalBevel(textPtr->tkwin, pixmap, sValuePtr->border,
 			rightX - sValuePtr->borderWidth + xOffset,
-			0, sValuePtr->borderWidth, dlPtr->height, 0,
+			y, sValuePtr->borderWidth, dlPtr->height, 0,
 			sValuePtr->relief);
 	    }
 	}
@@ -1949,7 +2008,7 @@ DisplayLineBackground(textPtr, dlPtr, prevPtr, pixmap)
 		    chunkPtr->nextPtr->stylePtr)) {
 		if (!matchLeft && (sValuePtr->relief != TK_RELIEF_FLAT)) {
 		    Tk_3DHorizontalBevel(textPtr->tkwin, pixmap,
-			    sValuePtr->border, leftX + xOffset, 0,
+			    sValuePtr->border, leftX + xOffset, y,
 			    rightX - leftX, sValuePtr->borderWidth, leftXIn,
 			    1, 1, sValuePtr->relief);
 		}
@@ -1990,7 +2049,7 @@ DisplayLineBackground(textPtr, dlPtr, prevPtr, pixmap)
 	if (matchLeft && !matchRight) {
 	    if (sValuePtr->relief != TK_RELIEF_FLAT) {
 		Tk_3DVerticalBevel(textPtr->tkwin, pixmap, sValuePtr->border,
-			rightX2 - sValuePtr->borderWidth + xOffset, 0,
+			rightX2 - sValuePtr->borderWidth + xOffset, y,
 			sValuePtr->borderWidth, sValuePtr->borderWidth, 0,
 			sValuePtr->relief);
 	    }
@@ -1999,11 +2058,11 @@ DisplayLineBackground(textPtr, dlPtr, prevPtr, pixmap)
 	} else if (!matchLeft && matchRight
 		&& (sValuePtr->relief != TK_RELIEF_FLAT)) {
 	    Tk_3DVerticalBevel(textPtr->tkwin, pixmap, sValuePtr->border,
-		    rightX2 + xOffset, 0, sValuePtr->borderWidth,
+		    rightX2 + xOffset, y, sValuePtr->borderWidth,
 		    sValuePtr->borderWidth, 1, sValuePtr->relief);
 	    Tk_3DHorizontalBevel(textPtr->tkwin, pixmap, sValuePtr->border,
-		    leftX + xOffset, 0, rightX2 + sValuePtr->borderWidth -leftX,
-		    sValuePtr->borderWidth, leftXIn, 0, 1,
+		    leftX + xOffset, y, rightX2 + sValuePtr->borderWidth -
+		    leftX, sValuePtr->borderWidth, leftXIn, 0, 1,
 		    sValuePtr->relief);
 	}
 
@@ -2066,7 +2125,7 @@ DisplayLineBackground(textPtr, dlPtr, prevPtr, pixmap)
 		if (!matchLeft && (sValuePtr->relief != TK_RELIEF_FLAT)) {
 		    Tk_3DHorizontalBevel(textPtr->tkwin, pixmap,
 			    sValuePtr->border, leftX + xOffset,
-			    dlPtr->height - sValuePtr->borderWidth,
+			    y + dlPtr->height - sValuePtr->borderWidth,
 			    rightX - leftX, sValuePtr->borderWidth, leftXIn,
 			    0, 0, sValuePtr->relief);
 		}
@@ -2093,7 +2152,7 @@ DisplayLineBackground(textPtr, dlPtr, prevPtr, pixmap)
 	    if (sValuePtr->relief != TK_RELIEF_FLAT) {
 		Tk_3DVerticalBevel(textPtr->tkwin, pixmap, sValuePtr->border,
 			rightX2 - sValuePtr->borderWidth + xOffset,
-			dlPtr->height - sValuePtr->borderWidth,
+			y + dlPtr->height - sValuePtr->borderWidth,
 			sValuePtr->borderWidth, sValuePtr->borderWidth, 0,
 			sValuePtr->relief);
 	    }
@@ -2102,13 +2161,14 @@ DisplayLineBackground(textPtr, dlPtr, prevPtr, pixmap)
 	} else if (!matchLeft && matchRight
 		&& (sValuePtr->relief != TK_RELIEF_FLAT)) {
 	    Tk_3DVerticalBevel(textPtr->tkwin, pixmap, sValuePtr->border,
-		    rightX2 + xOffset, dlPtr->height - sValuePtr->borderWidth,
+		    rightX2 + xOffset, y + dlPtr->height -
 		    sValuePtr->borderWidth, sValuePtr->borderWidth,
-		    1, sValuePtr->relief);
+		    sValuePtr->borderWidth, 1, sValuePtr->relief);
 	    Tk_3DHorizontalBevel(textPtr->tkwin, pixmap, sValuePtr->border,
-		    leftX + xOffset, dlPtr->height - sValuePtr->borderWidth,
-		    rightX2 + sValuePtr->borderWidth - leftX,
-		    sValuePtr->borderWidth, leftXIn, 1, 0, sValuePtr->relief);
+		    leftX + xOffset, y + dlPtr->height -
+		    sValuePtr->borderWidth, rightX2 + sValuePtr->borderWidth -
+		    leftX, sValuePtr->borderWidth, leftXIn, 1, 0,
+		    sValuePtr->relief);
 	}
 
 	nextChunk2b:
@@ -2419,9 +2479,13 @@ DisplayText(clientData)
 	maxHeight = dInfoPtr->maxY;
     }
     if (maxHeight > 0) {
+#ifndef TK_NO_DOUBLE_BUFFERING
 	pixmap = Tk_GetPixmap(Tk_Display(textPtr->tkwin),
 		Tk_WindowId(textPtr->tkwin), Tk_Width(textPtr->tkwin),
 		maxHeight, Tk_Depth(textPtr->tkwin));
+#else
+	pixmap = Tk_WindowId(textPtr->tkwin);
+#endif /* TK_NO_DOUBLE_BUFFERING */
 	for (prevPtr = NULL, dlPtr = textPtr->dInfoPtr->dLinePtr;
 		(dlPtr != NULL) && (dlPtr->y < dInfoPtr->maxY);
 		prevPtr = dlPtr, dlPtr = dlPtr->nextPtr) {
@@ -2436,7 +2500,9 @@ DisplayText(clientData)
 		}
 		DisplayDLine(textPtr, dlPtr, prevPtr, pixmap);
 		if (dInfoPtr->dLinesInvalidated) {
+#ifndef TK_NO_DOUBLE_BUFFERING
 		    Tk_FreePixmap(Tk_Display(textPtr->tkwin), pixmap);
+#endif /* TK_NO_DOUBLE_BUFFERING */
 		    return;
 		}
 		dlPtr->oldY = dlPtr->y;
@@ -2444,7 +2510,9 @@ DisplayText(clientData)
 	    }
 	    /*prevPtr = dlPtr;*/
 	}
+#ifndef TK_NO_DOUBLE_BUFFERING
 	Tk_FreePixmap(Tk_Display(textPtr->tkwin), pixmap);
+#endif /* TK_NO_DOUBLE_BUFFERING */
     }
 
     /*
@@ -3181,7 +3249,8 @@ MeasureUp(textPtr, srcPtr, distance, dstPtr)
     int lineNum;		/* Number of current line. */
     int bytesToCount;		/* Maximum number of bytes to measure in
 				 * current line. */
-    TkTextIndex bestIndex;	/* Best candidate seen so far for result. */
+    TkTextIndex bestIndex = {NULL, NULL, 0}; /* Best candidate seen so far for
+					      * result. Silence gcc 4 warning */
     TkTextIndex index;
     DLine *dlPtr, *lowestPtr;
     int noBestYet;		/* 1 means bestIndex hasn't been set. */
@@ -3270,7 +3339,7 @@ TkTextSeeCmd(textPtr, interp, argc, argv)
     TkText *textPtr;		/* Information about text widget. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings.  Someone else has already
+    CONST char **argv;		/* Argument strings.  Someone else has already
 				 * parsed this command enough to know that
 				 * argv[1] is "see". */
 {
@@ -3318,11 +3387,17 @@ TkTextSeeCmd(textPtr, interp, argc, argv)
 
     /*
      * Find the chunk that contains the desired index.
+     * dlPtr may be NULL if the widget is not mapped. [Bug #641778]
      */
 
     dlPtr = FindDLine(dInfoPtr->dLinePtr, &index);
+    if (dlPtr == NULL) {
+	return TCL_OK;
+    }
+
     byteCount = index.byteIndex - dlPtr->index.byteIndex;
-    for (chunkPtr = dlPtr->chunkPtr; chunkPtr!=NULL ; chunkPtr = chunkPtr->nextPtr) {
+    for (chunkPtr = dlPtr->chunkPtr; chunkPtr != NULL ;
+	 chunkPtr = chunkPtr->nextPtr) {
 	if (byteCount < chunkPtr->numBytes) {
 	    break;
 	}
@@ -3332,35 +3407,40 @@ TkTextSeeCmd(textPtr, interp, argc, argv)
     /*
      * Call a chunk-specific procedure to find the horizontal range of
      * the character within the chunk.
+     * chunkPtr is NULL if trying to see in elided region.
      */
 
-    if (chunkPtr!=NULL) {       /* chunkPtr==NULL iff trying to see in elided region */
-    (*chunkPtr->bboxProc)(chunkPtr, byteCount, dlPtr->y + dlPtr->spaceAbove,
-	    dlPtr->height - dlPtr->spaceAbove - dlPtr->spaceBelow,
-	    dlPtr->baseline - dlPtr->spaceAbove, &x, &y, &width,
-	    &height);
-    delta = x - dInfoPtr->curPixelOffset;
-    oneThird = lineWidth/3;
-    if (delta < 0) {
-	if (delta < -oneThird) {
-	    dInfoPtr->newByteOffset = (x - lineWidth/2)/textPtr->charWidth;
-	} else {
-	    dInfoPtr->newByteOffset -= ((-delta) + textPtr->charWidth - 1)
-		/ textPtr->charWidth;
-	}
-    } else {
-	delta -= (lineWidth - width);
-	if (delta > 0) {
-	    if (delta > oneThird) {
-		dInfoPtr->newByteOffset = (x - lineWidth/2)/textPtr->charWidth;
+    if (chunkPtr != NULL) {
+	(*chunkPtr->bboxProc)(chunkPtr, byteCount,
+		dlPtr->y + dlPtr->spaceAbove,
+		dlPtr->height - dlPtr->spaceAbove - dlPtr->spaceBelow,
+		dlPtr->baseline - dlPtr->spaceAbove, &x, &y, &width,
+		&height);
+	delta = x - dInfoPtr->curPixelOffset;
+	oneThird = lineWidth/3;
+	if (delta < 0) {
+	    if (delta < -oneThird) {
+		dInfoPtr->newByteOffset = (x - lineWidth/2)
+		    / textPtr->charWidth;
 	    } else {
-		dInfoPtr->newByteOffset += (delta + textPtr->charWidth - 1)
+		dInfoPtr->newByteOffset -= ((-delta) + textPtr->charWidth - 1)
 		    / textPtr->charWidth;
 	    }
 	} else {
-	    return TCL_OK;
+	    delta -= (lineWidth - width);
+	    if (delta > 0) {
+		if (delta > oneThird) {
+		    dInfoPtr->newByteOffset = (x - lineWidth/2)
+			/ textPtr->charWidth;
+		} else {
+		    dInfoPtr->newByteOffset += (delta + textPtr->charWidth - 1)
+			/ textPtr->charWidth;
+		}
+	    } else {
+		return TCL_OK;
+	    }
 	}
-    }}
+    }
     dInfoPtr->flags |= DINFO_OUT_OF_DATE;
     if (!(dInfoPtr->flags & REDRAW_PENDING)) {
 	dInfoPtr->flags |= REDRAW_PENDING;
@@ -3392,7 +3472,7 @@ TkTextXviewCmd(textPtr, interp, argc, argv)
     TkText *textPtr;		/* Information about text widget. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings.  Someone else has already
+    CONST char **argv;		/* Argument strings.  Someone else has already
 				 * parsed this command enough to know that
 				 * argv[1] is "xview". */
 {
@@ -3580,7 +3660,7 @@ TkTextYviewCmd(textPtr, interp, argc, argv)
     TkText *textPtr;		/* Information about text widget. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings.  Someone else has already
+    CONST char **argv;		/* Argument strings.  Someone else has already
 				 * parsed this command enough to know that
 				 * argv[1] is "yview". */
 {
@@ -3746,7 +3826,7 @@ TkTextScanCmd(textPtr, interp, argc, argv)
     register TkText *textPtr;	/* Information about text widget. */
     Tcl_Interp *interp;		/* Current interpreter. */
     int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings.  Someone else has already
+    CONST char **argv;		/* Argument strings.  Someone else has already
 				 * parsed this command enough to know that
 				 * argv[1] is "scan". */
 {
@@ -3865,7 +3945,7 @@ GetXView(interp, textPtr, report)
 					 * scrollbar if it has changed. */
 {
     TextDInfo *dInfoPtr = textPtr->dInfoPtr;
-    char buffer[TCL_DOUBLE_SPACE * 2];
+    char buffer[TCL_DOUBLE_SPACE * 2 + 1];
     double first, last;
     int code;
 
@@ -3886,7 +3966,8 @@ GetXView(interp, textPtr, report)
 	Tcl_SetResult(interp, buffer, TCL_VOLATILE);
 	return;
     }
-    if ((first == dInfoPtr->xScrollFirst) && (last == dInfoPtr->xScrollLast)) {
+    if (FP_EQUAL_SCALE(first, dInfoPtr->xScrollFirst, dInfoPtr->maxLength) &&
+	FP_EQUAL_SCALE(last,  dInfoPtr->xScrollLast,  dInfoPtr->maxLength)) {
 	return;
     }
     dInfoPtr->xScrollFirst = first;
@@ -3936,7 +4017,7 @@ GetYView(interp, textPtr, report)
 					 * scrollbar if it has changed. */
 {
     TextDInfo *dInfoPtr = textPtr->dInfoPtr;
-    char buffer[TCL_DOUBLE_SPACE * 2];
+    char buffer[TCL_DOUBLE_SPACE * 2 + 1];
     double first, last;
     DLine *dlPtr;
     int totalLines, code, count;
@@ -3971,7 +4052,8 @@ GetYView(interp, textPtr, report)
 	Tcl_SetResult(interp, buffer, TCL_VOLATILE);
 	return;
     }
-    if ((first == dInfoPtr->yScrollFirst) && (last == dInfoPtr->yScrollLast)) {
+    if (FP_EQUAL_SCALE(first, dInfoPtr->yScrollFirst, totalLines) &&
+	FP_EQUAL_SCALE(last,  dInfoPtr->yScrollLast,  totalLines)) {
 	return;
     }
     dInfoPtr->yScrollFirst = first;
@@ -4133,6 +4215,15 @@ TkTextPixelIndex(textPtr, x, y, indexPtr)
     }
     if (dlPtr->chunkPtr == NULL) dlPtr = validdlPtr;
 
+    *indexPtr = dlPtr->index;
+
+    /*
+     * If it is still empty, we have nothing to access. [Bug 1442102]
+     */
+
+    if (dlPtr->chunkPtr == NULL) {
+	return;
+    }
 
     /*
      * Scan through the line's chunks to find the one that contains
@@ -4141,7 +4232,6 @@ TkTextPixelIndex(textPtr, x, y, indexPtr)
      * coordinate system of the line (to take account of x-scrolling).
      */
 
-    *indexPtr = dlPtr->index;
     x = x - dInfoPtr->x + dInfoPtr->curPixelOffset;
     for (chunkPtr = dlPtr->chunkPtr; x >= (chunkPtr->x + chunkPtr->width);
 	    indexPtr->byteIndex += chunkPtr->numBytes,
@@ -4380,7 +4470,7 @@ ElideMeasureProc(chunkPtr, x)
  *
  *	This procedure is the "layoutProc" for character segments.
  *
-n * Results:
+ * Results:
  *	If there is something to display for the chunk then a
  *	non-zero value is returned and the fields of chunkPtr
  *	will be filled in (see the declaration of TkTextDispChunk
@@ -4494,7 +4584,7 @@ TkTextCharLayoutProc(textPtr, indexPtr, segPtr, byteOffset, maxX, maxBytes,
 	    (sizeof(CharInfo) - 3 + bytesThatFit));
     chunkPtr->clientData = (ClientData) ciPtr;
     ciPtr->numBytes = bytesThatFit;
-    strncpy(ciPtr->chars, p, (size_t) bytesThatFit);
+    memcpy(ciPtr->chars, p, (size_t) bytesThatFit);
     if (p[bytesThatFit - 1] == '\n') {
 	ciPtr->numBytes--;
     }
@@ -4831,6 +4921,7 @@ AdjustForTab(textPtr, tabArrayPtr, index, chunkPtr)
 	 */
 
 	desired = NextTabStop(textPtr, textPtr->tkfont, x, 0);
+
 	goto update;
     }
 
@@ -5068,7 +5159,6 @@ SizeOfTab(textPtr, tabArrayPtr, index, x, maxX)
  *
  *---------------------------------------------------------------------------
  */
-
 static int
 NextTabStop(textPtr, tkfont, x, tabOrigin)
     TkText *textPtr;
@@ -5081,12 +5171,12 @@ NextTabStop(textPtr, tkfont, x, tabOrigin)
 				 * non-zero if text has been scrolled. */
 {
     int tabWidth, rem;
-    
+
 #if 1
     tabWidth = Tk_TextWidth(tkfont, "0", 1) * textPtr->tabsize;
 #else
-    tabWidth = Tk_TextWidth(tkfont, "0", 1) * 8;
-#endif
+     tabWidth = Tk_TextWidth(tkfont, "0", 1) * 8;
+#endif    
     if (tabWidth == 0) {
 	tabWidth = 1;
     }
@@ -5197,4 +5287,3 @@ MeasureChars(tkfont, source, maxBytes, startX, maxX, tabOrigin, nextXPtr)
     *nextXPtr = curX;
     return start - source;
 }
-

@@ -3,7 +3,6 @@
 # Tom Tromey <tromey@cygnus.com>
 
 CONFIGDIR=@CONFIGDIR@
-CONFIGDIR2=@CONFIGDIR2@
 
 VPATH = @srcdir@
 SHELL = @SHELL@
@@ -21,7 +20,6 @@ install test install-binaries install-libraries install-minimal:
 mostlyclean-recursive clean-recursive distclean-recursive \
 maintainer-clean-recursive:
 	@cd $(CONFIGDIR) && $(MAKE) `echo $@ | sed 's/-recursive//'`
-	@test x"$(CONFIGDIR2)" = x"" || (cd "$(CONFIGDIR2)" && $(MAKE) `echo $@ | sed 's/-recursive'`)
 
 configure:
 	cd $(SRC_DIR) && autoconf

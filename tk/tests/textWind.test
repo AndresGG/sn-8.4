@@ -5,28 +5,20 @@
 # Copyright (c) 1994-1995 Sun Microsystems, Inc.
 # Copyright (c) 1998-1999 by Scriptics Corporation.
 # All rights reserved.
-#
-# RCS: @(#) $Id$
 
-if {[lsearch [namespace children] ::tcltest] == -1} {
-    source [file join [pwd] [file dirname [info script]] defs.tcl]
-}
-
-foreach i [winfo child  .] {
-    catch {destroy $i}
-}
-
+package require tcltest 2.1
+namespace import -force tcltest::configure
+namespace import -force tcltest::testsDirectory
+configure -testdir [file join [pwd] [file dirname [info script]]]
+configure -loadfile [file join [testsDirectory] constraints.tcl]
+tcltest::loadTestedCommands
 
 # Create entries in the option database to be sure that geometry options
 # like border width have predictable values.
 
 option add *Text.borderWidth 2
 option add *Text.highlightThickness 2
-if {$tcl_platform(platform) == "windows"} {
-    option add *Text.font {Courier -14}
-} else {   
-    option add *Text.font {Courier -12}
-}
+option add *Text.font {Courier -12}
 
 text .t -width 30 -height 6 -bd 2 -highlightthickness 2
 pack append . .t {top expand fill}
@@ -38,7 +30,7 @@ if {[winfo depth .t] > 1} {
 } else {
     set color black
 }
-  
+
 # The statements below reset the main window;  it's needed if the window
 # manager is mwm to make mwm forget about a previous minimum size setting.
 

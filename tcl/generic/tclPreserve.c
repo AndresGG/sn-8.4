@@ -11,8 +11,6 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tclInt.h"
@@ -66,17 +64,11 @@ typedef struct HandleStruct {
 } HandleStruct;
 
 
-/*
- * Static routines in this file:
- */
-
-static void	PreserveExitProc _ANSI_ARGS_((ClientData clientData));
-
 
 /*
  *----------------------------------------------------------------------
  *
- * PreserveExitProc --
+ * TclFinalizePreserve --
  *
  *	Called during exit processing to clean up the reference array.
  *
@@ -90,9 +82,8 @@ static void	PreserveExitProc _ANSI_ARGS_((ClientData clientData));
  */
 
 	/* ARGSUSED */
-static void
-PreserveExitProc(clientData)
-    ClientData clientData;		/* NULL -Unused. */
+void
+TclFinalizePreserve()
 {
     Tcl_MutexLock(&preserveMutex);
     if (spaceAvl != 0) {
@@ -151,8 +142,6 @@ Tcl_Preserve(clientData)
 
     if (inUse == spaceAvl) {
 	if (spaceAvl == 0) {
-            Tcl_CreateExitHandler((Tcl_ExitProc *) PreserveExitProc,
-                    (ClientData) NULL);
 	    refArray = (Reference *) ckalloc((unsigned)
 		    (INITIAL_SIZE*sizeof(Reference)));
 	    spaceAvl = INITIAL_SIZE;
@@ -233,8 +222,7 @@ Tcl_Release(clientData)
 		refArray[i] = refArray[inUse];
 	    }
 	    if (mustFree) {
-		if ((freeProc == TCL_DYNAMIC) ||
-                        (freeProc == (Tcl_FreeProc *) free)) {
+		if (freeProc == TCL_DYNAMIC) {
 		    ckfree((char *) clientData);
 		} else {
 		    Tcl_MutexUnlock(&preserveMutex);
@@ -306,8 +294,7 @@ Tcl_EventuallyFree(clientData, freeProc)
      * No reference for this block.  Free it now.
      */
 
-    if ((freeProc == TCL_DYNAMIC)
-	    || (freeProc == (Tcl_FreeProc *) free)) {
+    if (freeProc == TCL_DYNAMIC) {
 	ckfree((char *) clientData);
     } else {
 	(*freeProc)((char *)clientData);

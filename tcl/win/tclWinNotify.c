@@ -9,18 +9,13 @@
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
- *
- * RCS: @(#) $Id$
  */
 
 #include "tclWinInt.h"
-#include <winsock.h>
 
 /*
  * The follwing static indicates whether this module has been initialized.
  */
-
-static int initialized = 0;
 
 #define INTERVAL_TIMER 1	/* Handle of interval timer. */
 
@@ -48,6 +43,8 @@ typedef struct ThreadSpecificData {
 static Tcl_ThreadDataKey dataKey;
 
 extern TclStubs tclStubs;
+extern Tcl_NotifierProcs tclOriginalNotifier;
+
 /*
  * The following static indicates the number of threads that have
  * initialized notifiers.  It controls the lifetime of the TclNotifier
@@ -149,6 +146,20 @@ Tcl_FinalizeNotifier(clientData)
     ClientData clientData;	/* Pointer to notifier data. */
 {
     ThreadSpecificData *tsdPtr = (ThreadSpecificData *) clientData;
+
+    /*
+     * Only finalize the notifier if a notifier was installed in the
+     * current thread; there is a route in which this is not
+     * guaranteed to be true (when tclWin32Dll.c:DllMain() is called
+     * with the flag DLL_PROCESS_DETACH by the OS, which could be
+     * doing so from a thread that's never previously been involved
+     * with Tcl, e.g. the task manager) so this check is important.
+     *
+     * Fixes Bug #217982 reported by Hugh Vu and Gene Leache.
+     */
+    if (tsdPtr == NULL) {
+	return;
+    }
 
     DeleteCriticalSection(&tsdPtr->crit);
     CloseHandle(tsdPtr->event);
@@ -256,7 +267,7 @@ Tcl_SetTimer(
      * on Windows, but mirrors the UNIX hook.
      */
 
-    if (tclStubs.tcl_SetTimer != Tcl_SetTimer) {
+    if (tclStubs.tcl_SetTimer != tclOriginalNotifier.setTimerProc) {
 	tclStubs.tcl_SetTimer(timePtr);
 	return;
     }
@@ -422,7 +433,7 @@ Tcl_WaitForEvent(
      * sense on windows, but mirrors the UNIX hook.
      */
 
-    if (tclStubs.tcl_WaitForEvent != Tcl_WaitForEvent) {
+    if (tclStubs.tcl_WaitForEvent != tclOriginalNotifier.waitForEventProc) {
 	return tclStubs.tcl_WaitForEvent(timePtr);
     }
 
@@ -468,9 +479,9 @@ Tcl_WaitForEvent(
 	     * propagate the quit message and start unwinding.
 	     */
 
-	    PostQuitMessage(msg.wParam);
+	    PostQuitMessage((int) msg.wParam);
 	    status = -1;
-	} else if (result == -1) {
+	} else if (result == (DWORD)-1) {
 	    /*
 	     * We got an error from the system.  I have no idea why this would
 	     * happen, so we'll just unwind.
@@ -510,7 +521,39 @@ void
 Tcl_Sleep(ms)
     int ms;			/* Number of milliseconds to sleep. */
 {
-    Sleep(ms);
+    /*
+     * Simply calling 'Sleep' for the requisite number of milliseconds
+     * can make the process appear to wake up early because it isn't
+     * synchronized with the CPU performance counter that is used in
+     * tclWinTime.c.  This behavior is probably benign, but messes
+     * up some of the corner cases in the test suite.  We get around
+     * this problem by repeating the 'Sleep' call as many times
+     * as necessary to make the clock advance by the requisite amount.
+     */
+
+    Tcl_Time now;		/* Current wall clock time */
+    Tcl_Time desired;		/* Desired wakeup time */
+    DWORD sleepTime = ms;	/* Time to sleep */
+
+    Tcl_GetTime( &now );
+    desired.sec = now.sec + ( ms / 1000 );
+    desired.usec = now.usec + 1000 * ( ms % 1000 );
+    if ( desired.usec > 1000000 ) {
+	++desired.sec;
+	desired.usec -= 1000000;
+    }
+	
+    for ( ; ; ) {
+	Sleep( sleepTime );
+	Tcl_GetTime( &now );
+	if ( now.sec > desired.sec ) {
+	    break;
+	} else if ( ( now.sec == desired.sec )
+	     && ( now.usec >= desired.usec ) ) {
+	    break;
+	}
+	sleepTime = ( ( 1000 * ( desired.sec - now.sec ) )
+		      + ( ( desired.usec - now.usec ) / 1000 ) );
+    }
+
 }
-
-

@@ -5,8 +5,6 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" RCS: @(#) $Id$
-'\" 
 .so man.macros
 .TH send n 4.0 Tk "Tk Built-In Commands"
 .BS
@@ -91,8 +89,24 @@ such as that provide by \fBxauth\fR.
 Under Windows, \fBsend\fR is currently disabled.  Most of the
 functionality is provided by the \fBdde\fR command instead.
 .VE
+.SH EXAMPLE
+This script fragment can be used to make an application that only runs
+once on a particular display.
+.CS
+if {[tk appname FoobarApp] ne "FoobarApp"} {
+    \fBsend\fR -async FoobarApp RemoteStart $argv
+    exit
+}
+# The command that will be called remotely, which raises
+# the application main window and opens the requested files
+proc RemoteStart args {
+    raise .
+    foreach filename $args {
+        OpenFile $filename
+    }
+}
+.CE
 .SH KEYWORDS
 .VS
 application, dde, name, remote execution, security, send
 .VE
-

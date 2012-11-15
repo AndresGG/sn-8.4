@@ -8,9 +8,6 @@
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
-# 
-# RCS: @(#) $Id$
-# 
 
 # Global variables used by these scripts:
 #
@@ -63,7 +60,7 @@ proc getSections {pkg} {
     lsort [array names temp]
 }
 
-# getSections --
+# getTopics --
 #
 # Generate a sorted list of topics in the specified section of the
 # specified package from the topics array.

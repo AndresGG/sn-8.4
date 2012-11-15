@@ -18,8 +18,6 @@
 #
 # Copyright (c) 1998-1999 by Scriptics Corporation.
 # All rights reserved.
-# 
-# RCS: @(#) $Id$
 
 
 lappend auto_path "c:/program\ files/tclpro1.2/win32-ix86/bin"
@@ -38,7 +36,6 @@ set StructList {
     Tcl_Encoding \
     Tcl_EncodingState \
     Tcl_EncodingType \
-    Tcl_EolTranslation \
     Tcl_HashEntry \
     Tcl_HashSearch \
     Tcl_HashTable \
