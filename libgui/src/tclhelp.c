@@ -32,6 +32,10 @@ extern char *strerror ();
 #include <winuser.h>
 #endif
 
+#ifndef _UNISTD_H
+#include <unistd.h>
+#endif
+
 #include <tcl.h>
 #include <tk.h>
 
@@ -219,7 +223,7 @@ help_initialize (Tcl_Interp *interp, struct help_command_data *hdata)
 
 static int
 help_initialize_command (ClientData cd, Tcl_Interp *interp, int argc,
-			 char **argv)
+			 CONST char **argv)
 {
   struct help_command_data *hdata = (struct help_command_data *) cd;
 
@@ -236,7 +240,7 @@ help_initialize_command (ClientData cd, Tcl_Interp *interp, int argc,
 /* Implement the ide_help topic command.  */
 
 static int
-help_topic_command (ClientData cd, Tcl_Interp *interp, int argc, char **argv)
+help_topic_command (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
 {
   struct help_command_data *hdata = (struct help_command_data *) cd;
   Tcl_HashEntry *he;
@@ -269,7 +273,7 @@ help_topic_command (ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 /* Implement the ide_help toc command.  */
 
 static int
-help_toc_command (ClientData cd, Tcl_Interp *interp, int argc, char **argv)
+help_toc_command (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
 {
   struct help_command_data *hdata = (struct help_command_data *) cd;
 
@@ -299,7 +303,7 @@ help_toc_command (ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 /* be rewritten */
 
 static int
-help_display_file_command (ClientData cd, Tcl_Interp *interp, int argc, char **argv)
+help_display_file_command (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
 {
   struct help_command_data *hdata = (struct help_command_data *) cd;
   FILE *e;
@@ -407,7 +411,7 @@ help_command_deleted (ClientData cd)
 
 static int
 help_initialize_command (ClientData cd, Tcl_Interp *interp, int argc,
-             char **argv)
+             CONST char **argv)
 {
   struct help_command_data *hdata = (struct help_command_data *) cd;
 
@@ -504,7 +508,7 @@ help_initialize (Tcl_Interp *interp, struct help_command_data *hdata)
 /* Implement the ide_help topic command.  */
 
 static int
-help_topic_command (ClientData cd, Tcl_Interp *interp, int argc, char **argv)
+help_topic_command (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
 {
   struct help_command_data *hdata = (struct help_command_data *) cd;
   Tcl_HashEntry *he;
@@ -535,7 +539,7 @@ help_topic_command (ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 /* Implement the ide_help toc command.  */
 
 static int
-help_toc_command (ClientData cd, Tcl_Interp *interp, int argc, char **argv)
+help_toc_command (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
 {
   struct help_command_data *hdata = (struct help_command_data *) cd;
   char htmlFile[250];
@@ -552,7 +556,7 @@ help_toc_command (ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 /* Implement the ide_help display command.  */
 
 static int
-help_display_file_command (ClientData cd, Tcl_Interp *interp, int argc, char **argv)
+help_display_file_command (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
 {
   struct help_command_data *hdata = (struct help_command_data *) cd;
 

@@ -388,7 +388,7 @@ fill_recursive (Tcl_Interp *interp, int idx, char *prefix, int list_size, char**
 	    /*
 	     * Add entry to the tree
 	     */
-	    (*fp->tbl_cmd)(fp->tblp, interp, fp->file_argc, fp->file_argv);
+	    (*fp->tbl_cmd)(fp->tblp, interp, fp->file_argc, (CONST char **)fp->file_argv);
 	
 	    fp->file_cnt ++;
 	}
@@ -444,7 +444,7 @@ fill_recursive (Tcl_Interp *interp, int idx, char *prefix, int list_size, char**
 	    /*
 	     * Add directory to the tree
 	     */
-	    (*fp->tbl_cmd)(fp->tblp, interp, fp->dir_argc, fp->dir_argv);
+	    (*fp->tbl_cmd)(fp->tblp, interp, fp->dir_argc, (CONST char **)fp->dir_argv);
 	
 #if _WINDOWS
 	    /*
@@ -566,7 +566,7 @@ fill_file_tree(ClientData clientData,
 	return TCL_ERROR;
     }
 
-    if (Tcl_SplitList(interp, contents, &fp.list_size, &fp.fileargv) != TCL_OK)
+    if (Tcl_SplitList(interp, contents, &fp.list_size, (CONST char ***)&fp.fileargv) != TCL_OK)
 	return TCL_ERROR;
 
     fp.tblp = infoPtr.clientData;
@@ -676,7 +676,7 @@ sn_tk_text_insert(ClientData clientData,
 	textargv[i++] = "end";
 	textargv[i++] = Tcl_GetStringFromObj(elemPtrs[listLen - 1], NULL);
 
-	return (*text_wdgcmd)((ClientData)textPtr,interp,i,textargv);
+	return (*text_wdgcmd)((ClientData)textPtr,interp,i,(CONST char **)textargv);
     }
     return TCL_OK;
 }

@@ -169,17 +169,18 @@ sizebox_create (Tk_Window tkwin, Window parent, ClientData cd)
 /* The class procedure table for a sizebox widget.  This is an
    internal Tk structure.  */
 
-static TkClassProcs sizebox_procs =
+static Tk_ClassProcs sizebox_procs =
 {
+  sizeof(Tk_ClassProcs),
+  NULL,				/* changedProc */
   sizebox_create,		/* createProc */
-  NULL,				/* geometryProc */
   NULL				/* modalProc */
 };
 
 /* The implementation of the sizebox command.  */
 
 static int
-sizebox_command (ClientData cd, Tcl_Interp *interp, int argc, char **argv)
+sizebox_command (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
 {
   Tk_Window tkmain;
   Tk_Window new;

@@ -21,15 +21,15 @@
    if necessary.  */
 
 static int
-mapi_command (ClientData cd, Tcl_Interp *interp, int argc, char *argv[])
+mapi_command (ClientData cd, Tcl_Interp *interp, int argc, CONST char *argv[])
 {
   MapiMessage message;
   MapiRecipDesc to;
   ULONG result;
 
   message.ulReserved = 0;
-  message.lpszSubject = argv[3];
-  message.lpszNoteText = argv[4];
+  message.lpszSubject = (char *)argv[3];
+  message.lpszNoteText = (char *)argv[4];
   message.lpszMessageType = NULL;
   message.lpszDateReceived = NULL;
   message.lpszConversationID = NULL;

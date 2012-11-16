@@ -741,14 +741,14 @@ dbtclfetch(Tcl_Interp *interp,tcldbpars *pars,int argc,char **argv)
 	{
 		if (strncmp(argv[2],"-columns",4) == 0)
 		{
-			if(Tcl_SplitList(interp,argv[3],&col_num,&fields) != TCL_OK)
+			if(Tcl_SplitList(interp,argv[3],&col_num,(CONST char ***)&fields) != TCL_OK)
 				goto error;
 
 			memset((char *)formats,0,sizeof(formats));
 
 			for (cou = 0; cou < col_num; cou++)
 			{
-				if(Tcl_SplitList(interp,fields[cou],&ret,&sub_list) != TCL_OK)
+				if(Tcl_SplitList(interp,fields[cou],&ret,(CONST char ***)&sub_list) != TCL_OK)
 				{
 					columns[cou] = 0;
 					goto error;
@@ -2556,7 +2556,7 @@ GetOpenMode(Tcl_Interp *interp,char *string,int *modePtr)
      * such as O_CREAT.
      */
 
-    if (Tcl_SplitList(interp, string, &modeArgc, &modeArgv) != TCL_OK) {
+    if (Tcl_SplitList(interp, string, &modeArgc, (CONST char ***)&modeArgv) != TCL_OK) {
 		Tcl_AddErrorInfo(interp, "\n    while processing open access modes \"");
 		Tcl_AddErrorInfo(interp, string);
 		Tcl_AddErrorInfo(interp, "\"");
@@ -2712,7 +2712,7 @@ Tcl_TempNam(ClientData clientData,Tcl_Interp *interp,int argc,char **argv)
     Tcl_UtfToExternalDString(NULL, argv[2], -1, &prefixName);
     if ((ret = mxtempnam(Tcl_DStringValue(&nativeName),Tcl_DStringValue(&prefixName))) == NULL)
     {
-	interp->result = Tcl_PosixError (interp);
+	interp->result = (char *)Tcl_PosixError (interp);
 	Tcl_DStringFree(&nativeName);
 	Tcl_DStringFree(&prefixName);
 	return TCL_ERROR;

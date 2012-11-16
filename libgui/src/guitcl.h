@@ -12,7 +12,7 @@ extern "C" {
 /* This is like Tk_Main, but it doesn't assume that the program wants
    to act like an interactive interpreter.  */
 extern void
-ide_main (int ide_argc, char *ide_argv[], Tcl_AppInitProc *);
+ide_main (int ide_argc, CONST char *ide_argv[], Tcl_AppInitProc *);
 
 /* Set up the XPM image reader.  This requires Tk to be linked in.
    However, it does not require Tk to be initialized before calling.  */

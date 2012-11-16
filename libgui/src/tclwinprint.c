@@ -136,7 +136,7 @@ winprint_command_deleted (ClientData cd)
 
 static int
 winprint_page_setup_command (ClientData cd, Tcl_Interp *interp, int argc,
-			     char **argv)
+			     CONST char **argv)
 {
   struct winprint_data *wd = (struct winprint_data *) cd;
   Tk_Window parent;
@@ -273,7 +273,7 @@ struct print_text_options
 
 static int
 winprint_print_text_options (struct winprint_data *wd, Tcl_Interp *interp,
-			     int argc, char **argv,
+			     int argc, CONST char **argv,
 			     struct print_text_options *pto)
 {
   int i;
@@ -302,13 +302,13 @@ winprint_print_text_options (struct winprint_data *wd, Tcl_Interp *interp,
 	    return TCL_ERROR;
 	}
       else if (strcmp (argv[i], "-parent") == 0)
-	pto->parent = argv[i + 1];
+	pto->parent = (char *)argv[i + 1];
       else if (strcmp (argv[i], "-name") == 0)
-	pto->name = argv[i + 1];
+	pto->name = (char *)argv[i + 1];
       else if (strcmp (argv[i], "-pageproc") == 0)
-	pto->pageproc = argv[i + 1];
+	pto->pageproc = (char *)argv[i + 1];
       else if (strcmp (argv[i], "-initproc") == 0)
-	pto->initproc = argv[i + 1];
+	pto->initproc = (char *)argv[i + 1];
       else if (strcmp (argv[i], "-postscript") == 0)
 	pto->postscript = 1;
       else
@@ -557,7 +557,7 @@ winprint_print_text_invoke (Tcl_Interp *interp, char *proc, const char *name,
 /* Implement ide_winprint print_text.  */
 static int
 winprint_print_command (ClientData cd, Tcl_Interp *interp, int argc,
-			     char **argv)
+			     CONST char **argv)
 {
   struct winprint_data *wd = (struct winprint_data *) cd;
   char *queryproc;
@@ -576,8 +576,8 @@ winprint_print_command (ClientData cd, Tcl_Interp *interp, int argc,
 	 char buffer[PRINT_BUFSIZE+1];
   } indata;
 
-  queryproc = argv[2];
-  textproc = argv[3];
+  queryproc = (char *)argv[2];
+  textproc  = (char *)argv[3];
  
   if (winprint_print_text_options (wd, interp, argc, argv, &pto) != TCL_OK)
     return TCL_ERROR;
@@ -890,7 +890,7 @@ winprint_print_command (ClientData cd, Tcl_Interp *interp, int argc,
 
 static int
 winprint_abort_command (ClientData cd, Tcl_Interp *interp, int argc,
-			char **argv)
+			CONST char **argv)
 {
   struct winprint_data *wd = (struct winprint_data *) cd;
 
@@ -903,9 +903,9 @@ winprint_abort_command (ClientData cd, Tcl_Interp *interp, int argc,
 static const struct ide_subcommand_table winprint_commands[] =
 {
   { "page_setup",	winprint_page_setup_command,	2, -1 },
-  { "print_text",	winprint_print_command,	4, -1 },
-  { "print",	     winprint_print_command,	6, -1 },
-  { "abort",		    winprint_abort_command,		2, 2 },
+  { "print_text",	winprint_print_command,		4, -1 },
+  { "print",	     	winprint_print_command,		6, -1 },
+  { "abort",		winprint_abort_command,		2, 2 },
   { NULL, NULL, 0, 0 }
 };
 

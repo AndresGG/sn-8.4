@@ -32,7 +32,7 @@
    to act like a script interpreter.  It never reads commands from
    stdin.  */
 void
-ide_main (int argc, char *argv[], Tcl_AppInitProc *appInitProc)
+ide_main (int argc, CONST char *argv[], Tcl_AppInitProc *appInitProc)
 {
   Tcl_Interp *interp;
   char *args;
@@ -65,7 +65,7 @@ ide_main (int argc, char *argv[], Tcl_AppInitProc *appInitProc)
   if ((*appInitProc) (interp) != TCL_OK)
     {
       Tcl_Channel err_channel;
-      char *msg;
+      CONST char *msg;
 
       /* Guarantee that errorInfo is set properly.  */
       Tcl_AddErrorInfo (interp, "");

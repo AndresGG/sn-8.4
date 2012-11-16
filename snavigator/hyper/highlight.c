@@ -153,7 +153,7 @@ static void remove_tag(register TkText * textPtr, Tcl_Interp * interp, char *tex
 		} else {
 			wargv[3] = tagPtr->name;
 		}
-		TkTextTagCmd(textPtr, interp, wargc, wargv);
+		TkTextTagCmd(textPtr, interp, wargc, (CONST char **)wargv);
 	}
 }
 
@@ -294,7 +294,7 @@ int Sn_Syntax_Highlight(ClientData clientData, Tcl_Interp * interp, int argc, ch
 			for (cou = 1; cou <= PAF_HIGH_STRING; cou++) {
 				tag_argv[tag_off] = high_tag_names[cou];
 				Tcl_ResetResult(interp);
-				TkTextTagCmd(textPtr, interp, tag_argc, tag_argv);
+				TkTextTagCmd(textPtr, interp, tag_argc, (CONST char **)tag_argv);
 
 				p_end = strchr(interp->result, ' ');
 				/* Check whether it is synchronized ! */
@@ -324,11 +324,11 @@ int Sn_Syntax_Highlight(ClientData clientData, Tcl_Interp * interp, int argc, ch
 
 			for (cou = 1; cou <= PAF_HIGH_STRING; cou++) {
 				tag_argv[tag_off] = high_tag_names[cou];
-				TkTextTagCmd(textPtr, interp, tag_argc, tag_argv);
+				TkTextTagCmd(textPtr, interp, tag_argc, (CONST char **)tag_argv);
 			}
 			strcpy(prev_begpos, endpos);
 		}
-		TkTextTagCmd(textPtr, interp, wargc, wargv);
+		TkTextTagCmd(textPtr, interp, wargc, (CONST char **)wargv);
 	}
 done:
 	Tcl_Release((ClientData) textPtr);
@@ -356,7 +356,7 @@ int tk_text_buffer(Tcl_DString * buf, int buf_size, void *idx1, void *idx2)
 
 		first = 0;
 
-		sprintf(dllname, "rhtk%d%d%s.dll", TK_MAJOR_VERSION, TK_MINOR_VERSION, TK_DBGX);
+		sprintf(dllname, "tk%d%d%s.dll", TK_MAJOR_VERSION, TK_MINOR_VERSION, TK_DBGX);
 		LOGGER((LOGFP, "GetModuleHandle: <%s>\n", dllname));
 		tkdll = LoadLibrary(dllname);
 

@@ -50,7 +50,7 @@
 /* Implement the ide_win_choose_font procedure.  */
 
 static int
-win_choose_font (ClientData cd, Tcl_Interp *interp, int argc, char **argv)
+win_choose_font (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
 {
   char *deffont;
   Tk_Window parent;
@@ -79,7 +79,7 @@ win_choose_font (ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 	}
 
       if (strcmp (argv[i], "-default") == 0)
-	deffont = argv[i + 1];
+	deffont = (char *)argv[i + 1];
       else if (strcmp (argv[i], "-parent") == 0)
 	{
 	  parent = Tk_NameToWindow (interp, argv[i + 1],

@@ -241,18 +241,18 @@ msgTypeInfo[NUM_TYPES] = {
 
 static int
 msgbox_internal (ClientData clientData, Tcl_Interp *interp, int argc,
-		 char **argv, char *code)
+		 CONST char **argv, CONST char *code)
 {
     int flags;
     Tk_Window parent = NULL;
     HWND hWnd;
-    char *message = "";
-    char *title = "";
+    CONST char *message = "";
+    CONST char *title = "";
     int icon = MB_ICONINFORMATION;
     int type = MB_OK;
     int modal = MB_SYSTEMMODAL;
     int i, j;
-    char *defaultBtn = NULL;
+    CONST char *defaultBtn = NULL;
     int defaultBtnIdx = -1;
 
     for (i=1; i<argc; i+=2) {
@@ -430,7 +430,7 @@ msgbox_internal (ClientData clientData, Tcl_Interp *interp, int argc,
 /* This is the ide_messageBox function.  */
 
 static int
-msgbox (ClientData cd, Tcl_Interp *interp, int argc, char **argv)
+msgbox (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
 {
   if (argc < 2)
     {

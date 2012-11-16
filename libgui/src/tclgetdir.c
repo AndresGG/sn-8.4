@@ -68,7 +68,7 @@ int CALLBACK MyBrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM lp
 /* Implement the Windows version of the ide_get_directory command.  */
 static int
 get_directory_command (ClientData cd, Tcl_Interp *interp, int argc,
-		       char **argv)
+		       CONST char **argv)
 {
   BROWSEINFO bi;
   char buf[MAX_PATH + 1];
@@ -226,7 +226,7 @@ get_directory_command (ClientData cd, Tcl_Interp *interp, int argc,
 
 static int
 get_directory_command (ClientData cd, Tcl_Interp *interp, int argc,
-		       char **argv)
+		       CONST char **argv)
 {
   char **new_args;
   char *merge;
@@ -244,9 +244,9 @@ get_directory_command (ClientData cd, Tcl_Interp *interp, int argc,
   new_args[2] = "1";
 
   for (i = 1; i < argc; ++i)
-    new_args[2 + i] = argv[i];
+    new_args[2 + i] = (char *)argv[i];
 
-  merge = Tcl_Merge (argc + 2, new_args);
+  merge = Tcl_Merge (argc + 2, (const char *const *)new_args);
   result = Tcl_GlobalEval (interp, merge);
 
   ckfree (merge);

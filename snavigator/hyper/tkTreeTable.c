@@ -1864,7 +1864,7 @@ TreeTableWidgetCmd(
 		}
 		if (itemPtr->parentPtr == (TableItem *) NULL)
 		{
-			interp->result[0] = (char) NULL;
+			Tcl_SetResult(interp, (char *)NULL, TCL_STATIC);
 		}
 		else
 		{
@@ -2059,7 +2059,7 @@ TreeTableWidgetCmd(
 			double pos;
 			
 			strv = Construct_Argv (argc, objv);
-			ret = Tk_GetScrollInfo(interp, argc, strv, &pos, &number);
+			ret = Tk_GetScrollInfo(interp, argc, (CONST char **)strv, &pos, &number);
 			Free_Argv(strv);
 			
 			switch (ret)
@@ -2161,7 +2161,7 @@ TreeTableWidgetCmd(
 			int number, ret;
 			double pos;
 			strv = Construct_Argv(argc, objv);
-			ret = Tk_GetScrollInfo(interp, argc, strv, &pos, &number);
+			ret = Tk_GetScrollInfo(interp, argc, (CONST char **)strv, &pos, &number);
 			Free_Argv(strv);
 			
 			switch (ret)
@@ -2835,7 +2835,7 @@ ConfigureTreeTable(register TreeTable *tablePtr, /* Information about widget; ma
 	argv = Construct_Argv (argc, objv);
 	
     if (Tk_ConfigureWidget(tablePtr->interp, tablePtr->tkwin, configSpecs, 
-						   argc, argv, (char *) tablePtr, flags) != TCL_OK)
+						   argc, (CONST char **)argv, (char *) tablePtr, flags) != TCL_OK)
 	{
 		return TCL_ERROR;
 	}
@@ -3102,7 +3102,7 @@ ConfigureTreeTable(register TreeTable *tablePtr, /* Information about widget; ma
 	{
 		char **tabs, *p;
 		int num, oldnum, *oldtabs;
-		if (Tcl_SplitList (tablePtr->interp, tablePtr->tabsList, &num, &tabs) != TCL_OK)
+		if (Tcl_SplitList (tablePtr->interp, tablePtr->tabsList, &num, (CONST char ***)&tabs) != TCL_OK)
 		  return TCL_ERROR;
 		if (num == 0)
 		{
@@ -3179,7 +3179,7 @@ ConfigureTreeTable(register TreeTable *tablePtr, /* Information about widget; ma
 	{
 		char **tabs, *p;
 		int num;
-		if (Tcl_SplitList (tablePtr->interp, tablePtr->defTabsList, &num, &tabs) != TCL_OK)
+		if (Tcl_SplitList (tablePtr->interp, tablePtr->defTabsList, &num, (CONST char ***)&tabs) != TCL_OK)
 		  return TCL_ERROR;
 		if (num == 0)
 		{
@@ -3237,7 +3237,7 @@ ConfigureTreeTable(register TreeTable *tablePtr, /* Information about widget; ma
 	{
 		char **jj, *p;
 		int num;
-		if (Tcl_SplitList (tablePtr->interp, tablePtr->justify, &num, &jj) != TCL_OK)
+		if (Tcl_SplitList (tablePtr->interp, tablePtr->justify, &num, (CONST char ***)&jj) != TCL_OK)
 		  return TCL_ERROR;
 		if (num != tablePtr->tabsNum)
 		{
@@ -4664,7 +4664,7 @@ ConfigureTreeTableItem(tablePtr, itemPtr, argc, argv, flags, mode)
     oldSeenNum = itemPtr->seenNum;
     
     if (Tk_ConfigureWidget(tablePtr->interp, tablePtr->tkwin, itemConfigSpecs,
-						   argc, argv, (char *) itemPtr, flags) != TCL_OK) {
+						   argc, (CONST char **)argv, (char *) itemPtr, flags) != TCL_OK) {
 	  
 	  return TCL_ERROR;
 }
@@ -6844,7 +6844,7 @@ TreeTableFetchSelection(clientData, offset, buffer, maxBytes)
     argv = (char **)ckalloc((unsigned) (argc*sizeof(char *)));
     TreeTableSetText (tablePtr->itemPtr, argv, 0);
     
-    selection = Tcl_Merge(argc, argv);
+    selection = Tcl_Merge(argc, (CONST char **)argv);
 	
     /*
      * Copy the requested portion of the selection to the buffer.

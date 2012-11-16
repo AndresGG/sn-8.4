@@ -34,7 +34,7 @@ subcommand_deleted (ClientData cd)
    table.  */
 static int
 subcommand_implementation (ClientData cd, Tcl_Interp *interp,
-			   int argc, char *argv[])
+			   int argc, CONST char *argv[])
 {
   struct subcommand_clientdata *data = (struct subcommand_clientdata *) cd;
   const struct ide_subcommand_table *commands = data->commands;
@@ -75,7 +75,7 @@ subcommand_implementation (ClientData cd, Tcl_Interp *interp,
 	      return (TCL_ERROR);
 	    }
 
-	  return (commands[i].func (data->subdata, interp, argc, argv));
+	  return (commands[i].func (data->subdata, interp, argc, (const char **)argv));
 	}
     }
 

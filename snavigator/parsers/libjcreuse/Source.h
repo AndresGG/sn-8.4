@@ -26,6 +26,10 @@ MA 02111-1307, USA.
 #ifndef xySource
 #define xySource
 
+#ifndef _STRING_H
+#include <string.h>
+#endif
+
 /* $Id$ */
 
 /* $Log$

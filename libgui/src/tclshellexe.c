@@ -18,11 +18,11 @@ static int
 shell_execute_command (ClientData clientData, Tcl_Interp *interp,
 		       int argc, char *argv[])
 {
-  char	*operation;
-  char	*file;
-  char	*param;
-  char	*dir;
-  int	ret;
+  CONST char	*operation;
+  CONST char	*file;
+  CONST char	*param;
+  CONST char	*dir;
+  int		ret;
 
   if (argc < 3 || argc > 5)
     {

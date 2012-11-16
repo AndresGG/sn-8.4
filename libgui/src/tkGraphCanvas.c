@@ -208,7 +208,7 @@ getedgedim(canvasPtr, e, dim)
 			 e->typePtr->configSpecs,
 			 (char *) e, "-textheight", 0);
     if(Tcl_SplitList(canvasPtr->interp, canvasPtr->interp->result,
-			  &argc2, &argv2) != TCL_OK) {
+			  &argc2, (CONST char ***)&argv2) != TCL_OK) {
 	return TCL_ERROR;
     }
     dim->height = atol(argv2[4]);
@@ -218,7 +218,7 @@ getedgedim(canvasPtr, e, dim)
 			 e->typePtr->configSpecs,
 			 (char *) e, "-textwidth", 0);
     if(Tcl_SplitList(canvasPtr->interp, canvasPtr->interp->result,
-			  &argc2, &argv2) != TCL_OK) {
+			  &argc2, (CONST char ***)&argv2) != TCL_OK) {
 	return TCL_ERROR;
     }
     dim->width = atol(argv2[4]);
@@ -354,7 +354,7 @@ GetEdgeNodes(interp,canvasPtr,i,fp,tp)
 			 i->typePtr->configSpecs,
 			 (char *) i, "-from", 0);
     if(Tcl_SplitList(interp, interp->result,
-			  &argc, &argv) != TCL_OK) {
+			  &argc, (CONST char ***)&argv) != TCL_OK) {
 	return TCL_ERROR;
     }
 
@@ -367,7 +367,7 @@ GetEdgeNodes(interp,canvasPtr,i,fp,tp)
 			 i->typePtr->configSpecs,
 			 (char *) i, "-to", 0);
     if(Tcl_SplitList(interp, interp->result,
-			  &argc, &argv) != TCL_OK) {
+			  &argc, (CONST char ***)&argv) != TCL_OK) {
 	return TCL_ERROR;
     }
 
@@ -400,14 +400,14 @@ createcanvasgraph(interp,canvCmd,graph)
     argv1[1] = "cget";
     argv1[2] = "-width";
     argc1 = 3;
-    if ((canvCmd->proc)(canvCmd->clientData, interp, argc1, argv1) 
+    if ((canvCmd->proc)(canvCmd->clientData, interp, argc1, (CONST char **)argv1) 
 	!= TCL_OK) {
 	return TCL_ERROR;
     }
     cfg.maxx = atol(Tcl_GetStringResult(interp));
 
     argv1[2] = "-height";
-    if ((canvCmd->proc) (canvCmd->clientData, interp, argc1, argv1) 
+    if ((canvCmd->proc) (canvCmd->clientData, interp, argc1, (CONST char **)argv1) 
 	!= TCL_OK) {
 	return TCL_ERROR;
     }
@@ -645,7 +645,7 @@ GraphCanvasCmd(clientData, interp, argc, argv)
 	    } else { /* setting one or more options */
 		ok = Tk_ConfigureWidget(interp, 
 					Tk_CanvasTkwin(*(Tk_Canvas *)canvasPtr),
-					graphspecs, argc-3, argv+3, 
+					graphspecs, argc-3, (CONST char **)argv+3, 
 					(char*)&cfg, TK_CONFIG_ARGV_ONLY);
 		if(ok == TCL_OK) {
 		    SetLayoutConfig(graph,cfg);

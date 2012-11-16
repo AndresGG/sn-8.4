@@ -331,7 +331,7 @@ retriever_services(ClientData clientData,
 			line_items[TYP_POS],
 			line_items[PRM_POS],
 			line_items[FIL_POS]);
-	    (*wcmd)(wcdata, interp, rargc, rargv);
+	    (*wcmd)(wcdata, interp, rargc, (CONST char **)rargv);
 	}
 	
 	ckfree (data);
@@ -575,7 +575,7 @@ cross_services(ClientData clientData,
 	if (accept_static)
 	{
 	    /* Information to the actual scope */
-	    if (Tcl_SplitList (interp, testline, &tsize, &tfields) != TCL_OK)
+	    if (Tcl_SplitList (interp, testline, &tsize, (CONST char ***)&tfields) != TCL_OK)
 	    {
 		return TCL_ERROR;
 	    }
@@ -615,7 +615,7 @@ cross_services(ClientData clientData,
 	    }
 	    memcpy (tmpline, pline, size);
 	    tmpline[size] = 0;
-	    if (Tcl_SplitList (interp, tmpline, &fsize, &lfields) != TCL_OK)
+	    if (Tcl_SplitList (interp, tmpline, &fsize, (CONST char ***)&lfields) != TCL_OK)
 	    {
 		continue;
 	    }
@@ -858,7 +858,7 @@ class_browser_insert(ClientData clientData,
     wargv[wargc++] = "configure";
     wargv[wargc++] = "-state";
     wargv[wargc++] = "normal";
-    (*text_wdgcmd)((ClientData)textPtr,interp,wargc,wargv);
+    (*text_wdgcmd)((ClientData)textPtr,interp,wargc,(CONST char **)wargv);
 
     /* delete old items */
     if (del)
@@ -869,7 +869,7 @@ class_browser_insert(ClientData clientData,
 	wargv[wargc++] = "0";
 	wargv[wargc++] = "end";
 
-	(*text_wdgcmd)((ClientData)textPtr,interp,wargc,wargv);
+	(*text_wdgcmd)((ClientData)textPtr,interp,wargc,(CONST char **)wargv);
     }
 
     if (Tcl_ListObjLength(interp, objlist, &objlistc) != TCL_OK)
@@ -928,7 +928,7 @@ class_browser_insert(ClientData clientData,
 	    {
 		continue;
 	    }
-	    if (Tcl_SplitList(interp, Tcl_GetString(next), &fld_cou, &flds) != TCL_OK)
+	    if (Tcl_SplitList(interp, Tcl_GetString(next), &fld_cou, (CONST char ***)&flds) != TCL_OK)
 	    {
 		continue;
 	    }
@@ -964,7 +964,7 @@ class_browser_insert(ClientData clientData,
 	}
 
  	/* verify if the class is selected */
-	p = Tcl_GetVar2 (interp, viewed_classes, CLASS(actu_flds[CLASS_POS]), TCL_LIST_ELEMENT);
+	p = (char *)Tcl_GetVar2 (interp, viewed_classes, CLASS(actu_flds[CLASS_POS]), TCL_LIST_ELEMENT);
 	if (p != NULL && atoi (p) == 0)    /* class not selected */
 	{
 	    continue;
@@ -1133,7 +1133,7 @@ class_browser_insert(ClientData clientData,
 	/*
 	 * Add line to browser list
 	 */
-	(*text_wdgcmd)((ClientData)textPtr,interp,wargc,wargv);	/* Insert ! */
+	(*text_wdgcmd)((ClientData)textPtr,interp,wargc,(CONST char **)wargv);	/* Insert ! */
     }
 
     /* free dynamic buffers */

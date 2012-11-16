@@ -139,12 +139,12 @@ static void		ComputeEdgeBbox _ANSI_ARGS_((Tk_Canvas canvas,
 			    EdgeItem *edgePtr));
 static int		ConfigureEdge _ANSI_ARGS_((Tcl_Interp *interp,
 			    Tk_Canvas canvas, Tk_Item *itemPtr, int argc,
-			    Tcl_Obj **ObjArgv, int flags));
+			    Tcl_Obj *CONST ObjArgv[], int flags));
 static int		ConfigureArrows _ANSI_ARGS_((Tk_Canvas canvas,
 			    EdgeItem *edgePtr));
 static int		CreateEdge _ANSI_ARGS_((Tcl_Interp *interp,
                             Tk_Canvas canvas, struct Tk_Item *itemPtr, 
-			    int argc, Tcl_Obj **ObjArgv));
+			    int argc, Tcl_Obj *CONST ObjArgv[]));
 static void		DeleteEdge _ANSI_ARGS_((Tk_Canvas canvas,
 			    Tk_Item *itemPtr, Display *display));
 static void		DisplayEdge _ANSI_ARGS_((Tk_Canvas canvas,
@@ -152,7 +152,7 @@ static void		DisplayEdge _ANSI_ARGS_((Tk_Canvas canvas,
                              int x, int y, int width, int height));
 static int		EdgeCoords _ANSI_ARGS_((Tcl_Interp *interp,
                             Tk_Canvas canvas, Tk_Item *itemPtr,
-			    int argc, Tcl_Obj **ObjArgv));
+			    int argc, Tcl_Obj *CONST ObjArgv[]));
 static int		EdgeToArea _ANSI_ARGS_((Tk_Canvas canvas,
 			    Tk_Item *itemPtr, double *rectPtr));
 static double		EdgeToPoint _ANSI_ARGS_((Tk_Canvas canvas,
@@ -160,7 +160,7 @@ static double		EdgeToPoint _ANSI_ARGS_((Tk_Canvas canvas,
 static int		EdgeToPostscript _ANSI_ARGS_((Tcl_Interp *interp,
                             Tk_Canvas canvas, Tk_Item *itemPtr, int prepass));
 static int		ParseArrowShape _ANSI_ARGS_((ClientData clientData,
-			    Tcl_Interp *interp, Tk_Window tkwin, char *value,
+			    Tcl_Interp *interp, Tk_Window tkwin, CONST char *value,
 			    char *recordPtr, int offset));
 static char *		PrintArrowShape _ANSI_ARGS_((ClientData clientData,
 			    Tk_Window tkwin, char *recordPtr, int offset,
@@ -312,7 +312,7 @@ CreateEdge(interp, canvas, itemPtr, argc, ObjArgv)
      Tk_Item *itemPtr;			/* Record to hold new item;  header
 					 * has been initialized by caller. */
      int argc;				/* Number of arguments in argv. */
-     Tcl_Obj **ObjArgv;			/* Arguments describing edge. */
+     Tcl_Obj *CONST ObjArgv[];		/* Arguments describing edge. */
 {
   char **argv;
   EdgeItem *edgePtr = (EdgeItem *) itemPtr;
@@ -432,7 +432,7 @@ EdgeCoords(interp, canvas, itemPtr, argc, ObjArgv)
 					 * read or modified. */
      int argc;				/* Number of coordinates supplied in
 					 * argv. */
-     Tcl_Obj **ObjArgv;			/* Array of coordinates: x1, y1,
+     Tcl_Obj *CONST ObjArgv[];		/* Array of coordinates: x1, y1,
 					 * x2, y2, ... */
 {
   EdgeItem *edgePtr = (EdgeItem *) itemPtr;
@@ -532,14 +532,14 @@ ConfigureEdge(interp, canvas, itemPtr, argc, ObjArgv, flags)
      Tk_Canvas canvas;	        /* Canvas containing itemPtr. */
      Tk_Item *itemPtr;		/* Edge item to reconfigure. */
      int argc;			/* Number of elements in argv.  */
-     Tcl_Obj **ObjArgv;		/* Arguments describing things to configure. */
+     Tcl_Obj *CONST ObjArgv[];	/* Arguments describing things to configure. */
      int flags;			/* Flags to pass to Tk_ConfigureWidget. */
 {
   EdgeItem *edgePtr = (EdgeItem *) itemPtr;
   XGCValues gcValues;
   GC newGC;
   unsigned long mask;
-  char *value, *fullName, **list;
+  CONST char *value, *fullName, **list;
   int counter, listCounter = 0;
   Tcl_DString varName, fileName, buffer;
   Tk_Window tkwin;
@@ -566,7 +566,7 @@ ConfigureEdge(interp, canvas, itemPtr, argc, ObjArgv, flags)
   }
 
   if (Tk_ConfigureWidget(interp, tkwin,
-			 configSpecs, argc, argv,
+			 configSpecs, argc, (CONST char **)argv,
 			 (char *) edgePtr, flags) != TCL_OK) {
     return TCL_ERROR;
   }
@@ -1743,7 +1743,7 @@ ParseArrowShape(clientData, interp, tkwin, value, recordPtr, offset)
      ClientData clientData;	/* Not used. */
      Tcl_Interp *interp;	/* Used for error reporting. */
      Tk_Window tkwin;		/* Not used. */
-     char *value;		/* Textual specification of arrow shape. */
+     CONST char *value;		/* Textual specification of arrow shape. */
      char *recordPtr;		/* Pointer to item record in which to
 				 * store arrow information. */
      int offset;		/* Offset of shape information in widget
@@ -1758,7 +1758,7 @@ ParseArrowShape(clientData, interp, tkwin, value, recordPtr, offset)
     panic("ParseArrowShape received bogus offset");
   }
   
-  if (Tcl_SplitList(interp, value, &argc, &argv) != TCL_OK) {
+  if (Tcl_SplitList(interp, value, &argc, (CONST char ***)&argv) != TCL_OK) {
   syntaxError:
     Tcl_ResetResult(interp);
     Tcl_AppendResult(interp, "bad arrow shape \"", value,

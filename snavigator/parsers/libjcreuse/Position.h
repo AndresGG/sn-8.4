@@ -79,6 +79,10 @@ MA 02111-1307, USA.
 #include <stdio.h>
 #include "Idents.h"
 
+#ifndef _STRING_H
+#include <string.h>
+#endif
+
 #if defined __STDC__ | defined __cplusplus
 #define ARGS(parameters)	parameters
 #else

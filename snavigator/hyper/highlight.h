@@ -37,6 +37,10 @@ MA 02111-1307, USA.
 
 #include "tcl.h"
 
+#ifndef _STRING_H
+#include <string.h>
+#endif
+
 /* Use a user-defined input function for lex. This extracts text from the
    Tk text widget and translates it to UTF-8 encoding. */
 #undef YY_INPUT
