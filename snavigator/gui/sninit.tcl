@@ -188,6 +188,9 @@
 set copyright "Copyright (c) 1997-2000 Red Hat, Inc.\n All rights\
   reserved."
 
+# So we can get away with using internal commands in Tcl/Tk 8.4
+tk::unsupported::ExposePrivateCommand *
+  
 #force flag
 #on windows we must force focusing the window
 #on unix, let the window manager do this.
