@@ -44,13 +44,15 @@ package require Itk
 itcl_class Preferences& {
     inherit sourcenav::Window
 
-    constructor {{config ""}} {
+    constructor {{args ""}} {
         global sn_options
 
         set width 780
         set height 580
 
         withdraw
+
+        eval itk_initialize $args
 
         set NoteBook [tixNoteBook $itk_component(hull).nbook -ipadx 0 -ipady 0\
           -borderwidth 0 -background white]

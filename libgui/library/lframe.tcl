@@ -12,7 +12,8 @@ itcl_class Labelledframe {
     }
   }
 
-  constructor {config} {
+  constructor {args} {
+    eval itk_initialize $args
     label [namespace tail $this].label -text $text -padx 2
     _add [namespace tail $this].label
   }

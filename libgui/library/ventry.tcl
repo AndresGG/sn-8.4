@@ -8,10 +8,11 @@ itcl_class Validated_entry {
   # will be displayed to the user.
   public command {}
 
-  constructor {config} {
+  constructor {args} {
     upvar \#0 $this state
 
     # The standard widget-making trick.
+    eval itk_initialize $args
     set class [$this info class]
     set hull [namespace tail $this]
     set old_name $this

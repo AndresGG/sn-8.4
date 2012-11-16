@@ -16,8 +16,9 @@ itcl_class Widgetframe {
   # subclass calling the _add method.  Private variable.
   protected _widget {}
 
-  constructor {config} {
+  constructor {args} {
     # The standard widget-making trick.
+    eval itk_initialize $args
     set class [$this info class]
     set hull [namespace tail $this]
     set old_name $this

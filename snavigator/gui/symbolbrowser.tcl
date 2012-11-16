@@ -25,8 +25,10 @@
 itcl_class SymBr& {
     inherit sourcenav::Window
 
-    constructor {{config ""}} {
+    constructor {{args ""}} {
         global sn_options
+
+        eval itk_initialize $args
 
         set topw $itk_component(hull)
         set symbr $itk_component(hull).symbr

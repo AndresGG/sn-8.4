@@ -22,7 +22,8 @@
 itcl_class Selector& {
     inherit Tree
 
-    constructor {config} {
+    constructor {args} {
+#        eval itk_initialize $args
         set cmd ""
         foreach c ${config} {
             append cmd "-${c} {[virtual set ${c}]} "

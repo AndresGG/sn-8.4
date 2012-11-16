@@ -46,7 +46,8 @@ itcl_class Checkframe {
   # enabling/disabling.  Private variable.
   protected _avoid {}
 
-  constructor {config} {
+  constructor {args} {
+    eval itk_initialize $args
     checkbutton [namespace tail $this].check -text $text -variable $variable -padx 2 \
       -command $command -onvalue $onvalue -offvalue $offvalue
     balloon register [namespace tail $this].check $help

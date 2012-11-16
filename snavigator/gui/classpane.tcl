@@ -147,7 +147,7 @@ itcl::class Class& {
 		    -propagate 1
 	} { }
 
-	$itk_component(memberlist) config \
+	$itk_component(memberlist) configure \
 		-fillcommand [itcl::code $this fillcbwrapper]
 
 	itk_component add overridden {
@@ -1379,7 +1379,7 @@ itcl::class Class& {
         }
 
         if {${bsy}} {
-            $itk_component(memberlist) config -state disabled
+            $itk_component(memberlist) configure -state disabled
         }
 
         set y [lindex [$itk_component(memberlist) yview] 0]
@@ -1416,7 +1416,7 @@ itcl::class Class& {
         $itk_component(memberlist) SyncTabs
 
         if {${bsy}} {
-            $itk_component(memberlist) config -state normal
+            $itk_component(memberlist) configure -state normal
         }
     }
 

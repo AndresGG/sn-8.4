@@ -21,8 +21,10 @@
 # Copyright (C) 1998 Cygnus Solutions.
 
 itcl_class Retriever& {
-    constructor {config} {
+    constructor {args} {
         global sn_options
+
+	eval configure $args
 
         #read matched contents from the db.
         if {${contents} == ""} {

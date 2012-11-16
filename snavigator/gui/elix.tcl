@@ -24,13 +24,15 @@
 itcl_class Elix& {
     inherit sourcenav::Window
 
-    constructor {{config ""}} {
+    constructor {{args ""}} {
         withdraw
 
         # Initialize EL/IX options.
         set ttys {/dev/ttyS0 /dev/ttyS1 /dev/ttyS2 /dev/ttyS3 /dev/ttyS4}
         global elix_options
         fill elix_options
+
+        eval itk_initialize $args
 
         set NoteBook [tixNoteBook ${this}.nbook -ipadx 0 -ipady 0\
           -borderwidth 0 -background white]

@@ -40,12 +40,14 @@ itcl_class Tree {
     
     global sn_options
 
-    constructor {config} {
+    constructor {args} {
 	global sn_options
 	
 	#set up a short name for accessing real name path
 	set thisTail [namespace tail $this]
-	
+
+        eval itk_initialize $args
+
 	if {$withframe} {
 	    set lframe $thisTail.fr
 	    ::frame $lframe -bd 2 -relief sunken
