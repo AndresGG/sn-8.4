@@ -1,3 +1,4 @@
+(ENHANCE) Update the project management window to use Ttk widgets
 (INTERNAL) Add tile extension for Ttk widgets support
 (INTERNAL) Update tkTable to version 2.10
 (INTERNAL) Update xmplib.c from Tix source following former SN versions

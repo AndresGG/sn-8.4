@@ -373,10 +373,8 @@ proc sn_open_project_cb {pfile} {
     return ${ret}
 }
 
-proc Open_Project {t} {
+proc Open_Project {t listbox} {
     global tcl_platform proj_selector_status
-
-    set listbox $t.scrolllistbox.projs
 
     set p [$listbox curselection]
     if {${p} == ""} {
@@ -476,28 +474,37 @@ proc sn_select_project {{waiting "wait"}} {
     if {${off} != -1} {
         set open_str [string range ${open_str} 0 [expr ${off} -1]]
     }
-    pack [frame ${t}.btns] -side right -fill y -padx 5 -pady 5
-    #new project
-    button ${t}.btns.new -text [get_indep String NewProj]\
-      -underline [get_indep Pos NewProj] -command " sn_new_project_cb ${t} "
-    # Open existing
-    button ${t}.btns.browse -text [get_indep String BrowseProj]\
-      -underline [get_indep Pos BrowseProj] -command " Browse_For_Project\
-      ${t} "
-    # Open project
-    button ${t}.btns.open -text [get_indep String Open] -underline\
-      [get_indep Pos Open] -command " Open_Project ${t} "
-    #Delete project
-    button ${t}.btns.delete -text [get_indep String Delete]\
-      -underline [get_indep Pos Delete] -command\
-      " sn_delete_project_cb ${t}.btns $t.scrolllistbox.projs "
-    # Cancel
-    button ${t}.btns.exit -text [get_indep String Quit]\
-      -underline [get_indep Pos Cancel] -command [list Close_Project_List_cb\
-      ${waiting}]
-# FIXME: this should all be gridded
-    pack ${t}.btns.new ${t}.btns.browse ${t}.btns.open ${t}.btns.delete\
-      ${t}.btns.exit -side top -fill x -pady 5
+
+    set exF [ttk::frame ${t}.exFrame]
+    set lbF [ttk::frame $exF.lbF -relief groove -borderwidth 1]
+    set btF [ttk::frame $exF.btF]
+
+    pack $exF -expand 1 -fill both -ipadx 5 -ipady 5
+    grid $lbF -row 0 -column 0 -sticky news -padx  5 -pady  5
+    grid $btF -row 0 -column 1 -sticky ns   -padx  5 -pady  5
+
+    grid columnconfigure $exF 0 -weight 1
+    grid columnconfigure $exF 1 -weight 0
+    grid rowconfigure    $exF 0 -weight 1
+
+    ttk::button $btF.new    -width 13 -text [get_indep String NewProj]          \
+        -underline [get_indep Pos NewProj]    -command " sn_new_project_cb ${t} "
+    ttk::button $btF.browse -width 13 -text [get_indep String BrowseProj]       \
+        -underline [get_indep Pos BrowseProj] -command " Browse_For_Project ${t} "
+    ttk::button $btF.open   -width 13 -text [get_indep String Open]             \
+       -underline  [get_indep Pos Open]       -command " Open_Project ${t} $lbF.projs"
+    ttk::button $btF.delete -width 13 -text [get_indep String Delete]           \
+        -underline [get_indep Pos Delete]     -command                          \
+                " sn_delete_project_cb $btF $lbF.projs "
+    ttk::button $btF.exit   -width 13 -text [get_indep String Quit]             \
+        -underline [get_indep Pos Cancel]     -command                          \
+                [list Close_Project_List_cb ${waiting}]
+
+    grid $btF.new    -pady 5
+    grid $btF.browse -pady 5
+    grid $btF.open   -pady 5
+    grid $btF.delete -pady 5
+    grid $btF.exit   -pady 5
 
     set len [llength ${proj_list}]
     if {[catch {set max_len $sn_history(project_size)}]} {
@@ -527,73 +534,60 @@ proc sn_select_project {{waiting "wait"}} {
 
     # Use this frame to hold listbox and scrollbars.
 
-    set f [frame $t.scrolllistbox -relief sunken\
-	    -borderwidth 2]
+    ttk::scrollbar $lbF.vertsb  -orient vertical
+    ttk::scrollbar $lbF.horizsb -orient horizontal
 
-    scrollbar $f.vertsb -orient vertical \
-	    -relief flat -borderwidth 1 -highlightthickness 0
-    scrollbar $f.horizsb -orient horizontal \
-	    -relief flat -borderwidth 1 -highlightthickness 0
-
-    listbox $f.projs -width 55 -relief flat -height $height \
-	    -xscrollcommand "scrollListbox $f.horizsb" \
-	    -yscrollcommand "scrollListbox $f.vertsb"
+    listbox $lbF.projs -width 55 -relief flat -height $height \
+	    -xscrollcommand "scrollListbox $lbF.horizsb"      \
+	    -yscrollcommand "scrollListbox $lbF.vertsb"
 
     foreach prj ${proj_list} {
-        ${f}.projs insert end ${prj}
+        $lbF.projs insert end ${prj}
     }
 
-    $f.vertsb configure -command "$f.projs yview"
-    $f.horizsb configure -command "$f.projs xview"
+    $lbF.vertsb  configure -command "$lbF.projs yview"
+    $lbF.horizsb configure -command "$lbF.projs xview"
 
-    bind ${f}.projs <ButtonRelease-1> "+
-						${t}.btns.open config -state normal
-						${t}.btns.delete config -state normal"
+    bind $lbF.projs <ButtonRelease-1> "
+            $btF.open   config -state normal
+            $btF.delete config -state normal"
 
     set return_binding "
-				${f}.projs selection clear 0 end
-				${f}.projs selection set active
-				${t}.btns.open config -state normal
-				update idletasks
-				${t}.btns.open invoke
-				break"
+            $lbF.projs selection clear 0 end
+            $lbF.projs selection set active
+            $btF.open config -state normal
+            update idletasks
+            $btF.open invoke
+            break"
 
-    bind ${f}.projs <Return> $return_binding
-    bind ${f}.projs <space> $return_binding
+    bind $lbF.projs <Return> $return_binding
+    bind $lbF.projs <space>  $return_binding
 
-    # Wait for ButtonRelease before invoking the open button.
-    # Otherwise the ButtonRelease event will be lost and it will appear
-    # as if Button-1 is being held down once the project is opened.
- 
-    bind ${f}.projs <Double-1> "bind $f.projs <ButtonRelease-1>\
-                                \"${t}.btns.open invoke; break\";update; break"
-    bind ${f}.projs <Escape> "${t}.btns.exit invoke; break"
+    bind $lbF.projs <Double-1> "Open_Project ${t} $lbF.projs"
+    bind $lbF.projs <Escape>   "$btF.exit invoke; break"
 
-    grid $f.projs -row 1 -column 1 -sticky news
-    grid $f.vertsb -row 1 -column 2 -sticky ns
-    grid $f.horizsb -row 2 -column 1 -sticky ew
-    grid [frame $f.dummyframe -relief groove -borderwidth 2] -row 2 -column 2 -sticky news
-    grid columnconfigure $f 1 -weight 1
-    grid rowconfigure $f 1 -weight 1
+    grid $lbF.projs -row 1 -column 1 -sticky news
+    grid $lbF.vertsb -row 1 -column 2 -sticky ns
+    grid $lbF.horizsb -row 2 -column 1 -sticky ew
+    grid columnconfigure $lbF 1 -weight 1
+    grid rowconfigure $lbF 1 -weight 1
 
-    focus ${f}.projs
-
-    pack $f -fill both -expand 1 -side left -padx 5 -pady 5
+    focus $lbF.projs
 
     # Make sure the first item (if any) is selected.
-    $f.projs selection set 0
+    $lbF.projs selection set 0
 
     # Bring up the window to the top and make it visible
     update idletasks
     ${t} centerOnScreen
     ${t} deiconify
-    ${t} take_focus ${f}.projs
+    ${t} take_focus $lbF.projs
 
     # It must be here, otherwise we might
     # get problems on W-95.
     hide_loading_message
 
-    catch {sn_rc_project_list ${t} ${f}.projs}
+    catch {sn_rc_project_list ${t} $lbF.projs}
 
     set proj_selector_status ""
     #when a new interpreter is created, don't wait to
@@ -613,6 +607,5 @@ proc sn_select_project {{waiting "wait"}} {
         return 1
     }
 }
-
 
 
