@@ -99,7 +99,7 @@ int  cross_services(ClientData clientData,
 /* FIXME: Why don't we use the declaration in tkTreeTable.h ??? */
 int	 create_treetable_command(Tcl_Interp *interp);
 int	 _Paftcldb_Init(Tcl_Interp *in);
-void	ide_create_xpm_image_type();
+/*void	ide_create_xpm_image_type();*/
 int  ide_create_win_choose_font_command (Tcl_Interp *interp);
 
 /* File commands. */
@@ -962,7 +962,7 @@ Sn_setup_Init(Tcl_Interp *interp)		/* Interpreter for application. */
 	 * not neccessary.
 	 */
 	old_auto_path[0] = '\0';
-	parg = Tcl_GetVar(interp,"auto_path",TCL_GLOBAL_ONLY);
+	parg = (char *)Tcl_GetVar(interp,"auto_path",TCL_GLOBAL_ONLY);
 	if (parg)
 	{
 		int	len = strlen(parg) + 1;
@@ -977,7 +977,7 @@ Sn_setup_Init(Tcl_Interp *interp)		/* Interpreter for application. */
 /* FIXME: This needs to be removed, we need to be able to call Sn_setup_Init in other interps */
 	Tcl_SetVar(interp,"SN_first_interp",tmp,TCL_GLOBAL_ONLY);
 
-	if ((parg = Tcl_GetVar (interp, "tcl_interactive", TCL_GLOBAL_ONLY)))
+	if ((parg = (char *)Tcl_GetVar (interp, "tcl_interactive", TCL_GLOBAL_ONLY)))
 		tcl_interactive = atoi(parg);
 	else
 		tcl_interactive = 0;
@@ -1075,7 +1075,7 @@ Sn_setup_Init(Tcl_Interp *interp)		/* Interpreter for application. */
 	    }
 	}
 
-	parg = Tcl_GetVar(interp,"sn_home",TCL_GLOBAL_ONLY);
+	parg = (char *)Tcl_GetVar(interp,"sn_home",TCL_GLOBAL_ONLY);
 #if DEBUG
 	LOGGER((LOGFP,"sn_home: <%s>\nUser home: <%s>\n",
 		parg,
@@ -1228,11 +1228,15 @@ Sn_setup_Init(Tcl_Interp *interp)		/* Interpreter for application. */
 	 */
 	 
 /* This first value is not getting set properly, getting run on second load */
+/* FIXME. The call to ide_create_xpm_image_type doesn't seem to
+   be necessary and, in Linux, it even prevents SN from starting up.
+   I am keeping it though as I don't undestand how it can possible
+   work without it. Andres
 	if (first)
 	{
 	        ide_create_xpm_image_type();
 	}
-
+*/
 	/*
 	 * Init libgui tclIndex path
 	 */
@@ -1283,7 +1287,7 @@ Sn_setup_Init(Tcl_Interp *interp)		/* Interpreter for application. */
 	{
 		LOGGER((LOGFP,"sn_tcl_tk_init Error: %s\n",interp->result));
 
-		if ((parg = Tcl_GetVar(interp,"errorInfo",TCL_GLOBAL_ONLY)))
+		if ((parg = (char *)Tcl_GetVar(interp,"errorInfo",TCL_GLOBAL_ONLY)))
 		{
 			LOGGER((LOGFP,"  errorInfo <%s>\n",parg));
 		}
