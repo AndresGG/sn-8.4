@@ -3,12 +3,12 @@
  *
  *	This module contains utility functions for table widgets.
  *
- * Copyright (c) 2000 Jeffrey Hobbs
+ * Copyright (c) 2000-2002 Jeffrey Hobbs
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * RCS: @(#) $Id$
+ * RCS: @(#) $Id: tkTableUtil.c,v 1.4 2002/10/16 07:31:48 hobbs Exp $
  */
 
 #include "tkTable.h"
@@ -19,6 +19,39 @@ static int	Cmd_GetValue _ANSI_ARGS_((const Cmd_Struct *cmds,
 static void	Cmd_GetError _ANSI_ARGS_((Tcl_Interp *interp,
 			const Cmd_Struct *cmds, const char *arg));
 
+/*
+ *--------------------------------------------------------------
+ *
+ * Table_ClearHashTable --
+ *	This procedure is invoked to clear a STRING_KEY hash table,
+ *	freeing the string entries and then deleting the hash table.
+ *	The hash table cannot be used after calling this, except to
+ *	be freed or reinitialized.
+ *
+ * Results:
+ *	Cached info will be lost.
+ *
+ * Side effects:
+ *	Can cause redraw.
+ *	See the user documentation.
+ *
+ *--------------------------------------------------------------
+ */
+void
+Table_ClearHashTable(Tcl_HashTable *hashTblPtr)
+{
+    Tcl_HashEntry *entryPtr;
+    Tcl_HashSearch search;
+    char *value;
+
+    for (entryPtr = Tcl_FirstHashEntry(hashTblPtr, &search);
+	 entryPtr != NULL; entryPtr = Tcl_NextHashEntry(&search)) {
+	value = (char *) Tcl_GetHashValue(entryPtr);
+	if (value != NULL) ckfree(value);
+    }
+
+    Tcl_DeleteHashTable(hashTblPtr);
+}
 
 /*
  *----------------------------------------------------------------------
@@ -41,7 +74,7 @@ TableOptionBdSet(clientData, interp, tkwin, value, widgRec, offset)
     ClientData clientData;		/* Type of struct being set. */
     Tcl_Interp *interp;			/* Used for reporting errors. */
     Tk_Window tkwin;			/* Window containing table widget. */
-    char *value;			/* Value of option. */
+    CONST84 char *value;		/* Value of option. */
     char *widgRec;			/* Pointer to record for item. */
     int offset;				/* Offset into item. */
 {
@@ -50,8 +83,7 @@ TableOptionBdSet(clientData, interp, tkwin, value, widgRec, offset)
     int type	= (int) clientData;
     int result	= TCL_OK;
     int argc;
-    char **argv;
-
+    CONST84 char **argv;
 
     if ((type == BD_TABLE) && (value[0] == '\0')) {
 	/*
@@ -183,7 +215,7 @@ TableTagConfigureBd(Table *tablePtr, TableTag *tagPtr,
 	char *oldValue, int nullOK)
 {
     int i, argc, result = TCL_OK;
-    char **argv;
+    CONST84 char **argv;
 
     /*
      * First check to see if the value really changed.
@@ -270,7 +302,7 @@ TableTagConfigureBd(Table *tablePtr, TableTag *tagPtr,
 
 int
 Cmd_OptionSet(ClientData clientData, Tcl_Interp *interp,
-	      Tk_Window unused, char *value, char *widgRec, int offset)
+	Tk_Window unused, CONST84 char *value, char *widgRec, int offset)
 {
   Cmd_Struct *p = (Cmd_Struct *)clientData;
   int mode = Cmd_GetValue(p,value);

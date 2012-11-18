@@ -1,9 +1,10 @@
 # table.tcl --
 #
-# Version align with tkTable 2.7, jeff.hobbs@acm.org
+# Version align with tkTable 2.7, jeff at hobbs org
 # This file defines the default bindings for Tk table widgets
 # and provides procedures that help in implementing those bindings.
 #
+# RCS: @(#) $Id: tkTable.tcl,v 1.14 2005/07/12 23:26:28 hobbs Exp $
 
 #--------------------------------------------------------------------------
 # ::tk::table::Priv elements used in this file:
@@ -14,12 +15,16 @@
 #			during a selection operation.
 # mouseMoved -		Boolean to indicate whether mouse moved while
 #			the button was pressed.
+# borderInfo -		Boolean to know if the user clicked on a border
+# borderB1 -		Boolean that set whether B1 can be used for the
+#			interactiving resizing
 #--------------------------------------------------------------------------
 
 namespace eval ::tk::table {
     # Ensure that a namespace is created for us
     variable Priv
-    array set Priv { x 0 y 0 afterId {} mouseMoved 0 }
+    array set Priv [list x 0 y 0 afterId {} mouseMoved 0 \
+	    borderInfo {} borderB1 1]
 }
 
 # ::tk::table::ClipboardKeysyms --
@@ -39,6 +44,7 @@ proc ::tk::table::ClipboardKeysyms {copy cut paste} {
 }
 ::tk::table::ClipboardKeysyms <Copy> <Cut> <Paste>
 
+##
 ## Interactive cell resizing, affected by -resizeborders option
 ##
 bind Table <3>		{
@@ -50,44 +56,27 @@ bind Table <B3-Motion>	{ %W border dragto %x %y }
 
 ## Button events
 
-bind Table <1> {
-    if {[winfo exists %W]} {
-	::tk::table::BeginSelect %W [%W index @%x,%y]
-	focus %W
-    }
-    array set ::tk::table::Priv {x %x y %y}
-    set ::tk::table::Priv(mouseMoved) 0
-}
-bind Table <B1-Motion> {
-    # If we already had motion, or we moved more than 1 pixel,
-    # then we start the Motion routine
-    if {
-	$::tk::table::Priv(mouseMoved)
-	|| abs(%x-$::tk::table::Priv(x)) > 1
-	|| abs(%y-$::tk::table::Priv(y)) > 1
-    } {
-	set ::tk::table::Priv(mouseMoved) 1
-    }
-    if {$::tk::table::Priv(mouseMoved)} {
-	::tk::table::Motion %W [%W index @%x,%y]
+bind Table <1> { ::tk::table::Button1 %W %x %y }
+bind Table <B1-Motion> { ::tk::table::B1Motion %W %x %y }
+
+bind Table <ButtonRelease-1> {
+    if {$::tk::table::Priv(borderInfo) == "" && [winfo exists %W]} {
+	::tk::table::CancelRepeat
+	%W activate @%x,%y
     }
 }
 bind Table <Double-1> {
     # empty
-}
-bind Table <ButtonRelease-1> {
-    if {[winfo exists %W]} {
-	::tk::table::CancelRepeat
-	%W activate @%x,%y
-    }
 }
 
 bind Table <Shift-1>	{::tk::table::BeginExtend %W [%W index @%x,%y]}
 bind Table <Control-1>	{::tk::table::BeginToggle %W [%W index @%x,%y]}
 bind Table <B1-Enter>	{::tk::table::CancelRepeat}
 bind Table <B1-Leave>	{
-    array set ::tk::table::Priv {x %x y %y}
-    ::tk::table::AutoScan %W
+    if {$::tk::table::Priv(borderInfo) == ""} {
+	array set ::tk::table::Priv {x %x y %y}
+	::tk::table::AutoScan %W
+    }
 }
 bind Table <2> {
     %W scan mark %x %y
@@ -110,16 +99,16 @@ bind Table <ButtonRelease-2> {
 bind Table <<Table_Commit>> {
     catch {%W activate active}
 }
-# Remove this if you don't want cell commit to occur on every
-# Leave of the table.  Another possible choice is <FocusOut>.
-event add <<Table_Commit>> <Leave>
+# Remove this if you don't want cell commit to occur on every Leave for
+# the table (via mouse) or FocusOut (loss of focus by table).
+event add <<Table_Commit>> <Leave> <FocusOut>
 
 bind Table <Shift-Up>		{::tk::table::ExtendSelect %W -1  0}
 bind Table <Shift-Down>		{::tk::table::ExtendSelect %W  1  0}
 bind Table <Shift-Left>		{::tk::table::ExtendSelect %W  0 -1}
 bind Table <Shift-Right>	{::tk::table::ExtendSelect %W  0  1}
-bind Table <Prior>		{%W yview scroll -1 pages; %W activate @0,0}
-bind Table <Next>		{%W yview scroll  1 pages; %W activate @0,0}
+bind Table <Prior>		{%W yview scroll -1 pages; %W activate topleft}
+bind Table <Next>		{%W yview scroll  1 pages; %W activate topleft}
 bind Table <Control-Prior>	{%W xview scroll -1 pages}
 bind Table <Control-Next>	{%W xview scroll  1 pages}
 bind Table <Home>		{%W see origin}
@@ -173,7 +162,7 @@ bind Table <Alt-KeyPress>	{# nothing}
 bind Table <Meta-KeyPress>	{# nothing}
 bind Table <Control-KeyPress>	{# nothing}
 bind Table <Any-Tab>		{# nothing}
-if {[string match "macintosh" $tcl_platform(platform)]} {
+if {[string match "macintosh" $::tcl_platform(platform)]} {
     bind Table <Command-KeyPress> {# nothing}
 }
 
@@ -189,11 +178,9 @@ if {[string match "macintosh" $tcl_platform(platform)]} {
 # Results:
 #   Returns the selection, or an error if none could be found
 #
-if {[string compare $tcl_platform(platform) "unix"] == 0} {
+if {[string compare $::tcl_platform(platform) "unix"]} {
     proc ::tk::table::GetSelection {w {sel PRIMARY}} {
-	if {[catch {selection get -displayof $w -selection $sel \
-		-type UTF8_STRING} txt] \
-		&& [catch {selection get -displayof $w -selection $sel} txt]} {
+	if {[catch {selection get -displayof $w -selection $sel} txt]} {
 	    return -code error "could not find default selection"
 	} else {
 	    return $txt
@@ -201,7 +188,9 @@ if {[string compare $tcl_platform(platform) "unix"] == 0} {
     }
 } else {
     proc ::tk::table::GetSelection {w {sel PRIMARY}} {
-	if {[catch {selection get -displayof $w -selection $sel} txt]} {
+	if {[catch {selection get -displayof $w -selection $sel \
+		-type UTF8_STRING} txt] \
+		&& [catch {selection get -displayof $w -selection $sel} txt]} {
 	    return -code error "could not find default selection"
 	} else {
 	    return $txt
@@ -254,6 +243,90 @@ proc ::tk::table::BackSpace {w} {
     set cur [$w icursor]
     if {[string compare {} $cur] && $cur} {
 	$w delete active [expr {$cur-1}]
+    }
+}
+
+# ::tk::table::Button1 --
+#
+# This procedure is called to handle selecting with mouse button 1.
+# It will distinguish whether to start selection or mark a border.
+#
+# Arguments:
+#   w	- the table widget
+#   x	- x coord
+#   y	- y coord
+# Results:
+#   Returns nothing
+#
+proc ::tk::table::Button1 {w x y} {
+    variable Priv
+    #
+    # $Priv(borderInfo) is null if the user did not click on a border
+    #
+    if {$Priv(borderB1) == 1} {
+	set Priv(borderInfo) [$w border mark $x $y]
+	# account for what resizeborders are set [Bug 876320] (ferenc)
+	set rbd [$w cget -resizeborders]
+	if {$rbd == "none" || ![llength $Priv(borderInfo)]
+	    || ($rbd == "col" && [lindex $Priv(borderInfo) 1] == "")
+	    || ($rbd == "row" && [lindex $Priv(borderInfo) 0] == "")} {
+	    set Priv(borderInfo) ""
+	}
+    } else {
+	set Priv(borderInfo) ""
+    }
+    if {$Priv(borderInfo) == ""} {
+	#
+	# Only do this when a border wasn't selected
+	#
+	if {[winfo exists $w]} {
+	    ::tk::table::BeginSelect $w [$w index @$x,$y]
+	    focus $w
+	}
+	array set Priv [list x $x y $y]
+	set Priv(mouseMoved) 0
+    }
+}
+
+# ::tk::table::B1Motion --
+#
+# This procedure is called to start processing mouse motion events while
+# button 1 moves while pressed.  It will distinguish whether to change
+# the selection or move a border.
+#
+# Arguments:
+#   w	- the table widget
+#   x	- x coord
+#   y	- y coord
+# Results:
+#   Returns nothing
+#
+proc ::tk::table::B1Motion {w x y} {
+    variable Priv
+
+    # If we already had motion, or we moved more than 1 pixel,
+    # then we start the Motion routine
+    if {$Priv(borderInfo) != ""} {
+	#
+	# If the motion is on a border, drag it and skip the rest
+	# of this binding.
+	#
+	$w border dragto $x $y
+    } else {
+	#
+	# If we already had motion, or we moved more than 1 pixel,
+	# then we start the Motion routine
+	#
+	if {
+	    $::tk::table::Priv(mouseMoved)
+	    || abs($x-$::tk::table::Priv(x)) > 1
+	    || abs($y-$::tk::table::Priv(y)) > 1
+	} {
+	    set ::tk::table::Priv(mouseMoved) 1
+	}
+	if {$::tk::table::Priv(mouseMoved)} {
+	    ::tk::table::Motion $w [$w index @$x,$y]
+	}
     }
 }
 
@@ -357,6 +430,8 @@ proc ::tk::table::Motion {w el} {
 	    set Priv(tablePrev) $el
 	}
 	extended {
+	    # avoid tables that have no anchor index yet.
+	    if {[catch {$w index anchor}]} { return }
 	    scan $Priv(tablePrev) %d,%d r c
 	    scan $el %d,%d elr elc
 	    if {[$w tag includes title $el]} {
@@ -396,6 +471,8 @@ proc ::tk::table::Motion {w el} {
 # one under the pointer). Must be in numerical form.
 
 proc ::tk::table::BeginExtend {w el} {
+    # avoid tables that have no anchor index yet.
+    if {[catch {$w index anchor}]} { return }
     if {[string match extended [$w cget -selectmode]] &&
 	[$w selection includes anchor]} {
 	::tk::table::Motion $w $el
@@ -579,8 +656,7 @@ proc ::tk::table::DataExtend {w el} {
 proc ::tk::table::SelectAll {w} {
     if {[regexp {^(single|browse)$} [$w cget -selectmode]]} {
 	$w selection clear all
-	$w selection set active
-	::tk::table::HandleType $w [$w index active]
+	catch {$w selection set active}
     } elseif {[$w cget -selecttitles]} {
 	$w selection set [$w cget -roworigin],[$w cget -colorigin] end
     } else {
@@ -589,6 +665,7 @@ proc ::tk::table::SelectAll {w} {
 }
 
 # ::tk::table::ChangeWidth --
+#
 # Adjust the widget of the specified cell by $a.
 #
 # Arguments:
@@ -606,6 +683,7 @@ proc ::tk::table::ChangeWidth {w i a} {
 }
 
 # tk_tableCopy --
+#
 # This procedure copies the selection from a table widget into the
 # clipboard.
 #
@@ -620,6 +698,7 @@ proc tk_tableCopy w {
 }
 
 # tk_tableCut --
+#
 # This procedure copies the selection from a table widget into the
 # clipboard, then deletes the selection (if it exists in the given
 # widget).
@@ -639,13 +718,14 @@ proc tk_tableCut w {
 }
 
 # tk_tablePaste --
+#
 # This procedure pastes the contents of the clipboard to the specified
 # cell (active by default) in a table widget.
 #
 # Arguments:
 # w -		Name of a table widget.
 # cell -	Cell to start pasting in.
-
+#
 proc tk_tablePaste {w {cell {}}} {
     if {[string compare {} $cell]} {
 	if {[catch {::tk::table::GetSelection $w} data]} return
@@ -660,15 +740,25 @@ proc tk_tablePaste {w {cell {}}} {
 }
 
 # tk_tablePasteHandler --
+#
 # This procedure handles how data is pasted into the table widget.
 # This handles data in the default table selection form.
-# NOTE: this allows pasting into all cells, even those with -state disabled
+#
+# NOTE: this allows pasting into all cells except title cells,
+#       even those with -state disabled
 #
 # Arguments:
 # w -		Name of a table widget.
 # cell -	Cell to start pasting in.
-
+#
 proc tk_tablePasteHandler {w cell data} {
+    #
+    # Don't allow pasting into the title cells
+    #
+    if {[$w tag includes title $cell]} {
+        return
+    }
+
     set rows	[expr {[$w cget -rows]-[$w cget -roworigin]}]
     set cols	[expr {[$w cget -cols]-[$w cget -colorigin]}]
     set r	[$w index $cell row]
@@ -679,14 +769,14 @@ proc tk_tablePasteHandler {w cell data} {
     ## If you were to want multi-character row separators, you would need:
     # regsub -all $rsep $data <newline> data
     # set data [join $data <newline>]
-    if {[string comp {} $rsep]} { set data [split $data $rsep] }
+    if {[string compare {} $rsep]} { set data [split $data $rsep] }
     set row	$r
     foreach line $data {
 	if {$row > $rows} break
 	set col	$c
 	## Assume separate cols are split by col separator if specified
 	## Unless a -separator was specified
-	if {[string comp {} $csep]} { set line [split $line $csep] }
+	if {[string compare {} $csep]} { set line [split $line $csep] }
 	## If you were to want multi-character col separators, you would need:
 	# regsub -all $csep $line <newline> line
 	# set line [join $line <newline>]
@@ -696,5 +786,40 @@ proc tk_tablePasteHandler {w cell data} {
 	    incr col
 	}
 	incr row
+    }
+}
+
+# tk::table::Sort --
+#
+# This procedure handles how data is sorted in the table widget.
+# This isn't currently used by tktable, but can be called by the user.
+# It's behavior may change in the future.
+#
+# Arguments:
+# w -		Name of a table widget.
+# start -	start cell of rectangle to sort
+# end -		end cell of rectangle to sort
+# col -		column within rectangle to sort on
+# args -	passed to lsort proc (ie: -integer -decreasing)
+
+proc ::tk::table::Sort {w start end col args} {
+    set start [$w index $start]
+    set end   [$w index $end]
+    scan $start %d,%d sr sc
+    scan $end   %d,%d er ec
+    if {($col < $sc) || ($col > $ec)} {
+	return -code error "$col is not within sort range $sc to $ec"
+    }
+    set col [expr {$col - $sc}]
+
+    set data {}
+    for {set i $sr} {$i <= $er} {incr i} {
+	lappend data [$w get $i,$sc $i,$ec]
+    }
+
+    set i $sr
+    foreach row [eval [list lsort -index $col] $args [list $data]] {
+	$w set row $i,$sc $row
+	incr i
     }
 }

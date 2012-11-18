@@ -4,7 +4,7 @@
  *	This module implements general commands of a table widget,
  *	based on the major/minor command structure.
  *
- * Copyright (c) 1998-2000 Jeffrey Hobbs
+ * Copyright (c) 1998-2002 Jeffrey Hobbs
  *
  * See the file "license.txt" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -35,11 +35,21 @@ Table_ActivateCmd(ClientData clientData, register Tcl_Interp *interp,
 {
     register Table *tablePtr = (Table *) clientData;
     int result = TCL_OK;
-    int row, col;
+    int row, col, templen;
 
     if (objc != 3) {
 	Tcl_WrongNumArgs(interp, 2, objv, "index");
 	return TCL_ERROR;
+    } else if (Tcl_GetStringFromObj(objv[2], &templen), templen == 0) {
+	/*
+	 * Test implementation to clear active cell (becroft)
+	 */
+	tablePtr->flags &= ~HAS_ACTIVE;
+	tablePtr->flags |= ACTIVE_DISABLED;
+	tablePtr->activeRow = -1;
+	tablePtr->activeCol = -1;
+	TableAdjustActive(tablePtr);
+	TableConfigCursor(tablePtr);
     } else if (TableGetIndexObj(tablePtr, objv[2], &row, &col) != TCL_OK) {
 	return TCL_ERROR;
     } else {
@@ -108,7 +118,8 @@ Table_ActivateCmd(ClientData clientData, register Tcl_Interp *interp,
 		/* no error checking because GetIndex did it for us */
 		p++;
 		x = strtol(p, &p, 0) - x - tablePtr->activeX;
-		y = strtol(++p, &p, 0) - y - tablePtr->activeY;
+		p++;
+		y = strtol(p, &p, 0) - y - tablePtr->activeY;
 
 		textLayout = Tk_ComputeTextLayout(tagPtr->tkfont,
 					tablePtr->activeBuf, -1,
@@ -306,7 +317,7 @@ Table_BboxCmd(ClientData clientData, register Tcl_Interp *interp,
     return TCL_OK;
 }
 
-static char *bdCmdNames[] = {
+static CONST84 char *bdCmdNames[] = {
     "mark", "dragto", (char *)NULL
 };
 enum bdCmd {
@@ -438,7 +449,7 @@ Table_BorderCmd(ClientData clientData, register Tcl_Interp *interp,
 }
 
 /* clear subcommands */
-static char *clearNames[] = {
+static CONST84 char *clearNames[] = {
     "all", "cache", "sizes", "tags", (char *)NULL
 };
 enum clearCommand {
@@ -507,7 +518,7 @@ Table_ClearCmd(ClientData clientData, register Tcl_Interp *interp,
 	}
 
 	if (cmdIndex == CLEAR_CACHE || cmdIndex == CLEAR_ALL) {
-	    Tcl_DeleteHashTable(tablePtr->cache);
+	    Table_ClearHashTable(tablePtr->cache);
 	    Tcl_InitHashTable(tablePtr->cache, TCL_STRING_KEYS);
 	    /* If we were caching and we have no other data source,
 	     * invalidate all the cells */
@@ -519,7 +530,7 @@ Table_ClearCmd(ClientData clientData, register Tcl_Interp *interp,
     } else {
 	int row, col, r1, r2, c1, c2;
 	Tcl_HashEntry *entryPtr;
-	char buf[INDEX_BUFSIZE];
+	char buf[INDEX_BUFSIZE], *value;
 
 	if (TableGetIndexObj(tablePtr, objv[3], &row, &col) != TCL_OK ||
 	    ((objc == 5) &&
@@ -587,6 +598,8 @@ Table_ClearCmd(ClientData clientData, register Tcl_Interp *interp,
 
 		if ((cmdIndex == CLEAR_CACHE || cmdIndex == CLEAR_ALL) &&
 		    (entryPtr = Tcl_FindHashEntry(tablePtr->cache, buf))) {
+		    value = (char *) Tcl_GetHashValue(entryPtr);
+		    if (value) { ckfree(value); }
 		    Tcl_DeleteHashEntry(entryPtr);
 		    /* if the cache is our data source,
 		     * we need to invalidate the cells changed */
@@ -733,7 +746,7 @@ Table_CurvalueCmd(ClientData clientData, register Tcl_Interp *interp,
 	TableRefresh(tablePtr, tablePtr->activeRow, tablePtr->activeCol, CELL);
     }
 
-    Tcl_SetStringObj(Tcl_GetObjResult(interp), tablePtr->activeBuf, -1);
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(tablePtr->activeBuf, -1));
     return TCL_OK;
 }
 

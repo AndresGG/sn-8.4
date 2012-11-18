@@ -8,7 +8,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * RCS: @(#) $Id$
+ * RCS: @(#) $Id: tkTableEdit.c,v 1.7 2002/10/16 07:30:56 hobbs Exp $
  */
 
 #include "tkTable.h"
@@ -20,7 +20,7 @@ static void	TableModifyRC _ANSI_ARGS_((register Table *tablePtr,
 			int outOfBounds));
 
 /* insert/delete subcommands */
-static char *modCmdNames[] = {
+static CONST84 char *modCmdNames[] = {
     "active", "cols", "rows", (char *)NULL
 };
 enum modCmd {
@@ -28,7 +28,7 @@ enum modCmd {
 };
 
 /* insert/delete row/col switches */
-static char *rcCmdNames[] = {
+static CONST84 char *rcCmdNames[] = {
     "-keeptitles",	"-holddimensions",	"-holdselection",
     "-holdtags",	"-holdwindows",	"--",
     (char *) NULL
@@ -232,10 +232,39 @@ Table_EditCmd(ClientData clientData, register Tcl_Interp *interp,
 		maxkey += count;
 		*dimPtr += count;
 	    }
+	    /*
+	     * We need to call TableAdjustParams before TableModifyRC to
+	     * ensure that side effect code like var traces that might get
+	     * called will access the correct new dimensions.
+	     */
+	    if (*dimPtr < 1) {
+		*dimPtr = 1;
+	    }
+	    TableAdjustParams(tablePtr);
 	    for (i = maxkey; i >= first; i--) {
 		/* move row/col style && width/height here */
 		TableModifyRC(tablePtr, doRows, flags, tagTblPtr, dimTblPtr,
 			offset, i, i-count, lo, hi, ((i-count) < first));
+	    }
+	    if (!(flags & HOLD_WINS)) {
+		/*
+		 * This may be a little severe, but it does unmap the
+		 * windows that need to be unmapped, and those that should
+		 * stay do remap correctly. [Bug #551325]
+		 */
+		if (doRows) {
+		    EmbWinUnmap(tablePtr,
+			    first - tablePtr->rowOffset,
+			    maxkey - tablePtr->rowOffset,
+			    lo - tablePtr->colOffset,
+			    hi - tablePtr->colOffset);
+		} else {
+		    EmbWinUnmap(tablePtr,
+			    lo - tablePtr->rowOffset,
+			    hi - tablePtr->rowOffset,
+			    first - tablePtr->colOffset,
+			    maxkey - tablePtr->colOffset);
+		}
 	    }
 	} else {
 	    /* (index = i && count = 1) == (index = i && count = -1) */
@@ -272,6 +301,15 @@ Table_EditCmd(ClientData clientData, register Tcl_Interp *interp,
 	    if (!(flags & HOLD_DIMS)) {
 		*dimPtr -= count;
 	    }
+	    /*
+	     * We need to call TableAdjustParams before TableModifyRC to
+	     * ensure that side effect code like var traces that might get
+	     * called will access the correct new dimensions.
+	     */
+	    if (*dimPtr < 1) {
+		*dimPtr = 1;
+	    }
+	    TableAdjustParams(tablePtr);
 	    for (i = first; i <= maxkey; i++) {
 		TableModifyRC(tablePtr, doRows, flags, tagTblPtr, dimTblPtr,
 			offset, i, i+count, lo, hi, ((i+count) > maxkey));
@@ -288,9 +326,11 @@ Table_EditCmd(ClientData clientData, register Tcl_Interp *interp,
 	 * Make sure that the modified dimension is actually legal
 	 * after removing all that stuff.
 	 */
-	*dimPtr = MAX(1, *dimPtr);
+	if (*dimPtr < 1) {
+	    *dimPtr = 1;
+	    TableAdjustParams(tablePtr);
+	}
 
-	TableAdjustParams(tablePtr);
 	/* change the geometry */
 	TableGeometryRequest(tablePtr);
 	/* FIX:

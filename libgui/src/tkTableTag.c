@@ -3,24 +3,30 @@
  *
  *	This module implements tags for table widgets.
  *
- * Copyright (c) 1998-2001 Jeffrey Hobbs
+ * Copyright (c) 1998-2002 Jeffrey Hobbs
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * RCS: @(#) $Id$
+ * RCS: @(#) $Id: tkTableTag.c,v 1.15 2008/11/14 22:46:57 hobbs Exp $
  */
 
 #include "tkTable.h"
 
 static TableTag *TableTagGetEntry _ANSI_ARGS_((Table *tablePtr, char *name,
-	int objc, char **argv));
+	int objc, CONST char **argv));
 static unsigned int	TableTagGetPriority _ANSI_ARGS_((Table *tablePtr,
 	TableTag *tagPtr));
 static void	TableImageProc _ANSI_ARGS_((ClientData clientData, int x,
 	int y, int width, int height, int imageWidth, int imageHeight));
+static int	TableOptionReliefSet _ANSI_ARGS_((ClientData clientData,
+			Tcl_Interp *interp, Tk_Window tkwin,
+			CONST84 char *value, char *widgRec, int offset));
+static char *	TableOptionReliefGet _ANSI_ARGS_((ClientData clientData,
+			Tk_Window tkwin, char *widgRec, int offset,
+			Tcl_FreeProc **freeProcPtr));
 
-static char *tagCmdNames[] = {
+static CONST84 char *tagCmdNames[] = {
     "celltag", "cget", "coltag", "configure", "delete", "exists",
     "includes", "lower", "names", "raise", "rowtag", (char *) NULL
 };
@@ -37,10 +43,12 @@ static Cmd_Struct tagState_vals[]= {
     {"",	 0 }
 };
 
-static Tk_CustomOption tagStateOpt	= { Cmd_OptionSet, Cmd_OptionGet,
-					    (ClientData)(&tagState_vals) };
-static Tk_CustomOption tagBdOpt		= { TableOptionBdSet, TableOptionBdGet,
-					    (ClientData) BD_TABLE_TAG };
+static Tk_CustomOption tagStateOpt =
+{ Cmd_OptionSet, Cmd_OptionGet, (ClientData) (&tagState_vals) };
+static Tk_CustomOption tagBdOpt =
+{ TableOptionBdSet, TableOptionBdGet, (ClientData) BD_TABLE_TAG };
+static Tk_CustomOption tagReliefOpt =
+{ TableOptionReliefSet, TableOptionReliefGet, (ClientData) NULL };
 
 /*
  * The default specification for configuring tags
@@ -57,6 +65,8 @@ static Tk_ConfigSpec tagConfig[] = {
   {TK_CONFIG_CUSTOM, "-borderwidth", "borderWidth", "BorderWidth", "",
    0 /* no offset */,
    TK_CONFIG_DONT_SET_DEFAULT|TK_CONFIG_NULL_OK, &tagBdOpt },
+  {TK_CONFIG_STRING, "-ellipsis", "ellipsis", "Ellipsis", "",
+   Tk_Offset(TableTag, ellipsis), TK_CONFIG_DONT_SET_DEFAULT|TK_CONFIG_NULL_OK },
   {TK_CONFIG_BORDER, "-foreground", "foreground", "Foreground", NULL,
    Tk_Offset(TableTag, fg), TK_CONFIG_DONT_SET_DEFAULT|TK_CONFIG_NULL_OK },
   {TK_CONFIG_SYNONYM, "-fg", "foreground", (char *)NULL, (char *)NULL, 0, 0},
@@ -69,8 +79,9 @@ static Tk_ConfigSpec tagConfig[] = {
    Tk_Offset(TableTag, justify), TK_CONFIG_DONT_SET_DEFAULT|TK_CONFIG_NULL_OK },
   {TK_CONFIG_INT, "-multiline", "multiline", "Multiline", "-1",
    Tk_Offset(TableTag, multiline), TK_CONFIG_DONT_SET_DEFAULT },
-  {TK_CONFIG_RELIEF, "-relief", "relief", "Relief", "flat",
-   Tk_Offset(TableTag, relief), TK_CONFIG_DONT_SET_DEFAULT|TK_CONFIG_NULL_OK },
+  {TK_CONFIG_CUSTOM, "-relief", "relief", "Relief", "flat",
+   Tk_Offset(TableTag, relief), TK_CONFIG_DONT_SET_DEFAULT|TK_CONFIG_NULL_OK,
+   &tagReliefOpt },
   {TK_CONFIG_INT, "-showtext", "showText", "ShowText", "-1",
    Tk_Offset(TableTag, showtext), TK_CONFIG_DONT_SET_DEFAULT },
   {TK_CONFIG_CUSTOM, "-state", "state", "State", "unknown",
@@ -88,7 +99,7 @@ typedef struct {
     TableTag	tag;		/* must be first */
     unsigned int magic;
     unsigned int pbg, pfg, pborders, prelief, ptkfont, panchor, pimage;
-    unsigned int pstate, pjustify, pmultiline, pwrap, pshowtext;
+    unsigned int pstate, pjustify, pmultiline, pwrap, pshowtext, pellipsis;
 } TableJoinTag;
 
 /* 
@@ -175,6 +186,7 @@ TableNewTag(Table *tablePtr)
 	jtagPtr->pmultiline	= -1;
 	jtagPtr->pwrap		= -1;
 	jtagPtr->pshowtext	= -1;
+	jtagPtr->pellipsis	= -1;
     }
 
     return (TableTag *) tagPtr;
@@ -225,6 +237,7 @@ TableResetTag(Table *tablePtr, TableTag *tagPtr)
     jtagPtr->pmultiline	= -1;
     jtagPtr->pwrap	= -1;
     jtagPtr->pshowtext	= -1;
+    jtagPtr->pellipsis	= -1;
 
     /*
      * Merge in the default tag.
@@ -277,6 +290,10 @@ TableMergeTag(Table *tablePtr, TableTag *baseTag, TableTag *addTag)
 	baseTag->fg		= addTag->fg;
 	jtagPtr->pfg		= prio;
     }
+    if ((addTag->ellipsis != NULL) && (prio < jtagPtr->pellipsis)) {
+	baseTag->ellipsis	= addTag->ellipsis;
+	jtagPtr->pellipsis	= prio;
+    }
     if ((addTag->tkfont != NULL) && (prio < jtagPtr->ptkfont)) {
 	baseTag->tkfont		= addTag->tkfont;
 	jtagPtr->ptkfont	= prio;
@@ -323,6 +340,7 @@ TableMergeTag(Table *tablePtr, TableTag *baseTag, TableTag *addTag)
     if (addTag->anchor != -1)	baseTag->anchor = addTag->anchor;
     if (addTag->bg != NULL)	baseTag->bg	= addTag->bg;
     if (addTag->fg != NULL)	baseTag->fg	= addTag->fg;
+    if (addTag->ellipsis != NULL) baseTag->ellipsis = addTag->ellipsis;
     if (addTag->tkfont != NULL)	baseTag->tkfont	= addTag->tkfont;
     if (addTag->imageStr != NULL) {
 	baseTag->imageStr	= addTag->imageStr;
@@ -436,7 +454,7 @@ TableGetTagBorders(TableTag *tagPtr,
  *----------------------------------------------------------------------
  */
 static TableTag *
-TableTagGetEntry(Table *tablePtr, char *name, int objc, char **argv)
+TableTagGetEntry(Table *tablePtr, char *name, int objc, CONST char **argv)
 {
     Tcl_HashEntry *entryPtr;
     TableTag *tagPtr = NULL;
@@ -472,7 +490,8 @@ TableTagGetEntry(Table *tablePtr, char *name, int objc, char **argv)
     }
     if (objc) {
 	Tk_ConfigureWidget(tablePtr->interp, tablePtr->tkwin, tagConfig,
-		objc, argv, (char *)tagPtr, TK_CONFIG_ARGV_ONLY);
+		objc, (CONST84 char **) argv, (char *)tagPtr,
+		TK_CONFIG_ARGV_ONLY);
     }
     return tagPtr;
 }
@@ -516,12 +535,13 @@ TableTagGetPriority(Table *tablePtr, TableTag *tagPtr)
 void
 TableInitTags(Table *tablePtr)
 {
-    static char *activeArgs[]	= {"-bg", ACTIVE_BG, "-relief", "flat" };
-    static char *selArgs[]	= {"-bg", SELECT_BG, "-fg", SELECT_FG,
-				   "-relief", "sunken" };
-    static char *titleArgs[]	= {"-bg", DISABLED, "-fg", "white",
-				   "-relief", "flat", "-state", "disabled" };
-    static char *flashArgs[]	= {"-bg", "red" };
+    static CONST char *activeArgs[] = {"-bg", ACTIVE_BG, "-relief", "flat" };
+    static CONST char *selArgs[]    = {"-bg", SELECT_BG, "-fg", SELECT_FG,
+				       "-relief", "sunken" };
+    static CONST char *titleArgs[]  = {"-bg", DISABLED, "-fg", "white",
+				       "-relief", "flat",
+				       "-state", "disabled" };
+    static CONST char *flashArgs[]  = {"-bg", "red" };
     /*
      * The order of creation is important to priority.
      */
@@ -568,7 +588,7 @@ FindRowColTag(Table *tablePtr, int cell, int mode)
 	    sprintf(buf, " %d", cell);
 	    Tcl_Preserve((ClientData) interp);
 	    if (Tcl_VarEval(interp, cmd, buf, (char *)NULL) == TCL_OK) {
-		char *name = Tcl_GetStringResult(interp);
+		CONST char *name = Tcl_GetStringResult(interp);
 		if (name && *name) {
 		    /*
 		     * If a result was returned, check to see if it is
@@ -976,10 +996,10 @@ Table_TagCmd(ClientData clientData, register Tcl_Interp *interp,
 			(char *) tagPtr, (objc == 5) ?
 			Tcl_GetString(objv[4]) : NULL, 0);
 	    } else {
-		char **argv;
+		CONST84 char **argv;
 
 		/* Stringify */
-		argv = (char **) ckalloc((objc + 1) * sizeof(char *));
+		argv = (CONST84 char **) ckalloc((objc + 1) * sizeof(char *));
 		for (i = 0; i < objc; i++)
 		    argv[i] = Tcl_GetString(objv[i]);
 		argv[objc] = NULL;
@@ -1233,7 +1253,7 @@ Table_TagCmd(ClientData clientData, register Tcl_Interp *interp,
 		/*
 		 * Move tag up in priority.
 		 */
-		for (i = tagPrio; i && i > value; i--) {
+		for (i = tagPrio; i > value; i--) {
 		    tablePtr->tagPrioNames[i] = tablePtr->tagPrioNames[i-1];
 		    tablePtr->tagPrios[i]     = tablePtr->tagPrios[i-1];
 		}
@@ -1269,4 +1289,66 @@ Table_TagCmd(ClientData clientData, register Tcl_Interp *interp,
     Tcl_AppendStringsToObj(resultPtr, "invalid tag name \"",
 	    tagname, "\"", (char *) NULL);
     return TCL_ERROR;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TableOptionReliefSet --
+ *
+ *	This routine configures the borderwidth value for a tag.
+ *
+ * Results:
+ *	A standard Tcl result.
+ *
+ * Side effects:
+ *	It may adjust the tag struct values of relief[0..4] and borders.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+TableOptionReliefSet(clientData, interp, tkwin, value, widgRec, offset)
+    ClientData clientData;		/* Type of struct being set. */
+    Tcl_Interp *interp;			/* Used for reporting errors. */
+    Tk_Window tkwin;			/* Window containing table widget. */
+    CONST84 char *value;		/* Value of option. */
+    char *widgRec;			/* Pointer to record for item. */
+    int offset;				/* Offset into item. */
+{
+    TableTag *tagPtr = (TableTag *) widgRec;
+
+    if (*value == '\0') {
+	tagPtr->relief = -1;
+    } else {
+	return Tk_GetRelief(interp, value, &(tagPtr->relief));
+    }
+    return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TableOptionReliefGet --
+ *
+ * Results:
+ *	Value of the tag's -relief option.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static char *
+TableOptionReliefGet(clientData, tkwin, widgRec, offset, freeProcPtr)
+    ClientData clientData;		/* Type of struct being set. */
+    Tk_Window tkwin;			/* Window containing canvas widget. */
+    char *widgRec;			/* Pointer to record for item. */
+    int offset;				/* Offset into item. */
+    Tcl_FreeProc **freeProcPtr;		/* Pointer to variable to fill in with
+					 * information about how to reclaim
+					 * storage for return string. */
+{
+    return (char *) Tk_NameOfRelief(((TableTag *) widgRec)->relief);
 }

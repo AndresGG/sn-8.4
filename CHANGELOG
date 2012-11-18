@@ -1,3 +1,4 @@
+(INTERNAL) Update tkTable to version 2.10
 (INTERNAL) Update xmplib.c from Tix source following former SN versions
 (INTERNAL) Add losts of CONSTs and casts to prevent compile warnings
 (INTERNAL) Update the initialization of itcl classes to the current syntax

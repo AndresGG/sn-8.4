@@ -4,22 +4,22 @@
  *	This module implements embedded windows for table widgets.
  *	Much of this code is adapted from tkGrid.c and tkTextWind.c.
  *
- * Copyright (c) 1998-2000 Jeffrey Hobbs
+ * Copyright (c) 1998-2002 Jeffrey Hobbs
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * RCS: @(#) $Id$
+ * RCS: @(#) $Id: tkTableWin.c,v 1.6 2004/06/11 00:24:44 hobbs Exp $
  */
 
 #include "tkTable.h"
 
 static int	StickyParseProc _ANSI_ARGS_((ClientData clientData,
-			    Tcl_Interp *interp, Tk_Window tkwin, char *value,
-			    char *widgRec, int offset));
+			Tcl_Interp *interp, Tk_Window tkwin,
+			CONST84 char *value, char *widgRec, int offset));
 static char *	StickyPrintProc _ANSI_ARGS_((ClientData clientData,
-			    Tk_Window tkwin, char *widgRec, int offset,
-			    Tcl_FreeProc **freeProcPtr));
+			Tk_Window tkwin, char *widgRec, int offset,
+			Tcl_FreeProc **freeProcPtr));
 
 static void	EmbWinLostSlaveProc _ANSI_ARGS_((ClientData clientData,
 						Tk_Window tkwin));
@@ -43,7 +43,7 @@ static Tk_GeomMgr tableGeomType = {
 };
 
 /* windows subcommands */
-static char *winCmdNames[] = {
+static CONST84 char *winCmdNames[] = {
     "cget", "configure", "delete", "move", "names", (char *) NULL
 };
 enum winCommand {
@@ -163,7 +163,7 @@ StickyParseProc(clientData, interp, tkwin, value, widgRec, offset)
     ClientData clientData;		/* Not used.*/
     Tcl_Interp *interp;			/* Used for reporting errors. */
     Tk_Window tkwin;			/* Window for text widget. */
-    char *value;			/* Value of option. */
+    CONST84 char *value;		/* Value of option. */
     char *widgRec;			/* Pointer to TkTextEmbWindow
 					 * structure. */
     int offset;				/* Offset into item (ignored). */
@@ -303,7 +303,7 @@ EmbWinDisplay(Table *tablePtr, Drawable window, TableEmbWindow *ewPtr,
      * If we fall below a specific minimum width/height requirement,
      * we just unmap the window
      */
-    if (width < 4 || height < 4) {
+    if (width < 2 || height < 2) {
 	if (ewPtr->displayed) {
 	    EmbWinUnmapNow(ewTkwin, tkwin);
 	}
@@ -615,18 +615,18 @@ EmbWinConfigure(tablePtr, ewPtr, objc, objv)
     Tcl_Interp *interp = tablePtr->interp;
     Tk_Window oldWindow;
     int i, result;
-    char **argv;
+    CONST84 char **argv;
 
     oldWindow = ewPtr->tkwin;
 
     /* Stringify */
-    argv = (char **) ckalloc((objc + 1) * sizeof(char *));
+    argv = (CONST84 char **) ckalloc((objc + 1) * sizeof(char *));
     for (i = 0; i < objc; i++)
 	argv[i] = Tcl_GetString(objv[i]);
     argv[i] = NULL;
     result = Tk_ConfigureWidget(interp, tablePtr->tkwin,
-				winConfigSpecs, objc, argv, (char *) ewPtr,
-				TK_CONFIG_ARGV_ONLY);
+	    winConfigSpecs, objc, argv, (char *) ewPtr,
+	    TK_CONFIG_ARGV_ONLY);
     ckfree((char *) argv);
     if (result != TCL_OK) {
 	return TCL_ERROR;

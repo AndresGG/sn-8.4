@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * RCS: @(#) $Id$
+ * RCS: @(#) $Id: tkTableCell.c,v 1.12 2008/11/14 21:10:12 hobbs Exp $
  */
 
 #include "tkTable.h"
@@ -401,17 +401,28 @@ TableAtBorder(Table * tablePtr, int x, int y, int *row, int *col)
      * In that case, we have to decrement our border count.
      */
     if (tablePtr->spanAffTbl && !(tablePtr->flags & AVOID_SPANS) && borders) {
+	Tcl_HashEntry *entryPtr1, *entryPtr2 ;
 	char buf1[INDEX_BUFSIZE], buf2[INDEX_BUFSIZE];
+	char *val;
 
 	if (*row != -1) {
 	    TableMakeArrayIndex(brow+tablePtr->rowOffset,
 				bcol+tablePtr->colOffset+1, buf1);
 	    TableMakeArrayIndex(brow+tablePtr->rowOffset+1,
 				bcol+tablePtr->colOffset+1, buf2);
-	    if (Tcl_FindHashEntry(tablePtr->spanAffTbl, buf1) != NULL &&
-		Tcl_FindHashEntry(tablePtr->spanAffTbl, buf2) != NULL) {
-		borders--;
-		*row = -1;
+	    entryPtr1 = Tcl_FindHashEntry(tablePtr->spanAffTbl, buf1);
+	    entryPtr2 = Tcl_FindHashEntry(tablePtr->spanAffTbl, buf2);
+	    if (entryPtr1 != NULL && entryPtr2 != NULL) {
+		if ((val = (char *) Tcl_GetHashValue(entryPtr1)) != NULL) {
+		    strcpy(buf1, val);
+		}
+		if ((val = (char *) Tcl_GetHashValue(entryPtr2)) != NULL) {
+		    strcpy(buf2, val);
+		}
+		if (strcmp(buf1, buf2) == 0) {
+		    borders--;
+		    *row = -1;
+		}
 	    }
 	}
 	if (*col != -1) {
@@ -419,10 +430,19 @@ TableAtBorder(Table * tablePtr, int x, int y, int *row, int *col)
 				bcol+tablePtr->colOffset, buf1);
 	    TableMakeArrayIndex(brow+tablePtr->rowOffset+1,
 				bcol+tablePtr->colOffset+1, buf2);
-	    if (Tcl_FindHashEntry(tablePtr->spanAffTbl, buf1) != NULL &&
-		Tcl_FindHashEntry(tablePtr->spanAffTbl, buf2) != NULL) {
-		borders--;
-		*col = -1;
+	    entryPtr1 = Tcl_FindHashEntry(tablePtr->spanAffTbl, buf1);
+	    entryPtr2 = Tcl_FindHashEntry(tablePtr->spanAffTbl, buf2);
+	    if (entryPtr1 != NULL && entryPtr2 != NULL) {
+		if ((val = (char *) Tcl_GetHashValue(entryPtr1)) != NULL) {
+		    strcpy(buf1, val);
+		}
+		if ((val = (char *) Tcl_GetHashValue(entryPtr2)) != NULL) {
+		    strcpy(buf2, val);
+		}
+		if (strcmp(buf1, buf2) == 0) {
+		    borders--;
+		    *col = -1;
+		}
 	    }
 	}
     }
@@ -453,24 +473,33 @@ TableGetCellValue(Table *tablePtr, int r, int c)
     char *result = NULL;
     char buf[INDEX_BUFSIZE];
     Tcl_HashEntry *entryPtr = NULL;
-    int new = 1;
+    int new;
 
     TableMakeArrayIndex(r, c, buf);
 
+    if (tablePtr->dataSource == DATA_CACHE) {
+	/*
+	 * only cache as data source - just rely on cache
+	 */
+	entryPtr = Tcl_FindHashEntry(tablePtr->cache, buf);
+	if (entryPtr) {
+	    result = (char *) Tcl_GetHashValue(entryPtr);
+	}
+	goto VALUE;
+    }
     if (tablePtr->caching) {
 	/*
-	 * If we are caching, let's see if we have the value cached
+	 * If we are caching, let's see if we have the value cached.
+	 * If so, use it, otherwise it will be cached after retrieving
+	 * from the other data source.
 	 */
 	entryPtr = Tcl_CreateHashEntry(tablePtr->cache, buf, &new);
 	if (!new) {
 	    result = (char *) Tcl_GetHashValue(entryPtr);
-	    if (result == NULL) {
-		result = "";
-	    }
 	    goto VALUE;
 	}
     }
-    if (tablePtr->command && tablePtr->useCmd) {
+    if (tablePtr->dataSource & DATA_COMMAND) {
 	Tcl_DString script;
 	Tcl_DStringInit(&script);
 	ExpandPercents(tablePtr, tablePtr->command, r, c, "", (char *)NULL,
@@ -485,15 +514,14 @@ TableGetCellValue(Table *tablePtr, int r, int c)
 	    Tcl_BackgroundError(interp);
 	    TableInvalidateAll(tablePtr, 0);
 	} else {
-	    result = Tcl_GetStringResult(interp);
+	    result = (char *) Tcl_GetStringResult(interp);
 	}
-	Tcl_FreeResult(interp);
 	Tcl_DStringFree(&script);
-    } else if (tablePtr->arrayVar) {
-	result = Tcl_GetVar2(interp, tablePtr->arrayVar, buf, TCL_GLOBAL_ONLY);
     }
-    if (result == NULL)
-	result = "";
+    if (tablePtr->dataSource & DATA_ARRAY) {
+	result = (char *) Tcl_GetVar2(interp, tablePtr->arrayVar, buf,
+		TCL_GLOBAL_ONLY);
+    }
     if (tablePtr->caching && entryPtr != NULL) {
 	/*
 	 * If we are caching, make sure we cache the returned value
@@ -501,9 +529,11 @@ TableGetCellValue(Table *tablePtr, int r, int c)
 	 * entryPtr will have been set from above, but check to make sure
 	 * someone didn't change caching during -command evaluation.
 	 */
-	char *val;
-	val = (char *)ckalloc(strlen(result)+1);
-	strcpy(val, result);
+	char *val = NULL;
+	if (result) {
+	    val = (char *)ckalloc(strlen(result)+1);
+	    strcpy(val, result);
+	}
 	Tcl_SetHashValue(entryPtr, val);
     }
 VALUE:
@@ -533,6 +563,10 @@ VALUE:
 	    } else {
 		result = Tcl_GetStringResult(interp);
 	    }
+	    /*
+	     * XXX FIX: Can't free result that we still need.
+	     * Use ref-counted objects instead.
+	     */
 	    Tcl_FreeResult(interp);
 	    Tcl_DStringFree(&script);      
 	    Tcl_DeleteHashEntry(entryPtr);
@@ -563,16 +597,16 @@ VALUE:
 int
 TableSetCellValue(Table *tablePtr, int r, int c, char *value)
 {
-    register Tcl_Interp *interp = tablePtr->interp;
     char buf[INDEX_BUFSIZE];
     int code = TCL_OK, flash = 0;
+    Tcl_Interp *interp = tablePtr->interp;
 
     TableMakeArrayIndex(r, c, buf);
 
     if (tablePtr->state == STATE_DISABLED) {
 	return TCL_OK;
     }
-    if (tablePtr->command && tablePtr->useCmd) {
+    if (tablePtr->dataSource & DATA_COMMAND) {
 	Tcl_DString script;
 
 	Tcl_DStringInit(&script);
@@ -593,11 +627,14 @@ TableSetCellValue(Table *tablePtr, int r, int c, char *value)
 	}
 	Tcl_SetResult(interp, (char *) NULL, TCL_STATIC);
 	Tcl_DStringFree(&script);
-    } else if (tablePtr->arrayVar) {
+    }
+    if (tablePtr->dataSource & DATA_ARRAY) {
 	/* Warning: checking for \0 as the first char could invalidate
-	 * allowing it as a valid first char */
+	 * allowing it as a valid first char, but only with incorrect utf-8
+	 */
 	if ((value == NULL || *value == '\0') && tablePtr->sparse) {
 	    Tcl_UnsetVar2(interp, tablePtr->arrayVar, buf, TCL_GLOBAL_ONLY);
+	    value = NULL;
 	} else if (Tcl_SetVar2(interp, tablePtr->arrayVar, buf, value,
 			       TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG) == NULL) {
 	    code = TCL_ERROR;
@@ -607,18 +644,23 @@ TableSetCellValue(Table *tablePtr, int r, int c, char *value)
 	return TCL_ERROR;
     }
 
-    if (tablePtr->caching) {
+    /*
+     * This would be repetitive if we are using the array (which traces).
+     */
+    if (tablePtr->caching && !(tablePtr->dataSource & DATA_ARRAY)) {
 	Tcl_HashEntry *entryPtr;
 	int new;
-	char *val;
+	char *val = NULL;
 
 	entryPtr = Tcl_CreateHashEntry(tablePtr->cache, buf, &new);
 	if (!new) {
 	    val = (char *) Tcl_GetHashValue(entryPtr);
 	    if (val) ckfree(val);
 	}
-	val = (char *)ckalloc(strlen(value)+1);
-	strcpy(val, value);
+	if (value) {
+	    val = (char *)ckalloc(strlen(value)+1);
+	    strcpy(val, value);
+	}
 	Tcl_SetHashValue(entryPtr, val);
 	flash = 1;
     }
@@ -657,30 +699,36 @@ int
 TableMoveCellValue(Table *tablePtr, int fromr, int fromc, char *frombuf,
 	int tor, int toc, char *tobuf, int outOfBounds)
 {
-    int new;
-    char *result = NULL;
-    Tcl_Interp *interp = tablePtr->interp;
-
     if (outOfBounds) {
 	return TableSetCellValue(tablePtr, tor, toc, "");
     }
 
-    if (tablePtr->caching && (!(tablePtr->command && tablePtr->useCmd))) {
+    if (tablePtr->dataSource == DATA_CACHE) {
+	char *val;
+	char *result = NULL;
 	Tcl_HashEntry *entryPtr;
+
 	/*
-	 * if we are caching, let's see if we have the value cached
+	 * Let's see if we have the from value cached.  If so, copy
+	 * that to the to cell.  The to cell entry value will be
+	 * deleted from the cache, and recreated only if from value
+	 * was not NULL.
+	 * We can be liberal removing our internal cached cells when
+	 * DATA_CACHE is our only data source.
 	 */
-	entryPtr = Tcl_CreateHashEntry(tablePtr->cache, frombuf, &new);
-	if (!new) {
-	    char *val;
+	entryPtr = Tcl_FindHashEntry(tablePtr->cache, frombuf);
+	if (entryPtr) {
 	    result = (char *) Tcl_GetHashValue(entryPtr);
 	    /*
 	     * we set tho old value to NULL
 	     */
-	    Tcl_SetHashValue(entryPtr, NULL);
-
+	    Tcl_DeleteHashEntry(entryPtr);
+	}
+	if (result) {
+	    int new;
 	    /*
-	     * set the destination to the source pointer without new mallocing!
+	     * We enter here when there was a from value.
+	     * set 'to' to the 'from' value without new mallocing.
 	     */
 	    entryPtr = Tcl_CreateHashEntry(tablePtr->cache, tobuf, &new);
 	    /*
@@ -691,25 +739,15 @@ TableMoveCellValue(Table *tablePtr, int fromr, int fromc, char *frombuf,
 		if (val) ckfree(val);
 	    }
 	    Tcl_SetHashValue(entryPtr, result);
-	    if (tablePtr->arrayVar) {
-		/*
-		 * first, delete from var.
-		 */
-		Tcl_UnsetVar2(interp, tablePtr->arrayVar, frombuf,
-			TCL_GLOBAL_ONLY);
-		/*
-		 * Warning: checking for \0 as the first char could invalidate
-		 * allowing it as a valid first char
-		 */
-		if (Tcl_SetVar2(interp, tablePtr->arrayVar, tobuf, result,
-			TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG) == NULL) {
-		    return TCL_ERROR;
-		}
-	    }     
-      
-
-	    return TCL_OK;
+	} else {
+	    entryPtr = Tcl_FindHashEntry(tablePtr->cache, tobuf);
+	    if (entryPtr) {
+		val = (char *) Tcl_GetHashValue(entryPtr);
+		if (val) ckfree(val);
+		Tcl_DeleteHashEntry(entryPtr);
+	    }
 	}
+	return TCL_OK;
     }
     /*
      * We have to do it the old way
@@ -823,8 +861,8 @@ TableGetIndex(tablePtr, str, row_p, col_p)
 	    r = tablePtr->activeRow+tablePtr->rowOffset;
 	    c = tablePtr->activeCol+tablePtr->colOffset;
 	} else {
-	    Tcl_SetStringObj(Tcl_GetObjResult(tablePtr->interp),
-			     "no \"active\" cell in table", -1);
+	    Tcl_SetObjResult(tablePtr->interp,
+		    Tcl_NewStringObj("no \"active\" cell in table", -1));
 	    return TCL_ERROR;
 	}
     } else if (len > 1 && strncmp(str, "anchor", len) == 0) {	/* anchor */
@@ -832,8 +870,8 @@ TableGetIndex(tablePtr, str, row_p, col_p)
 	    r = tablePtr->anchorRow+tablePtr->rowOffset;
 	    c = tablePtr->anchorCol+tablePtr->colOffset;
 	} else {
-	    Tcl_SetStringObj(Tcl_GetObjResult(tablePtr->interp),
-			     "no \"anchor\" cell in table", -1);
+	    Tcl_SetObjResult(tablePtr->interp,
+		    Tcl_NewStringObj("no \"anchor\" cell in table", -1));
 	    return TCL_ERROR;
 	}
     } else if (strncmp(str, "end", len) == 0) {		/* end */
@@ -1195,7 +1233,6 @@ Table_SpanCmd(ClientData clientData, register Tcl_Interp *interp,
     register Table *tablePtr = (Table *) clientData;
     int rs, cs, row, col, i;
     Tcl_HashEntry *entryPtr;
-    Tcl_Obj *objPtr, *resultPtr;
 
     if (objc < 2 || (objc > 4 && (objc&1))) {
 	Tcl_WrongNumArgs(interp, 2, objv,
@@ -1203,11 +1240,10 @@ Table_SpanCmd(ClientData clientData, register Tcl_Interp *interp,
 	return TCL_ERROR;
     }
 
-    resultPtr = Tcl_GetObjResult(interp);
-
     if (objc == 2) {
 	if (tablePtr->spanTbl) {
 	    Tcl_HashSearch search;
+	    Tcl_Obj *objPtr, *resultPtr = Tcl_NewObj();
 
 	    for (entryPtr = Tcl_FirstHashEntry(tablePtr->spanTbl, &search);
 		 entryPtr != NULL; entryPtr = Tcl_NextHashEntry(&search)) {
@@ -1218,6 +1254,7 @@ Table_SpanCmd(ClientData clientData, register Tcl_Interp *interp,
 					  -1);
 		Tcl_ListObjAppendElement(NULL, resultPtr, objPtr);
 	    }
+	    Tcl_SetObjResult(interp, resultPtr);
 	}
 	return TCL_OK;
     } else if (objc == 3) {
@@ -1228,8 +1265,8 @@ Table_SpanCmd(ClientData clientData, register Tcl_Interp *interp,
 	if (tablePtr->spanTbl &&
 	    (entryPtr = Tcl_FindHashEntry(tablePtr->spanTbl,
 					  Tcl_GetString(objv[2]))) != NULL) {
-	    Tcl_SetStringObj(resultPtr,
-			     (char *)Tcl_GetHashValue(entryPtr), -1);
+	    Tcl_SetObjResult(interp,
+		    Tcl_NewStringObj((char *)Tcl_GetHashValue(entryPtr), -1));
 	}
 	return TCL_OK;
     } else {
@@ -1309,7 +1346,7 @@ Table_HiddenCmd(ClientData clientData, register Tcl_Interp *interp,
 	if (entryPtr != NULL &&
 	    (span = (char *)Tcl_GetHashValue(entryPtr)) != NULL) {
 	    /* this is a hidden cell */
-	    Tcl_SetStringObj(Tcl_GetObjResult(interp), span, -1);
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(span, -1));
 	}
 	return TCL_OK;
     }
@@ -1325,10 +1362,10 @@ Table_HiddenCmd(ClientData clientData, register Tcl_Interp *interp,
 	    continue;
 	}
 	/* We only reach here if it doesn't satisfy "hidden" criteria */
-	Tcl_SetBooleanObj(Tcl_GetObjResult(interp), 0);
+	Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
 	return TCL_OK;
     }
-    Tcl_SetBooleanObj(Tcl_GetObjResult(interp), 1);
+    Tcl_SetObjResult(interp, Tcl_NewBooleanObj(1));
     return TCL_OK;
 }
 

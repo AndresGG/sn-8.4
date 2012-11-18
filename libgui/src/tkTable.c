@@ -8,18 +8,18 @@
  * Based on Tk3 table widget written by Roland King
  *
  * Updates 1996 by:
- * Jeffrey Hobbs	jeff.hobbs@acm.org
+ * Jeffrey Hobbs	jeff at hobbs org
  * John Ellson		ellson@lucent.com
  * Peter Bruecker	peter@bj-ig.de
  * Tom Moore		tmoore@spatial.ca
  * Sebastian Wangnick	wangnick@orthogon.de
  *
- * Copyright (c) 1997-2001 Jeffrey Hobbs
+ * Copyright (c) 1997-2002 Jeffrey Hobbs
  *
  * See the file "license.txt" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * RCS: @(#) $Id$
+ * RCS: @(#) $Id: tkTable.c,v 1.34 2008/11/14 23:43:35 hobbs Exp $
  */
 
 #include "tkTable.h"
@@ -28,36 +28,35 @@
 #include "dprint.h"
 #endif
 
-static char **	StringifyObjects _ANSI_ARGS_((int objc,
-			Tcl_Obj *CONST objv[]));
+static char **	StringifyObjects(int objc, Tcl_Obj *CONST objv[]);
 
-static int	Tk_TableObjCmd _ANSI_ARGS_((ClientData clientData,
-			Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
+static int	Tk_TableObjCmd(ClientData clientData, Tcl_Interp *interp,
+			int objc, Tcl_Obj *CONST objv[]);
 
-static int	TableWidgetObjCmd _ANSI_ARGS_((ClientData clientData,
-			Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
-static int	TableConfigure _ANSI_ARGS_((Tcl_Interp *interp,
-			Table *tablePtr, int objc, Tcl_Obj *CONST objv[],
-			int flags, int forceUpdate));
-static void	TableDestroy _ANSI_ARGS_((ClientData clientdata));
-static void	TableEventProc _ANSI_ARGS_((ClientData clientData,
-			XEvent *eventPtr));
-static void	TableCmdDeletedProc _ANSI_ARGS_((ClientData clientData));
+static int	TableWidgetObjCmd(ClientData clientData, Tcl_Interp *interp,
+			int objc, Tcl_Obj *CONST objv[]);
+static int	TableConfigure(Tcl_Interp *interp, Table *tablePtr,
+			int objc, Tcl_Obj *CONST objv[],
+			int flags, int forceUpdate);
+#ifdef HAVE_TCL84
+static void	TableWorldChanged(ClientData instanceData);
+#endif
+static void	TableDestroy(ClientData clientdata);
+static void	TableEventProc(ClientData clientData, XEvent *eventPtr);
+static void	TableCmdDeletedProc(ClientData clientData);
 
-static void	TableRedrawHighlight _ANSI_ARGS_((Table *tablePtr));
-static void	TableGetGc _ANSI_ARGS_((Display *display, Drawable d,
-			TableTag *tagPtr, GC *tagGc));
+static void	TableRedrawHighlight(Table *tablePtr);
+static void	TableGetGc(Display *display, Drawable d,
+			TableTag *tagPtr, GC *tagGc);
 
-static void	TableDisplay _ANSI_ARGS_((ClientData clientdata));
-static void	TableFlashEvent _ANSI_ARGS_((ClientData clientdata));
-static char *	TableVarProc _ANSI_ARGS_((ClientData clientData,
-			Tcl_Interp *interp, char *name, char *index,
-			int flags));
-static void	TableCursorEvent _ANSI_ARGS_((ClientData clientData));
-static int	TableFetchSelection _ANSI_ARGS_((ClientData clientData,
-			int offset, char *buffer, int maxBytes));
-static Tk_RestrictAction TableRestrictProc _ANSI_ARGS_((ClientData arg,
-			XEvent *eventPtr));
+static void	TableDisplay(ClientData clientdata);
+static void	TableFlashEvent(ClientData clientdata);
+static char *	TableVarProc(ClientData clientData, Tcl_Interp *interp,
+			char *name, char *index, int flags);
+static void	TableCursorEvent(ClientData clientData);
+static int	TableFetchSelection(ClientData clientData,
+			int offset, char *buffer, int maxBytes);
+static Tk_RestrictAction TableRestrictProc(ClientData arg, XEvent *eventPtr);
 
 /*
  * The following tables define the widget commands (and sub-
@@ -65,7 +64,7 @@ static Tk_RestrictAction TableRestrictProc _ANSI_ARGS_((ClientData arg,
  * enumerated types used to dispatch the widget command.
  */
 
-static char *selCmdNames[] = {
+static CONST84 char *selCmdNames[] = {
     "anchor", "clear", "includes", "present", "set", (char *)NULL
 };
 enum selCommand {
@@ -73,7 +72,7 @@ enum selCommand {
     CMD_SEL_SET
 };
 
-static char *commandNames[] = {
+static CONST84 char *commandNames[] = {
     "activate", "bbox", "border", "cget", "clear", "configure",
     "curselection", "curvalue", "delete", "get", "height",
     "hidden", "icursor", "index", "insert",
@@ -212,6 +211,8 @@ Tk_ConfigSpec tableSpecs[] = {
      Tk_Offset(Table, cursor), TK_CONFIG_NULL_OK },
     {TK_CONFIG_CUSTOM, "-drawmode", "drawMode", "DrawMode", "compatible",
      Tk_Offset(Table, drawMode), 0, &drawOpt },
+    {TK_CONFIG_STRING, "-ellipsis", "ellipsis", "Ellipsis", "",
+     Tk_Offset(Table, defaultTag.ellipsis), TK_CONFIG_NULL_OK},
     {TK_CONFIG_BOOLEAN, "-exportselection", "exportSelection",
      "ExportSelection", "1", Tk_Offset(Table, exportSelection), 0},
     {TK_CONFIG_SYNONYM, "-fg", "foreground", (char *)NULL, (char *)NULL, 0, 0},
@@ -253,6 +254,8 @@ Tk_ConfigSpec tableSpecs[] = {
      Tk_Offset(Table, ipadX), 0},
     {TK_CONFIG_PIXELS, "-ipady", "ipadY", "Pad", "0",
      Tk_Offset(Table, ipadY), 0},
+    {TK_CONFIG_JUSTIFY, "-justify", "justify", "Justify", "left",
+     Tk_Offset(Table, defaultTag.justify), 0 },
     {TK_CONFIG_PIXELS, "-maxheight", "maxHeight", "MaxHeight", "600",
      Tk_Offset(Table, maxReqHeight), 0},
     {TK_CONFIG_PIXELS, "-maxwidth", "maxWidth", "MaxWidth", "800",
@@ -298,6 +301,10 @@ Tk_ConfigSpec tableSpecs[] = {
      Tk_Offset(Table, takeFocus), TK_CONFIG_NULL_OK },
     {TK_CONFIG_INT, "-titlecols", "titleCols", "TitleCols", "0",
      Tk_Offset(Table, titleCols), TK_CONFIG_NULL_OK },
+#ifdef TITLE_CURSOR
+    {TK_CONFIG_CURSOR, "-titlecursor", "titleCursor", "Cursor", "arrow",
+     Tk_Offset(Table, titleCursor), TK_CONFIG_NULL_OK },
+#endif
     {TK_CONFIG_INT, "-titlerows", "titleRows", "TitleRows", "0",
      Tk_Offset(Table, titleRows), TK_CONFIG_NULL_OK },
     {TK_CONFIG_BOOLEAN, "-usecommand", "useCommand", "UseCommand", "1",
@@ -328,7 +335,7 @@ Tk_ConfigSpec tableSpecs[] = {
  * Keep this in sync with the above values.
  */
 
-static char *updateOpts[] = {
+static CONST84 char *updateOpts[] = {
     "-anchor",		"-background",	"-bg",		"-bd",	
     "-borderwidth",	"-cache",	"-command",	"-colorigin",
     "-cols",		"-colstretchmode",		"-coltagcommand",
@@ -344,6 +351,20 @@ static char *updateOpts[] = {
     "-usecommand",	"-variable",	"-width",	"-wrap",	
     "-xscrollcommand",	"-yscrollcommand", (char *) NULL
 };
+
+#ifdef HAVE_TCL84
+/*
+ * The structure below defines widget class behavior by means of procedures
+ * that can be invoked from generic window code.
+ */
+
+static Tk_ClassProcs tableClass = {
+    sizeof(Tk_ClassProcs),	/* size */
+    TableWorldChanged,		/* worldChangedProc */
+    NULL,			/* createProc */
+    NULL			/* modalProc */
+};
+#endif
 
 #ifdef WIN32
 /*
@@ -572,6 +593,9 @@ Tk_TableObjCmd(clientData, interp, objc, objv)
      * Handle class name and selection handlers
      */
     offset = 2 + Tk_ClassOptionObjCmd(tkwin, "Table", objc, objv);
+#ifdef HAVE_TCL84
+    Tk_SetClassProcs(tkwin, &tableClass, (ClientData) tablePtr);
+#endif
     Tk_CreateEventHandler(tablePtr->tkwin,
 	    PointerMotionMask|ExposureMask|StructureNotifyMask|FocusChangeMask|VisibilityChangeMask,
 	    TableEventProc, (ClientData) tablePtr);
@@ -585,8 +609,8 @@ Tk_TableObjCmd(clientData, interp, objc, objv)
     }
     TableInitTags(tablePtr);
 
-    Tcl_SetStringObj(Tcl_GetObjResult(interp),
-		     Tk_PathName(tablePtr->tkwin), -1);
+    Tcl_SetObjResult(interp,
+	    Tcl_NewStringObj(Tk_PathName(tablePtr->tkwin), -1));
     return TCL_OK;
 }
 
@@ -615,7 +639,6 @@ TableWidgetObjCmd(clientData, interp, objc, objv)
 {
     register Table *tablePtr = (Table *) clientData;
     int row, col, i, cmdIndex, result = TCL_OK;
-    Tcl_Obj *resultPtr;
 
     if (objc < 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "option ?arg arg ...?");
@@ -628,13 +651,8 @@ TableWidgetObjCmd(clientData, interp, objc, objv)
     if (result != TCL_OK) {
 	return result;
     }
-    /*
-     * It's important to ensure that between here and setting the resultPtr,
-     * we don't cause the result to change, as that might free resultPtr.
-     */
-    resultPtr = Tcl_GetObjResult(interp);
-    Tcl_Preserve((ClientData) tablePtr);
 
+    Tcl_Preserve((ClientData) tablePtr);
     switch ((enum command) cmdIndex) {
 	case CMD_ACTIVATE:
 	    result = Table_ActivateCmd(clientData, interp, objc, objv);
@@ -703,23 +721,22 @@ TableWidgetObjCmd(clientData, interp, objc, objv)
 	    if (objc != 2 && objc != 3) {
 		Tcl_WrongNumArgs(interp, 2, objv, "?cursorPos?");
 		result = TCL_ERROR;
-		goto done;
+		break;
 	    }
 	    if (!(tablePtr->flags & HAS_ACTIVE) ||
 		    (tablePtr->flags & ACTIVE_DISABLED) ||
 		    tablePtr->state == STATE_DISABLED) {
-		Tcl_SetIntObj(resultPtr, -1);
-		goto done;
-	    }
-	    if (objc == 3) {
+		Tcl_SetObjResult(interp, Tcl_NewIntObj(-1));
+		break;
+	    } else if (objc == 3) {
 		if (TableGetIcursorObj(tablePtr, objv[2], NULL) != TCL_OK) {
 		    result = TCL_ERROR;
-		    goto done;
+		    break;
 		}
 		TableRefresh(tablePtr, tablePtr->activeRow,
 			tablePtr->activeCol, CELL);
 	    }
-	    Tcl_SetIntObj(resultPtr, tablePtr->icursor);
+	    Tcl_SetObjResult(interp, Tcl_NewIntObj(tablePtr->icursor));
 	    break;
 
 	case CMD_INDEX: {
@@ -740,9 +757,10 @@ TableWidgetObjCmd(clientData, interp, objc, objv)
 		char buf[INDEX_BUFSIZE];
 		/* recreate the index, just in case it got bounded */
 		TableMakeArrayIndex(row, col, buf);
-		Tcl_SetStringObj(resultPtr, buf, -1);
+		Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
 	    } else {	/* INDEX row|col */
-		Tcl_SetIntObj(resultPtr, (*which == 'r') ? row : col);
+		Tcl_SetObjResult(interp,
+			Tcl_NewIntObj((*which == 'r') ? row : col));
 	    }
 	    break;
 	}
@@ -814,10 +832,10 @@ TableWidgetObjCmd(clientData, interp, objc, objv)
 		    break;
 		case CMD_SEL_PRESENT: {
 		    Tcl_HashSearch search;
+		    int present = (Tcl_FirstHashEntry(tablePtr->selCells,
+				    &search) != NULL);
 
-		    Tcl_SetBooleanObj(resultPtr,
-			    (Tcl_FirstHashEntry(tablePtr->selCells, &search)
-				    != NULL));
+		    Tcl_SetObjResult(interp, Tcl_NewBooleanObj(present));
 		    break;
 		}
 		case CMD_SEL_SET:
@@ -851,7 +869,7 @@ TableWidgetObjCmd(clientData, interp, objc, objv)
 		result = TableValidateChange(tablePtr, row, col, (char *) NULL,
 			(char *) NULL, -1);
 		tablePtr->validate = i;
-		Tcl_SetBooleanObj(resultPtr, (result == TCL_OK));
+		Tcl_SetObjResult(interp, Tcl_NewBooleanObj(result == TCL_OK));
 		result = TCL_OK;
 	    }
 	    break;
@@ -861,7 +879,7 @@ TableWidgetObjCmd(clientData, interp, objc, objv)
 		Tcl_WrongNumArgs(interp, 2, objv, NULL);
 		result = TCL_ERROR;
 	    } else {
-		Tcl_SetStringObj(resultPtr, TBL_VERSION, -1);
+		Tcl_SetObjResult(interp, Tcl_NewStringObj(PACKAGE_VERSION, -1));
 	    }
 	    break;
 
@@ -875,7 +893,6 @@ TableWidgetObjCmd(clientData, interp, objc, objv)
 	    break;
     }
 
-    done:
     Tcl_Release((ClientData) tablePtr);
     return result;
 }
@@ -929,8 +946,12 @@ TableDestroy(ClientData clientdata)
     if (tablePtr->activeTagPtr) ckfree((char *) tablePtr->activeTagPtr);
     if (tablePtr->activeBuf != NULL) ckfree(tablePtr->activeBuf);
 
-    /* delete the cache, row, column and cell style hash tables */
-    Tcl_DeleteHashTable(tablePtr->cache);
+    /*
+     * Delete the various hash tables, make sure to clear the STRING_KEYS
+     * tables that allocate their strings:
+     *   cache, spanTbl (spanAffTbl shares spanTbl info)
+     */
+    Table_ClearHashTable(tablePtr->cache);
     ckfree((char *) (tablePtr->cache));
     Tcl_DeleteHashTable(tablePtr->rowStyles);
     ckfree((char *) (tablePtr->rowStyles));
@@ -951,11 +972,7 @@ TableDestroy(ClientData clientdata)
     ckfree((char *) (tablePtr->inProc));
 #endif
     if (tablePtr->spanTbl) {
-	for (entryPtr = Tcl_FirstHashEntry(tablePtr->spanTbl, &search);
-	     entryPtr != NULL; entryPtr = Tcl_NextHashEntry(&search)) {
-	    ckfree((char *) Tcl_GetHashValue(entryPtr));
-	}
-	Tcl_DeleteHashTable(tablePtr->spanTbl);
+	Table_ClearHashTable(tablePtr->spanTbl);
 	ckfree((char *) (tablePtr->spanTbl));
 	Tcl_DeleteHashTable(tablePtr->spanAffTbl);
 	ckfree((char *) (tablePtr->spanAffTbl));
@@ -1041,7 +1058,7 @@ TableConfigure(interp, tablePtr, objc, objv, flags, forceUpdate)
     /* Do the configuration */
     argv = StringifyObjects(objc, objv);
     result = Tk_ConfigureWidget(interp, tablePtr->tkwin, tableSpecs,
-	    objc, argv, (char *) tablePtr, flags);
+	    objc, (CONST84 char **) argv, (char *) tablePtr, flags);
     ckfree((char *) argv);
     if (result != TCL_OK) {
 	return TCL_ERROR;
@@ -1117,7 +1134,7 @@ TableConfigure(interp, tablePtr, objc, objv, flags, forceUpdate)
 	 * Our effective data source changed, so flush and
 	 * retrieve new active buffer
 	 */
-	Tcl_DeleteHashTable(tablePtr->cache);
+	Table_ClearHashTable(tablePtr->cache);
 	Tcl_InitHashTable(tablePtr->cache, TCL_STRING_KEYS);
 	TableGetActiveBuf(tablePtr);
 	forceUpdate = 1;
@@ -1125,7 +1142,7 @@ TableConfigure(interp, tablePtr, objc, objv, flags, forceUpdate)
 	/*
 	 * Caching changed, so just clear the cache for safety
 	 */
-	Tcl_DeleteHashTable(tablePtr->cache);
+	Table_ClearHashTable(tablePtr->cache);
 	Tcl_InitHashTable(tablePtr->cache, TCL_STRING_KEYS);
 	forceUpdate = 1;
     }
@@ -1244,7 +1261,50 @@ TableConfigure(interp, tablePtr, objc, objv, flags, forceUpdate)
     Tcl_DStringFree(&error);
     return result;
 }
+#ifdef HAVE_TCL84
+/*
+ *---------------------------------------------------------------------------
+ *
+ * TableWorldChanged --
+ *
+ *      This procedure is called when the world has changed in some
+ *      way and the widget needs to recompute all its graphics contexts
+ *	and determine its new geometry.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Entry will be relayed out and redisplayed.
+ *
+ *---------------------------------------------------------------------------
+ */
+ 
+static void
+TableWorldChanged(instanceData)
+    ClientData instanceData;	/* Information about widget. */
+{
+    Table *tablePtr = (Table *) instanceData;
+    Tk_FontMetrics fm;
 
+    /*
+     * Set up the default column width and row height
+     */
+    Tk_GetFontMetrics(tablePtr->defaultTag.tkfont, &fm);
+    tablePtr->charWidth  = Tk_TextWidth(tablePtr->defaultTag.tkfont, "0", 1);
+    tablePtr->charHeight = fm.linespace + 2;
+
+    /*
+     * Recompute the window's geometry and arrange for it to be redisplayed.
+     */
+
+    TableAdjustParams(tablePtr);
+    TableGeometryRequest(tablePtr);
+    Tk_SetInternalBorder(tablePtr->tkwin, tablePtr->highlightWidth);
+    /* invalidate the whole table */
+    TableInvalidateAll(tablePtr, INV_HIGHLIGHT);
+}
+#endif
 /*
  *--------------------------------------------------------------
  *
@@ -1293,6 +1353,43 @@ TableEventProc(clientData, eventPtr)
 		} else {
 		    Tk_UndefineCursor(tablePtr->tkwin);
 		}
+#ifdef TITLE_CURSOR
+	    } else if (tablePtr->flags & (OVER_BORDER|OVER_TITLE)) {
+		Tk_Cursor cursor = tablePtr->cursor;
+
+		//tablePtr->flags &= ~(OVER_BORDER|OVER_TITLE);
+
+		if (tablePtr->titleCursor != None) {
+		    TableWhatCell(tablePtr, eventPtr->xmotion.x,
+			    eventPtr->xmotion.y, &row, &col);
+		    if ((row < tablePtr->titleRows) ||
+			    (col < tablePtr->titleCols)) {
+			if (tablePtr->flags & OVER_TITLE) {
+			    break;
+			}
+			tablePtr->flags |= OVER_TITLE;
+			cursor = tablePtr->titleCursor;
+		    }
+		}
+		if (cursor != None) {
+		    Tk_DefineCursor(tablePtr->tkwin, cursor);
+		} else {
+		    Tk_UndefineCursor(tablePtr->tkwin);
+		}
+	    } else if (tablePtr->titleCursor != None) {
+		Tk_Cursor cursor = tablePtr->cursor;
+
+		TableWhatCell(tablePtr, eventPtr->xmotion.x,
+			eventPtr->xmotion.y, &row, &col);
+		if ((row < tablePtr->titleRows) ||
+			(col < tablePtr->titleCols)) {
+		    if (tablePtr->flags & OVER_TITLE) {
+			break;
+		    }
+		    tablePtr->flags |= OVER_TITLE;
+		    cursor = tablePtr->titleCursor;
+		}
+#endif
 	    }
 	    break;
 
@@ -1577,7 +1674,13 @@ TableUndisplay(register Table *tablePtr)
     seen[3] = col;
 }
 
-#ifdef MAC_TCL
+/*
+ * Generally we should be able to use XSetClipRectangles on X11, but
+ * the addition of Xft drawing to Tk 8.5+ completely ignores the clip
+ * rectangles.  Thus turn it off for all cases until clip rectangles
+ * are known to be respected. [Bug 1805350]
+ */
+#if 1 || defined(MAC_TCL) || defined(UNDER_CE) || (defined(WIN32) && defined(TCL_THREADS)) || defined(MAC_OSX_TK)
 #define NO_XSETCLIP
 #endif
 /*
@@ -1606,7 +1709,11 @@ TableDisplay(ClientData clientdata)
     Drawable window;
 #ifdef NO_XSETCLIP
     Drawable clipWind;
-#elif !defined(WIN32)
+#elif defined(WIN32)
+    TkWinDrawable *twdPtr;
+    HDC dc;
+    HRGN clipR;
+#else
     XRectangle clipRect;
 #endif
     int rowFrom, rowTo, colFrom, colTo,
@@ -1626,6 +1733,10 @@ TableDisplay(ClientData clientdata)
     Tcl_HashTable *drawnCache = NULL;
     Tk_TextLayout textLayout = NULL;
     TableEmbWindow *ewPtr;
+    Tk_FontMetrics fm;
+    Tk_Font ellFont = NULL;
+    char *ellipsis = NULL;
+    int ellLen = 0, useEllLen = 0, ellEast = 0;
 
     tablePtr->flags &= ~REDRAW_PENDING;
     if ((tkwin == NULL) || !Tk_IsMapped(tkwin)) {
@@ -1646,16 +1757,19 @@ TableDisplay(ClientData clientdata)
     padx  = tablePtr->padX;
     pady  = tablePtr->padY;
 
+#ifndef WIN32
     /* 
      * if we are using the slow drawing mode with a pixmap 
      * create the pixmap and adjust x && y for offset in pixmap
+     * FIX: Ignore slow mode for Win32 as the fast ClipRgn trick
+     * below does not work for bitmaps.
      */
     if (tablePtr->drawMode == DRAW_MODE_SLOW) {
 	window = Tk_GetPixmap(display, Tk_WindowId(tkwin),
 		invalidWidth, invalidHeight, Tk_Depth(tkwin));
-    } else {
+    } else
+#endif
 	window = Tk_WindowId(tkwin);
-    }
 #ifdef NO_XSETCLIP
     clipWind = Tk_GetPixmap(display, window,
 	    invalidWidth, invalidHeight, Tk_Depth(tkwin));
@@ -1800,11 +1914,13 @@ TableDisplay(ClientData clientdata)
 		    EmbWinDisplay(tablePtr, window, ewPtr, tagPtr,
 			    x, y, width, height);
 
+#ifndef WIN32
 		    if (tablePtr->drawMode == DRAW_MODE_SLOW) {
 			/* Correctly adjust x && y with the offset */
 			x -= invalidX;
 			y -= invalidY;
 		    }
+#endif
 
 		    Tk_Fill3DRectangle(tkwin, window, tagPtr->bg, x, y, width,
 			    height, 0, TK_RELIEF_FLAT);
@@ -1819,11 +1935,19 @@ TableDisplay(ClientData clientdata)
 		}
 	    }
 
+	    /*
+	     * Don't draw what won't be seen.
+	     * Embedded windows handle this in EmbWinDisplay. 
+	     */
+	    if ((width <= 0) || (height <= 0)) { continue; }
+
+#ifndef WIN32
 	    if (tablePtr->drawMode == DRAW_MODE_SLOW) {
 		/* Correctly adjust x && y with the offset */
 		x -= invalidX;
 		y -= invalidY;
 	    }
+#endif
 
 	    shouldInvert = 0;
 	    /*
@@ -1915,6 +2039,18 @@ TableDisplay(ClientData clientdata)
 	    height -= bd[2] + bd[3] + (2 * pady);
 
 	    /*
+	     * Don't draw what won't be seen, based on border constraints.
+	     */
+	    if ((width <= 0) || (height <= 0)) {
+		/*
+		 * Re-Correct the dimensions before border drawing
+		 */
+		width  += bd[0] + bd[1] + (2 * padx);
+		height += bd[2] + bd[3] + (2 * pady);
+		goto DrawBorder;
+	    }
+
+	    /*
 	     * If an image is in the tag, draw it
 	     */
 	    if (tagPtr->image != NULL) {
@@ -1990,13 +2126,16 @@ TableDisplay(ClientData clientdata)
 	     * at the first \x00 unicode char it finds (!= '\0'),
 	     * although there can be more to the string than that
 	     */
-	    numBytes = Tcl_NumUtfChars(string, strlen(string));
+	    numBytes = Tcl_NumUtfChars(string, (int) strlen(string));
 #else
 	    numBytes = strlen(string);
 #endif
 
 	    /* If there is a string, show it */
 	    if (activeCell || numBytes) {
+		register int x0 = x + bd[0] + padx;
+		register int y0 = y + bd[2] + pady;
+
 		/* get the dimensions of the string */
 		textLayout = Tk_ComputeTextLayout(tagPtr->tkfont,
 			string, numBytes,
@@ -2088,6 +2227,40 @@ TableDisplay(ClientData clientdata)
 		 */
 		if ((originX < 0) || (originY < 0) ||
 			(originX+itemW > width) || (originY+itemH > height)) {
+		    if (!activeCell
+			    && (tagPtr->ellipsis != NULL)
+			    && (tagPtr->wrap <= 0)
+			    && (tagPtr->multiline <= 0)
+			) {
+			/*
+			 * Check which side to draw ellipsis on
+			 */
+			switch (tagPtr->anchor) {
+			    case TK_ANCHOR_NE:
+			    case TK_ANCHOR_E:
+			    case TK_ANCHOR_SE:		/* eastern position */
+				ellEast = 0;
+				break;
+			    default:			/* western position */
+				ellEast = 1;
+			}
+			if ((ellipsis != tagPtr->ellipsis)
+				|| (ellFont != tagPtr->tkfont)) {
+			    /*
+			     * Different ellipsis from last cached
+			     */
+			    ellFont  = tagPtr->tkfont;
+			    ellipsis = tagPtr->ellipsis;
+			    ellLen = Tk_TextWidth(ellFont,
+				    ellipsis, (int) strlen(ellipsis));
+			    Tk_GetFontMetrics(tagPtr->tkfont, &fm);
+			}
+			useEllLen = MIN(ellLen, width);
+		    } else {
+			ellEast = 0;
+			useEllLen = 0;
+		    }
+
 		    /*
 		     * The text wants to overflow the boundaries of the
 		     * displayed cell, so we must clip in some way
@@ -2098,68 +2271,97 @@ TableDisplay(ClientData clientdata)
 		     * Copy the the current contents of the cell into the
 		     * clipped window area.  This keeps any fg/bg and image
 		     * data intact.
+		     * x0 - x == pad area
 		     */
-		    XCopyArea(display, window, clipWind, tagGc, x, y,
-			    width + bd[0] + bd[1] + (2 * padx),
-			    height + bd[2] + bd[3] + (2 * pady), 0, 0);
+		    XCopyArea(display, window, clipWind, tagGc, x0, y0,
+			    width, height, x0 - x, y0 - y);
 		    /*
 		     * Now draw into the cell space on the special window.
 		     * Don't use x,y base offset for clipWind.
 		     */
 		    Tk_DrawTextLayout(display, clipWind, tagGc, textLayout,
-			    0 + originX + bd[0] + padx,
-			    0 + originY + bd[2] + pady, 0, -1);
+			    x0 - x + originX, y0 - y + originY, 0, -1);
+
+		    if (useEllLen) {
+			/*
+			 * Recopy area the ellipse covers (not efficient)
+			 */
+			XCopyArea(display, window, clipWind, tagGc,
+				x0 + (ellEast ? width - useEllLen : 0), y0,
+				useEllLen, height,
+				x0 - x + (ellEast ? width - useEllLen : 0),
+				y0 - y);
+			Tk_DrawChars(display, clipWind, tagGc, ellFont,
+				ellipsis, (int) strlen(ellipsis),
+				x0 - x + (ellEast ? width - useEllLen : 0),
+				y0 - y + originY + fm.ascent);
+		    }
 		    /*
 		     * Now copy back only the area that we want the
 		     * text to be drawn on.
 		     */
 		    XCopyArea(display, clipWind, window, tagGc,
-			    bd[0] + padx, bd[2] + pady,
-			    width, height, x + bd[0] + padx, y + bd[2] + pady);
+			    x0 - x, y0 - y, width, height, x0, y0);
 #elif defined(WIN32)
 		    /*
 		     * This is evil, evil evil! but the XCopyArea
 		     * doesn't work in all cases - Michael Teske.
 		     * The general structure follows the comments below.
 		     */
-		    TkWinDrawable *twdPtr = (TkWinDrawable *) window;
-		    HDC dc = GetDC(twdPtr->window.handle);
-		    HRGN clipR;
+		    twdPtr = (TkWinDrawable *) window;
+		    dc     = GetDC(twdPtr->window.handle);
 
-		    clipR = CreateRectRgn(x + bd[0] + padx, y + bd[2] + pady,
-			    x + bd[0] + padx + width,
-			    y + bd[2] + pady + height);
+		    clipR = CreateRectRgn(x0 + (ellEast ? 0 : useEllLen), y0,
+			x0 + width - (ellEast ? useEllLen : 0), y0 + height);
 
 		    SelectClipRgn(dc, clipR);
-		    OffsetClipRgn(dc, 0, 0);
+		    DeleteObject(clipR);
+		    /* OffsetClipRgn(dc, 0, 0); */
 
 		    Tk_DrawTextLayout(display, window, tagGc, textLayout,
-			    x + originX + bd[0] + padx,
-			    y + originY + bd[2] + pady, 0, -1);
+			    x0 + originX, y0 + originY, 0, -1);
 
+		    if (useEllLen) {
+			clipR = CreateRectRgn(x0, y0, x0 + width, y0 + height);
+			SelectClipRgn(dc, clipR);
+			DeleteObject(clipR);
+			Tk_DrawChars(display, window, tagGc, ellFont,
+				ellipsis, (int) strlen(ellipsis),
+				x0 + (ellEast? width-useEllLen : 0),
+				y0 + originY + fm.ascent);
+		    }
 		    SelectClipRgn(dc, NULL);
-		    DeleteObject(clipR);
+		    ReleaseDC(twdPtr->window.handle, dc);
 #else
 		    /*
 		     * Use an X clipping rectangle.  The clipping is the
 		     * rectangle just for the actual text space (to allow
 		     * for empty padding space).
 		     */
-		    clipRect.x = x + bd[0] + padx;
-		    clipRect.y = y + bd[2] + pady;
-		    clipRect.width = width;
+		    clipRect.x      = x0 + (ellEast ? 0 : useEllLen);
+		    clipRect.y      = y0;
+		    clipRect.width  = width - (ellEast ? useEllLen : 0);
 		    clipRect.height = height;
 		    XSetClipRectangles(display, tagGc, 0, 0, &clipRect, 1,
 			    Unsorted);
 		    Tk_DrawTextLayout(display, window, tagGc, textLayout,
-			    x + originX + bd[0] + padx,
-			    y + originY + bd[2] + pady, 0, -1);
+			    x0 + originX,
+			    y0 + originY, 0, -1);
+		    if (useEllLen) {
+			clipRect.x     = x0;
+			clipRect.width = width;
+			XSetClipRectangles(display, tagGc, 0, 0, &clipRect, 1,
+				Unsorted);
+			Tk_DrawChars(display, window, tagGc, ellFont,
+				ellipsis, (int) strlen(ellipsis),
+				x0 + (ellEast? width-useEllLen : 0),
+				y0 + originY + fm.ascent);
+		    }
 		    XSetClipMask(display, tagGc, None);
 #endif
 		} else {
 		    Tk_DrawTextLayout(display, window, tagGc, textLayout,
-			    x + originX + bd[0] + padx,
-			    y + originY + bd[2] + pady, 0, -1);
+			    x0 + originX, y0 + originY, 0, -1);
 		}
 
 		/* if this is the active cell draw the cursor if it's on.
@@ -2172,8 +2374,7 @@ TableDisplay(ClientData clientdata)
 		    maxW = MAX(0, originY + cy + bd[2] + pady);
 		    maxH = MIN(ch, height - maxW + bd[2] + pady);
 		    Tk_Fill3DRectangle(tkwin, window, tablePtr->insertBg,
-			    x + originX + cx + bd[0] + padx
-			    - (tablePtr->insertWidth/2),
+			    x0 + originX + cx - (tablePtr->insertWidth/2),
 			    y + maxW, tablePtr->insertWidth,
 			    maxH, 0, TK_RELIEF_FLAT);
 		}
@@ -2294,15 +2495,18 @@ TableDisplay(ClientData clientdata)
     /* Take care of removing embedded windows that are no longer in view */
     TableUndisplay(tablePtr);
 
+#ifndef WIN32
     /* copy over and delete the pixmap if we are in slow mode */
     if (tablePtr->drawMode == DRAW_MODE_SLOW) {
 	/* Get a default valued GC */
 	TableGetGc(display, window, &(tablePtr->defaultTag), &tagGc);
 	XCopyArea(display, window, Tk_WindowId(tkwin), tagGc, 0, 0,
-		invalidWidth, invalidHeight, invalidX, invalidY);
+		(unsigned) invalidWidth, (unsigned) invalidHeight,
+		invalidX, invalidY);
 	Tk_FreePixmap(display, window);
 	window = Tk_WindowId(tkwin);
     }
+#endif
 
     /* 
      * If we are at the end of the table, clear the area after the last
@@ -2322,16 +2526,16 @@ TableDisplay(ClientData clientdata)
      */
     if (x+width < invalidX+invalidWidth) {
 	XFillRectangle(display, window,
-		Tk_3DBorderGC(tkwin, tablePtr->defaultTag.bg,
-			TK_3D_FLAT_GC), x+width, invalidY,
-		invalidX+invalidWidth-x-width, invalidHeight);
+		Tk_3DBorderGC(tkwin, tablePtr->defaultTag.bg, TK_3D_FLAT_GC),
+		x+width, invalidY, (unsigned) invalidX+invalidWidth-x-width,
+		(unsigned) invalidHeight);
     }
 
     if (y+height < invalidY+invalidHeight) {
 	XFillRectangle(display, window,
-		Tk_3DBorderGC(tkwin, tablePtr->defaultTag.bg,
-			TK_3D_FLAT_GC), invalidX, y+height,
-		invalidWidth, invalidY+invalidHeight-y-height);
+		Tk_3DBorderGC(tkwin, tablePtr->defaultTag.bg, TK_3D_FLAT_GC),
+		invalidX, y+height, (unsigned) invalidWidth,
+		(unsigned) invalidY+invalidHeight-y-height);
     }
 
     if (tagGc != NULL) {
@@ -2611,7 +2815,7 @@ TableVarProc(clientData, interp, name, index, flags)
      int flags;			/* Information about what happened. */
 {
     Table *tablePtr = (Table *) clientData;
-    int dummy, row, col, update = 1;
+    int row, col, update = 1;
 
     /* This is redundant, as the name should always == arrayVar */
     name = tablePtr->arrayVar;
@@ -2634,7 +2838,7 @@ TableVarProc(clientData, interp, name, index, flags)
 		/* clear the selection buffer */
 		TableGetActiveBuf(tablePtr);
 		/* flush any cache */
-		Tcl_DeleteHashTable(tablePtr->cache);
+		Table_ClearHashTable(tablePtr->cache);
 		Tcl_InitHashTable(tablePtr->cache, TCL_STRING_KEYS);
 		/* and invalidate the table */
 		TableInvalidateAll(tablePtr, 0);
@@ -2655,7 +2859,7 @@ TableVarProc(clientData, interp, name, index, flags)
 	    update = 0;
 	} else {
 	    /* modified TableGetActiveBuf */
-	    char *data = "";
+	    CONST char *data = "";
 
 	    row = tablePtr->activeRow;
 	    col = tablePtr->activeCol;
@@ -2675,6 +2879,7 @@ TableVarProc(clientData, interp, name, index, flags)
 	}
     } else if (TableParseArrayIndex(&row, &col, index) == 2) {
 	char buf[INDEX_BUFSIZE];
+
 	/* Make sure it won't trigger on array(2,3extrastuff) */
 	TableMakeArrayIndex(row, col, buf);
 	if (strcmp(buf, index)) {
@@ -2682,13 +2887,21 @@ TableVarProc(clientData, interp, name, index, flags)
 	}
 	if (tablePtr->caching) {
 	    Tcl_HashEntry *entryPtr;
-	    char *val, *data = NULL;
+	    int new;
+	    char *val, *data;
 
-	    data = Tcl_GetVar2(interp, name, index, TCL_GLOBAL_ONLY);
-	    if (!data) data = "";
-	    val = (char *)ckalloc(strlen(data)+1);
-	    strcpy(val, data);
-	    entryPtr = Tcl_CreateHashEntry(tablePtr->cache, buf, &dummy);
+	    entryPtr = Tcl_CreateHashEntry(tablePtr->cache, buf, &new);
+	    if (!new) {
+		data = (char *) Tcl_GetHashValue(entryPtr);
+		if (data) { ckfree(data); }
+	    }
+	    data = (char *) Tcl_GetVar2(interp, name, index, TCL_GLOBAL_ONLY);
+	    if (data && *data != '\0') {
+		val = (char *)ckalloc(strlen(data)+1);
+		strcpy(val, data);
+	    } else {
+		val = NULL;
+	    }
 	    Tcl_SetHashValue(entryPtr, val);
 	}
 	/* convert index to real coords */
@@ -3377,7 +3590,7 @@ TableFetchSelection(clientData, offset, buffer, maxBytes)
     Tcl_HashSearch search;
     int length, count, lastrow=0, needcs=0, r, c, listArgc, rslen=0, cslen=0;
     int numcols, numrows;
-    char **listArgv;
+    CONST84 char **listArgv;
 
     /* if we are not exporting the selection ||
      * we have no data source, return */
@@ -3629,7 +3842,7 @@ TableValidateChange(tablePtr, r, c, old, new, index)
     } else {
 	code = (bool) ? TCL_OK : TCL_BREAK;
     }
-    Tcl_SetStringObj(Tcl_GetObjResult(interp), (char *) NULL, 0);
+    Tcl_SetObjResult(interp, Tcl_NewObj());
 
     /*
      * If ->validate has become VALIDATE_NONE during the validation,
@@ -3706,7 +3919,7 @@ ExpandPercents(tablePtr, before, r, c, old, new, index, dsPtr, cmdType)
 	string = before;
 #ifdef TCL_UTF_MAX
 	/* No need to convert '%', as it is in ascii range */
-	string = Tcl_UtfFindFirst(before, '%');
+	string = (char *) Tcl_UtfFindFirst(before, '%');
 #else
 	string = strchr(before, '%');
 #endif
@@ -3784,7 +3997,7 @@ ExpandPercents(tablePtr, before, r, c, old, new, index, dsPtr, cmdType)
 
 /* Function to call on loading the Table module */
 
-#ifdef BUILD_tkTable
+#ifdef BUILD_Tktable
 #   undef TCL_STORAGE_CLASS
 #   define TCL_STORAGE_CLASS DLLEXPORT
 #endif
@@ -3821,7 +4034,7 @@ Tktable_Init(interp)
 	== NULL) {
 	return TCL_ERROR;
     }
-    if (Tcl_PkgProvide(interp, "Tktable", TBL_VERSION) != TCL_OK) {
+    if (Tcl_PkgProvide(interp, "Tktable", PACKAGE_VERSION) != TCL_OK) {
 	return TCL_ERROR;
     }
     Tcl_CreateObjCommand(interp, TBL_COMMAND, Tk_TableObjCmd,

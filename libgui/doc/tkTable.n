@@ -1,7 +1,8 @@
+'\"
 '\" The definitions below are for supplemental macros used in Tcl/Tk
 '\" manual entries.
 '\"
-'\" RCS: @(#) $Id$
+'\" RCS: @(#) $Id: tkTable.n,v 1.13 2008/11/14 22:51:30 hobbs Exp $
 '\"
 '\" .AP type name in/out ?indent?
 '\"	Start paragraph describing an argument to a library procedure.
@@ -232,7 +233,7 @@ Database Class:	\\fB\\$3\\fR
 .de UL
 \\$1\l'|0\(ul'\\$2
 ..
-.TH table n 2.7 Tk "Tk Table Extension"
+.TH table n 2.8 Tk "Tk Table Extension"
 .HS table tk
 .BS
 .SH NAME
@@ -271,6 +272,8 @@ the forms acceptable to \fBTk_GetPixels\fR.
 .OP "\-browsecommand or \-browsecmd" browseCommand BrowseCommand
 Specifies a command which will be evaluated anytime the active cell changes.
 It uses the %\-substition model described in COMMAND SUBSTITUTION below.
+Any changes to the active cell while the command is running are ignored to
+prevent recursion.
 .OP \-cache cache Cache
 A boolean value that specifies whether an internal cache of the table
 contents should be kept.  This greatly enhances speed performance when used
@@ -321,7 +324,7 @@ the table widget will first check to see if a tag has been defined using the
 \fBtag col\fR widget method.  If no tag is found, it will evaluate the named
 procedure passing the column number in question as the sole argument.  The
 procedure is expected to return the name of a tag to use, or a null string.
-Errors occuring during the evaluation of the procedure, or the return of an
+Errors occurring during the evaluation of the procedure, or the return of an
 invalid tag name are silently ignored.
 .OP \-colwidth colWidth ColWidth
 Default column width, interpreted as characters in the default font when
@@ -356,6 +359,13 @@ Tk compatible on the border mode.
 The table is drawn to the screen as in fast mode, but only single pixel
 lines are drawn (not square borders).
 .RE
+.OP \-ellipsis ellipsis Ellipsis
+This specifies a string to display at the end of a line that would be
+clipped by its cell, like ``...''.  An ellipsis will be displayed only
+on non-wrapping, non-multiline cells that would be clipped.  The ellipsis
+will display on the left for east anchored cells, otherwise it displays
+on the right.
+Defaults to "" (no ellipsis).
 .OP \-flashmode flashMode FlashMode
 A boolean value which specifies whether cells should flash when their value
 changes.  The table tag \fBflash\fR will be applied to these cells for the
@@ -384,6 +394,10 @@ This value does not grow the size of the cell, it just causes the text to
 be drawn further from the cell border.  It only affects one side (depending
 on anchor).  Defaults to 0.  See \fB\-pady\fR for an alternate padding
 style.
+.OP \-justify justify Justify
+How to justify multi\-line text in a cell.
+It must be one of \fBleft\fR, \fBright\fR, or \fBcenter\fR.
+Defaults to left.
 .OP \-maxheight maxHeight MaxHeight
 The max height in pixels that the window will request.  Defaults to 600.
 .OP \-maxwidth maxWidth MaxWidth
@@ -430,7 +444,7 @@ return a tag name or null string.  This operates in a similar manner as
 \fB\-coltagcommand\fR, except that it applies to row tags.
 .OP "\-selectioncommand or \-selcmd" selectionCommand SelectionCommand
 Specifies a command to evaluate when the selection is retrieved from a
-table via the selection mechanism (ie: evaluating "\fBselection get\fR").
+table via the selection mechanism (ie: evaluating ``\fBselection get\fR'').
 The return value from this command will become the string passed on by the
 selection mechanism.  It uses the %\-substition model described in COMMAND
 SUBSTITUTION below.  If an error occurs, a Tcl background error is
@@ -483,8 +497,8 @@ Global Tcl array variable to attach to the table's C array.  It will be
 created if it doesn't already exist or is a simple variable.  Keys used by
 the table in the array are of the form \fIrow\fR,\fIcol\fR for cells and
 the special key \fIactive\fR which contains the value of the active cell
-buffer.  The Tcl array is managed as a sparse array (the table doesn't
-require all valid indices have values).  No stored value for an index is
+buffer.  The Tcl array is managed as a sparse array (the table does not
+require that all valid indices have values).  No stored value for an index is
 equivalent to the empty string, and clearing a cell will remove that index
 from the Tcl array, unless the \fB\-sparsearray\fR options is set to 0.
 .OP \-width width Width
@@ -499,7 +513,9 @@ Specifies the default wrap value for tags.  Defaults to 0.
 .SH DESCRIPTION
 .PP
 The \fBtable\fR command creates a 2\-dimensional grid of cells.  The table
-can use a Tcl array variable or Tcl command for data storage and retrieval.
+can use a Tcl array variable or Tcl command for data storage and retrieval,
+as well as optionally cache data in memory for speed.  One of these data
+sources \fImust\fR be configured before any data is retained by the table.
 The widget has an active cell, the contents of which can be edited (when
 the state is normal).  The widget supports a default style for the cells
 and also multiple \fItags\fR, which can be used to change the style of a
@@ -547,7 +563,9 @@ the following ways:
 \fInumber,number\fR
 Specifies the cell as a numerical index of row,col which corresponds to the
 index of the associated Tcl array, where \fB\-roworigin,\-colorigin\fR
-corresponds to the first cell in the table (0,0 by default).
+corresponds to the first cell in the table (0,0 by default).  The values
+for row and column will be constrained to actual values in the table,
+which means a valid cell is always found.
 .TP 12
 \fBactive\fR
 Indicates the cell that has the location cursor.
@@ -587,10 +605,9 @@ the above forms.
 A tag is a textual string that is associated with zero or more rows,
 columns or cells in a table.  Tags may contain arbitrary characters, but it
 is probably best to avoid using names which look like indices to reduce
-coding confusion.  There may be any number of tags in a table, but each
-row, column or cell can only have one tag associated with it at a time.
-There are several permanent tags in each table that can be configured by
-the user and will determine the attributes for special cells:
+coding confusion.  A tag can apply to an entire row or column, or just a
+single cell.  There are several permanent tags in each table that can be
+configured by the user and will determine the attributes for special cells:
 .RS
 .TP 10
 \fBactive\fR
@@ -617,7 +634,7 @@ tag override the default display style.  The following options are
 currently supported for tags:
 .RS
 .TP
-\fB\-anchor \fIanchor\fR
+\fB\-anchor\fR \fIanchor\fR
 Anchor for item in the cell space.
 .TP
 \fB\-background\fR or \fB\-bg\fR \fIcolor\fR
@@ -627,34 +644,42 @@ Background color of the cell.
 Borderwidth of the cell, of the same format for the table, but may also
 be empty to inherit the default table borderwidth value (the default).
 .TP
-\fB\-font \fIfontName\fR
+\fB\-ellipsis\fR \fIstring\fR
+String to display at the end of a line that would be clipped by its cell,
+like ``...''.  An ellipsis will be displayed only
+on non-wrapping, non-multiline cells that would be clipped.  The ellipsis
+will display on the left for east anchored cells, otherwise it displays
+on the right.
+.TP
+\fB\-font\fR \fIfontName\fR
 Font for text in the cell.
 .TP
 \fB\-foreground\fR or \fB\-fg\fR \fIcolor\fR
 Foreground color of the cell.
 .TP
-\fB\-justify \fIjustify\fR
+\fB\-justify\fR \fIjustify\fR
 How to justify multi\-line text in a cell.
 It must be one of \fBleft\fR, \fBright\fR, or \fBcenter\fR.
 .TP
-\fB\-image \fIimageName\fR
+\fB\-image\fR \fIimageName\fR
 An image to display in the cell instead of text.
 .TP
-\fB\-multiline \fIboolean\fR
+\fB\-multiline\fR \fIboolean\fR
 Whether to display text with newlines on multiple lines.
 .TP
-\fB\-relief \fIrelief\fR
-The relief for the cell.
+\fB\-relief\fR \fIrelief\fR
+The relief for the cell.  May be the empty string to cause this tag to
+not disturb the value.
 .TP
-\fB\-showtext \fIboolean\fR
+\fB\-showtext\fR \fIboolean\fR
 Whether to show the text over an image.
 .TP
-\fB\-state \fIstate\fR
+\fB\-state\fR \fIstate\fR
 The state of the cell, to allow for certain cells to be disabled.
 This prevents the cell from being edited by the \fIinsert\fR or \fIdelete\fR
 methods, but a direct \fIset\fR will not be prevented.
 .TP
-\fB\-wrap \fIboolean\fR
+\fB\-wrap\fR \fIboolean\fR
 Whether characters should wrap in a cell that is not wide enough.
 .RE
 .PP
@@ -734,10 +759,10 @@ specified, it uses the table's default relief.
 Stickiness of the window inside the cell, as defined by the \fBgrid\fR command.
 .TP
 \fB\-window \fIpathName\fR
-Specifies the name of a window to display in the  annotation.  It must
-exist before being specified here.
+Specifies the name of a window (widget) to display in the annotation.  It
+must exist before being specified here.  When an empty string is specified,
+if a window was displayed it will cease to be managed by the table widget.
 .RE
-
 
 .SH "THE SELECTION"
 .PP
@@ -746,8 +771,8 @@ the selection will be the values of the selected cells in nested Tcl list
 form where each row is a list and each column is an element of a row list.
 You can change the way this value is interpreted by setting the
 \fB\-rowseparator\fR and \fB\-colseparator\fR options.  For example,
-default Excel format would be to set \fB\-rowseparator\fR to "\\n" and
-\fB\-colseparator\fR to "\\t".  Changing these values affects both how the
+default Excel format would be to set \fB\-rowseparator\fR to '\\n' and
+\fB\-colseparator\fR to '\\t'.  Changing these values affects both how the
 table sends out the selection and reads in pasted data, ensuring that the
 table should always be able to cut and paste to itself.  It is possible to
 change how pastes are handled by editing the table library procedure
@@ -1005,7 +1030,7 @@ forms, depending on the \fIoption\fR:
 .TP
 \fIpathName \fBinsert active\fR \fIindex value\fR
 The \fIvalue\fR is a text string which is inserted at the \fIindex\fR
-postion of the active cell.  The cursor is then positioned after the
+position of the active cell.  The cursor is then positioned after the
 new text. \fIindex\fR can be a number, \fBinsert\fR or \fBend\fR.
 .TP
 \fIpathName \fBinsert cols\fR ?\fIswitches\fR? \fIindex\fR ?\fIcount\fR?
@@ -1168,7 +1193,7 @@ one above \fIaboveThis\fR.
 .TP
 \fIpathName \fBtag row\fR \fItagName\fR ?\fIrow ...\fR?
 With no arguments, prints out the list of rows that use the \fItag\fR.
-Otherwise it sets the specified columns to use the named tag, replacing any
+Otherwise it sets the specified rows to use the named tag, replacing any
 tag that may have been set using this method before.  If \fItagName\fR is
 {}, the rows are reset to use the default tag.  Tags added during
 \-rowtagcommand evaluation do not register here.  If \fItagName\fR does
@@ -1262,11 +1287,10 @@ This command shifts the view in the window left or right according to
 \fIWhat\fR must be either \fBunits\fR or \fBpages\fR or an abbreviation
 of one of these.
 If \fIwhat\fR is \fBunits\fR, the view adjusts left or right by
-\fInumber\fR character units (the width of the \fB0\fR character)
-on the display;  if it is \fBpages\fR then the view adjusts by
-\fInumber\fR screenfuls.
-If \fInumber\fR is negative then characters farther to the left
-become visible;  if it is positive then characters farther to the right
+\fInumber\fR cells on the display; if it is \fBpages\fR then the view
+adjusts by \fInumber\fR screenfuls.
+If \fInumber\fR is negative then cells farther to the left
+become visible;  if it is positive then cells farther to the right
 become visible.
 .RE
 .TP
@@ -1299,7 +1323,7 @@ way through the table, and so on.
 This command adjusts the view in the window up or down according to
 \fInumber\fR and \fIwhat\fR.  \fINumber\fR must be an integer.  \fIWhat\fR
 must be either \fBunits\fR or \fBpages\fR.  If \fIwhat\fR is \fBunits\fR,
-the view adjusts up or down by \fInumber\fR lines; if it is \fBpages\fR then
+the view adjusts up or down by \fInumber\fR cells; if it is \fBpages\fR then
 the view adjusts by \fInumber\fR screenfuls.  If \fInumber\fR is negative
 then earlier elements become visible; if it is positive then later elements
 become visible.
