@@ -1,3 +1,4 @@
+(BUG FIX) Fix the Help->Online manuals menu entry
 (INTERNAL) Update tkTable to version 2.10
 (INTERNAL) Update xmplib.c from Tix source following former SN versions
 (INTERNAL) Add losts of CONSTs and casts to prevent compile warnings

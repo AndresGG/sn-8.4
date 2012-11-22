@@ -23,91 +23,64 @@
 proc sn_help {{file ""} {busy 1}} {
     global sn_options tcl_platform sn_path
 
-    if {${file} != "" && $tcl_platform(platform) == "windows"} {
-        set file [file attribute ${file} -shortname]
-    }
-
     if {${file} == ""} {
         set file "index.html"
         set dir $sn_path(htmldir)
         set file [file join ${dir} ${file}]
-        if {$tcl_platform(platform) == "windows"} {
-            set file [file attribute ${file} -shortname]
-        }
-        set file "file:${file}"
-    }\
-    elseif {![regexp -- {^(file:|http://)} ${file}]} {
-        set file file:${file}
     }
+    set file "file:${file}"
 
-    if {$tcl_platform(os) == "Windows NT"} {
-        sn_log "cmd -c start ${file}"
-        set ret [catch {exec cmd /c start ${file} &} errmsg]
-    }\
-    elseif {$tcl_platform(os) == "Windows 95"} {
-        sn_log "command -c start ${file}"
-        set ret [catch {exec command /c start ${file} &} errmsg]
-    } else {
-        global netscape_error netscape_exit_status
-        global netscape_done
-
-        set netscape_done 0
-        set html_view $sn_options(def,html-viewer)
-        if {${html_view} == ""} {
-            set html_view "netscape -remote openURL(%s)"
+    switch -exact -- [tk windowingsystem] {
+        win32 {
+            sn_invoke_browser_win $file
         }
-        if {[string first {%s} ${html_view}] != -1} {
-            set cmd [format ${html_view} ${file}]
-        } else {
-            set cmd [list ${html_view} ${file}]
-        }
-        sn_log "${cmd}"
-        set ret [catch {open "|${cmd}"} netscape_fd]
-        if {${ret}} {
-            set errmsg ${netscape_fd}
-        } else {
-            fconfigure ${netscape_fd} \
-                -encoding $sn_options(def,system-encoding) \
-                -blocking 0
-            fileevent ${netscape_fd} readable [list netscape_reader\
-              ${netscape_fd}]
-            vwait netscape_done
-            if {${netscape_exit_status}} {
-                if {![string match {*not running on display*}\
-                  ${netscape_error}]} {
-                    set ret 1
-                    set errmsg ${netscape_error}
-                }\
-                elseif {[regsub {([.]*)-remote openURL\(file:([^\)]*)\)([.]*)}\
-                  ${cmd} {\1\2\3} cmd] != 0} {
-                    sn_log "${cmd}"
-                    eval exec ${cmd} &
-                } else {
-                    set ret 1
-                    set errmsg ${netscape_error}
-                }
-            }
+        default {
+            sn_invoke_browser_unix $file
         }
     }
-
-    if {${ret}} {
-        sn_error_dialog ${errmsg}
-        return
-    }
-    after 3000
+    return
 }
 
-proc netscape_reader {pipe} {
-    global netscape_error
-    global netscape_exit_status
-    global netscape_done
+proc sn_invoke_browser_win {file} {
+	package require registry
+    # Look for the application under HKEY_CLASSES_ROOT
+    set root HKEY_CLASSES_ROOT
 
-    if {[eof ${pipe}]} {
-        set netscape_exit_status [catch {close ${pipe}} netscape_error]
-        incr netscape_done
-        return
+    # Get the application key for HTML files
+    set appKey [registry get $root\\.html ""]
+
+    # Get the command for opening HTML files
+    set appCmd [registry get  $root\\$appKey\\shell\\open\\command ""]
+
+    # Substitute the HTML filename into the command for %1,
+    # IE doesn't seem to use the %1, so we simply append it.
+    if {![regsub {%1} $appCmd "$file" appCmd]} {
+        set appCmd [concat $appCmd $file]
     }
-    gets ${pipe} line
+    sn_log "$appCmd"
+    # Double up the backslashes for eval.
+    regsub -all {\\} $appCmd  {\\\\} appCmd
+
+    # Invoke the command
+    if {[catch {eval exec $appCmd &} errmsg]} {
+        sn_error_dialog $errmsg
+    }
+    return
+}
+
+proc sn_invoke_browser_unix {file} {
+    global sn_options
+
+    foreach browser {"$sn_options(def,html-viewer)" firefox iceweasel} {
+        sn_log "$browser [list $file]"
+        # I have to be this convoluted because to open Konqueror we have to
+        # use a command with parameters and paths might have spaces.
+        if {![catch {eval "exec $browser [list $file] &"} errmsg]} {
+            return
+        }
+    }
+    sn_error_dialog "Browser not found."
+    return
 }
 
 # display a small window on the button of a widget to

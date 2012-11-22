@@ -190,7 +190,7 @@ set copyright "Copyright (c) 1997-2000 Red Hat, Inc.\n All rights\
 
 # So we can get away with using internal commands in Tcl/Tk 8.4
 tk::unsupported::ExposePrivateCommand *
-  
+
 #force flag
 #on windows we must force focusing the window
 #on unix, let the window manager do this.
@@ -585,8 +585,11 @@ proc sn_init_globals {} {
         set sn_options(def,grep-mark-all) 0
 
         #networking
-        sn_add_option def html-viewer "netscape -remote openURL(%s)"
-
+        if {$tcl_platform(platform) eq "windows"} {
+            sn_add_option def html-viewer default
+        } else {
+            sn_add_option def html-viewer "xdg-open"
+        }
         #option needs to be there for backward compatibility.
         set sn_options(def,send-bugs-via-mail) 0
 
