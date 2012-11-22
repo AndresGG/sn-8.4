@@ -1293,8 +1293,8 @@ proc add_more_cb {dirfr} {
     if {[itcl::find object $obj] == $obj} {
         itcl::delete object $obj
     }
-    LabelEntryButton& ${newdir} -text [get_indep String AddDirectory]\
-      -labelwidth ${lblwidth} -directory 1 -anchor nw -width 40 \
+     labelentrybutton::labelentrybutton ${newdir} -text [get_indep String AddDirectory]\
+      -labelwidth ${lblwidth} -directory 1 -anchor nw -width 50 \
       -variable sn_newargs(add,$tkeWinNumber) -native 1\
       -buttonballoon [get_indep String ChooseINFO]\
       -state $sn_newargs(have-import-file)
@@ -1327,17 +1327,17 @@ proc add_checkbuttons_to_fastcreate_dialog {w} {
         set variables [list sn_options(both,xref-create)]
     }
 
-    frame ${w}.dirs
+    ttk::frame ${w}.dirs
 
     #Projectname with full path (save dialog)
     set obj ${dirfr}.prjname
     if {[itcl::find object $obj] == $obj} {
         itcl::delete object $obj
     }
-    LabelEntryButton& $obj -text [get_indep String ProjectName]\
+    labelentrybutton::labelentrybutton $obj -text [get_indep String ProjectName]\
       -labelwidth ${lblwidth} -save_open "save"\
       -extensions $sn_options(project_extensions) -defaultextension ".proj"\
-      -anchor nw -width 40 -variable sn_newargs(path) -native 1\
+      -anchor w -width 50 -variable sn_newargs(path) \
       -buttonballoon [get_indep String ChooseINFO]
     pack ${dirfr}.prjname -side top -anchor nw -fill x
 
@@ -1353,23 +1353,25 @@ proc add_checkbuttons_to_fastcreate_dialog {w} {
 
     #no "more" button, when -import is specified
     if {$sn_newargs(have-import-file) == "normal"} {
-        frame ${w}.more
-        button ${w}.more.more -text [get_indep String more] -command\
+        ttk::frame ${w}.more
+        ttk::button ${w}.more.more -text [get_indep String more] -command\
           " add_more_cb ${w}.dirs " -state $sn_newargs(have-import-file)
     }
 
     if {[itcl::find object ${w}.checkbtns] == "${w}.checkbtns"} {
         itcl::delete object ${w}.checkbtns
     }
-    CheckButton& ${w}.checkbtns -labels ${labels} -balloons ${balloons}\
-      -values ${values} -variables ${variables} -label ""
+    checklist::checklist ${w}.checkbtns -labels ${labels} -balloons ${balloons}\
+      -values ${values} -variables ${variables}
 
-    pack ${w}.checkbtns -in ${w}.top -side bottom -fill x -padx 10m -pady 3m
+    pack ${w}.checkbtns -side bottom -fill x
+
     if {$sn_newargs(have-import-file) == "normal"} {
-        pack ${w}.more.more -side top -anchor nw
-        pack ${w}.more -in ${w}.top -fill x -side bottom -padx 10m -pady 3m
+        pack ${w}.more.more -side top -anchor nw -pady 25
+        pack ${w}.more -fill x -side bottom
     }
-    pack ${dirfr} -in ${w}.top -side bottom -fill x -padx 10m -pady 3m
+
+    pack ${dirfr} -side bottom -fill x
 }
 
 proc sn_constructe_name {{path ""}} {
@@ -1485,7 +1487,7 @@ proc sn_create_new_project {{import_file ""}} {
               [sn_build_project_filename $sn_options(sys,project-dir)\
               $sn_arguments(projectfile)]
         } else {
-            sn_error_dialog [format [get_indep String WrongProjectName]\
+            sn_error_dialog . [format [get_indep String WrongProjectName]\
               $sn_arguments(projectfile)]
             return 0
         }
@@ -1500,7 +1502,7 @@ proc sn_create_new_project {{import_file ""}} {
         if {[file isdirectory $sn_arguments(databasedir)] || ${ret}} {
             set sn_options(both,db-directory) $sn_arguments(databasedir)
         } else {
-            sn_error_dialog [format [get_indep String WrongDatabaseDirectory]\
+            sn_error_dialog . [format [get_indep String WrongDatabaseDirectory]\
               $sn_arguments(databasedir)]
             return 0
         }
@@ -1515,14 +1517,14 @@ proc sn_create_new_project {{import_file ""}} {
     set fil_list [list]
     if {${import_file} != ""} {
         if {![file exists $import_file]} {
-	    sn_error_dialog [format \
+	    sn_error_dialog . [format \
 		    [get_indep String ErrorImportFileDoesNotExists] \
 		    $import_file]
             sn_exit
 	}
 
 	if {[file isdirectory $import_file]} {
-	    sn_error_dialog [format \
+	    sn_error_dialog . [format \
 		   [get_indep String ErrorImportFileIsADirectory] $import_file]
 	    sn_exit
 	}
@@ -1576,18 +1578,20 @@ proc sn_create_new_project {{import_file ""}} {
     set sn_options(def,scan-recursive) -1
     if {! [sn_batch_mode]} {
         foreach obj [itcl::find objects .newprj-dlg.*] {
-# FIXME : We need to turn this mess into an itk component!!!!
             itcl::delete object $obj
         }
         foreach aname [array names sn_newargs "add,*"] {
             catch {unset sn_newargs(${aname})}
         }
-        set answer [tk_dialog_with_widgets .newprj-dlg [get_indep String\
-          FastCreateProject] "[get_indep String FastCreateProjectQuestion]"\
-          question_image 0 add_checkbuttons_to_fastcreate_dialog\
-          [get_indep String Ok] [get_indep String ProjectEditor]\
-          [get_indep String Cancel]]
-
+        set answer [
+            TtkDialog::ttk_dialog_with_widgets .newprj-dlg                      \
+                    [get_indep String FastCreateProject]                        \
+                    "[get_indep String FastCreateProjectQuestion]"              \
+                    question ok cancel add_checkbuttons_to_fastcreate_dialog    \
+                    [list ok projectEditor cancel]                              \
+                    [list [get_indep String Ok] [get_indep String ProjectEditor]\
+                    [get_indep String Cancel]]
+        ]
         if {${answer} == 2} {
             set ProcessingCancelled 1
             return 0
@@ -1606,7 +1610,7 @@ proc sn_create_new_project {{import_file ""}} {
     #directory doesn't exist
     if {![file exists $sn_options(sys,project-dir)] || ![file isdirectory\
       $sn_options(sys,project-dir)]} {
-        sn_error_dialog [format [get_indep String UnknownDir]\
+        sn_error_dialog . [format [get_indep String UnknownDir]\
           $sn_options(sys,project-dir)]
         set ProcessingCancelled 1
         return 0
@@ -1619,7 +1623,7 @@ proc sn_create_new_project {{import_file ""}} {
         }
 	# Bail out if import dir does not exist!
 	if {![file isdirectory $sn_newargs(${aname})]} {		     
-	    sn_error_dialog [format [get_indep String UnknownDir]\
+	    sn_error_dialog . [format [get_indep String UnknownDir]\
 	        $sn_newargs(${aname})]
 	    set ProcessingCancelled 1
 	    return 0
@@ -1705,13 +1709,15 @@ proc sn_create_new_project {{import_file ""}} {
 
                 if {[llength ${dirs}] > 1 || $sn_newargs(old-dir) !=\
                   $sn_newargs(${dirname})} {
-                    set answer [tk_dialog .ask-info [get_indep String\
-                      ProjectEditor] "[get_indep String\
-                      YouHaveAddedSomeDirectories]:\n[join ${dirs}\
-                      \n]\n[get_indep String DoYouWantToInitProjEditor]"\
-                      question_image 0 [get_indep String Yes]\
-                      [get_indep String No]]
-                    if {${answer} == 0} {
+                    set answer [
+                        TileDialog::tile_messageBox .ask-info                     \
+                                -title [get_indep String ProjectEditor]           \
+                                -message "[get_indep String\
+                                YouHaveAddedSomeDirectories]:\n[join ${dirs}      \
+                                \n]\n[get_indep String DoYouWantToInitProjEditor]"\
+                                -icon question -type yesno
+                    ]
+                    if {${answer} == "yes"} {
 
                         sn_loading_message
 
@@ -1775,7 +1781,7 @@ proc sn_create_new_project {{import_file ""}} {
     #change to choosen directory, if we could !!
     set ret [catch {cd $sn_options(sys,project-dir)} err]
     if {${ret}} {
-        sn_error_dialog ${err}
+        sn_error_dialog . ${err}
         set ProcessingCancelled 1
         return 0
     }
@@ -1946,21 +1952,9 @@ proc sn_create_new_project {{import_file ""}} {
     # be mapped. This avoids a problem under Windown 95/98
     # where there is a long pause between the time the
     # file scanning is done and the symbol browser shows up.
-    #
-    # This delay causes the batch mode to stop prematurely,
-    # without creating the xref tables. (reason?)
-    # Therefore, I removed it again (Bart Van Rompaey - 
-    # bart.vanrompaey2@ua.ac.be)
-    
-    # quick fix: dont build xref when cmdline says so
-    if {$sn_options(def,xref-skip)} {
-    	set xfer_file ""
-    }
-    
     if {${xfer_file} != "" && [file exists ${xfer_file}] && [file size\
       ${xfer_file}] > 0} {
-        #after 1000 [list sn_load_xref ${xfer_file} ${cbrowser_xref}]
-        sn_load_xref ${xfer_file} ${cbrowser_xref}
+        after 1000 [list sn_load_xref ${xfer_file} ${cbrowser_xref}]
     }
 
     catch {paf_db_proj sync}
