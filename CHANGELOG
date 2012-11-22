@@ -1,3 +1,4 @@
+(ENHANCE) Ported the 'new project' dialog to use Ttl widgets
 (ENHANCE) Update the project management window to use Ttk widgets
 (INTERNAL) Add tile extension for Ttk widgets support
 (INTERNAL) Update tkTable to version 2.10

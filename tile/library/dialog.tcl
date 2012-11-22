@@ -27,7 +27,7 @@ namespace eval ttk::dialog {
     set Config(margin)		12	;# space between icon and text
     set Config(interspace)	6	;# horizontal space between buttons
     set Config(sepspace) 	24	;# vertical space above buttons
-    set Config(textwidth) 	400	;# width of dialog box text (pixels)
+    set Config(textwidth) 	600	;# width of dialog box text (pixels). Changed for SN
 
     variable DialogTypes	;# map -type => list of dialog options
     variable ButtonOptions	;# map button name => list of button options

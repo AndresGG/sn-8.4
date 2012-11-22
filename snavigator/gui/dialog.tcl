@@ -379,7 +379,6 @@ proc tk_dialog_with_widgets {w title text bitmap default create_widgets args} {
     }
 }
 
-
 itcl::class sourcenav::Dialog {
     inherit sourcenav::Window
 
@@ -529,3 +528,113 @@ itcl::body sourcenav::Dialog::deactivate { args } {
     set _result $args
     return
 }
+
+namespace eval TtkDialog {
+
+################################################################################
+# Callback
+#     Ttk dialogs require a callback to process the pressed button, this is it.
+#
+# Parameter
+#     button: The pressed button.
+#
+# Side effect
+#     Puts in TtkDialog::pressedButton the right value
+################################################################################
+proc Callback {button} {
+    variable pressedButton
+    variable buttonList
+
+    if {$buttonList==""} {
+        set pressedButton $button
+    } else {
+        set pressedButton [lsearch $buttonList $button]
+    }
+
+    return
+}
+
+################################################################################
+# ttk_dialog_with_widgets:
+#
+# This procedure displays a dialog box, with some extra widgets, waits for
+# a button in the dialog to be invoked, then returns the index of the
+# selected button.
+#
+# Arguments:
+# w             -       Window to use for dialog top-level.
+# title         -       Title to display in dialog's decorative.
+# text          -       Message to display in dialog.
+# icon          -       Bitmap to display in dialog (empty string means none).
+# default       -       Name of the button that is to display the default ring
+#                       ("" means none).
+# cancel        -       Name of the button whose index will be returned if the
+#               -       user hits the Esc key.
+# createWidgetsCmd -    Command to be called, to create new addional widgets or
+#                       to manipulate existing behavior.
+# buttons       -       Symbolic names for the buttons.
+# labels        -       One or more strings to display in buttons across the
+#                       bottom of the dialog box.
+################################################################################
+proc ttk_dialog_with_widgets {w title text icon default cancel createWidgetsCmd buttons labels} {
+    variable buttonList
+    variable pressedButton
+
+    set buttonList $buttons
+
+    set mix ""
+    foreach name $buttons string $labels {
+        lappend mix $name $string
+    }
+
+    ttk::dialog $w -title $title -message $text -icon $icon  -parent ""       \
+            -default $default -cancel $cancel  -buttons $buttons -labels $mix \
+            -command TtkDialog::Callback
+
+    set widgetFrame [ttk::dialog::clientframe $w]
+
+    eval $createWidgetsCmd $widgetFrame
+
+    if {![winfo viewable $w]} {
+      tkwait visibility $w
+    }
+
+    CenterDialog $w
+
+    tkwait variable TtkDialog::pressedButton
+
+    return $pressedButton
+}
+
+#################################################################################
+# CenterDialog
+#    Centers the given toplevel in the screen.
+#
+# Parameter
+#    top: Toplevel to center.
+#################################################################################
+proc CenterDialog {top} {
+
+    wm withdraw $top
+    update idletasks
+
+    set width  [winfo reqwidth  $top]
+    set height [winfo reqheight $top]
+
+    set screenWidth  [winfo screenwidth  .]
+    set screenHeight [winfo screenheight .]
+
+    set x [expr ($screenWidth  / 2) - ($width /2)]
+    set y [expr ($screenHeight / 2) - ($height /2)]
+
+    wm deiconify $top
+    wm geometry $top +$x+$y
+    update idletasks
+
+    return
+}
+
+}
+
+
+

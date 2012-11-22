@@ -1118,3 +1118,271 @@ itcl::class Color& {
     public variable schemes ""
 }
 
+################################################################################
+#
+# Checklist a namespace to manage a list of related checkbuttons
+#
+################################################################################
+namespace eval checklist {
+
+
+proc checklist {w args} {
+    variable ckArgs
+
+    ttk::frame $w
+
+    ParseArguments $w args
+
+    set lb [ttk::label $w.label -underline $ckArgs(-underline) \
+            -text $ckArgs(-text) -width $ckArgs(-labelwidth)   \
+            -anchor $ckArgs(-anchor)]
+    pack $lb -side $ckArgs(-side) -fill x -expand n
+
+    set i 0
+    foreach lab $ckArgs(-labels)   var $ckArgs(-variables) \
+            bal $ckArgs(-balloons) val $ckArgs(-values)    \
+            und $ckArgs(-underline) {
+        if {${var} == ""} {
+            set var ${w}-${i}
+        }
+        if {${val} != ""} {
+            set onval  [lindex ${val} 0]
+            set offval [lindex ${val} 1]
+        } else {
+            set onval 1
+            set offval 0
+        }
+        if {${und} == ""} {
+            set und -1
+        }
+        ttk::checkbutton ${w}.check-${i} -text ${lab} -variable ${var}   \
+                -onvalue ${onval} -offvalue ${offval}                    \
+                -underline ${und} -state $ckArgs(-state)
+        pack ${w}.check-${i} -side $ckArgs(-side) -fill x                \
+                -expand $ckArgs(-expand) -anchor $ckArgs(-anchor)        \
+                -padx $ckArgs(-padx)
+
+        if {$ckArgs(-command) != ""} {
+            ${w}.check-${i} configure -command " eval $ckArgs(-command) "
+        }
+        if {${bal} != ""} {
+            balloon_bind_info ${w}.check-${i} ${bal}
+        }
+        incr i
+    }
+    #when only a checkbutton is availiable and doesn't
+    #have text, underline text widget.
+    if {$ckArgs(-labelunderline) == -1 && ${i} == 1 && ${lab} == ""} {
+        $w.label configure -underline $ckArgs(-underline)
+    }
+    return $w
+}
+
+################################################################################
+# ParseArguements
+#    Command to parse the options for the checklist.
+#
+# Parameters:
+#    w: Path to the checklist.
+#    parameters: The arguments to parse.
+################################################################################
+proc ParseArguments {w parameters} {
+    variable ckArgs
+
+    upvar $parameters args
+
+    set ckArgs(-width)             20
+    set ckArgs(-labelwidth)        20
+    set ckArgs(-state)             normal
+    set ckArgs(-labelunderline)   -1
+
+    set ckArgs(-anchor)            w
+    set ckArgs(-text)              ""
+    set ckArgs(-textvariable)      radiolist::${w}.textvariable
+
+    set ckArgs(-side)              left
+    set ckArgs(-fill)              both
+    set ckArgs(-expand)            0
+    set ckArgs(-padx)              {0 15}
+
+    set ckArgs(-balloons)          ""
+
+    set ckArgs(-labels)            ""
+    set ckArgs(-values)            ""
+    set ckArgs(-underline)         -1
+
+    set ckArgs(-variables)          ""
+    set ckArgs(-command)           ""
+
+    array set ckArgs $args
+
+    return
+}
+
+}
+
+###############################################################################
+# labelentrybutton
+#   A namespace to manage a megawidget made with, well, I'll let you guess
+###############################################################################
+namespace eval labelentrybutton {
+
+proc labelentrybutton {w args} {
+    global sn_options
+    variable lebArgs
+
+    ttk::frame $w
+    ParseArguments $w args
+
+    ttk::label $w.label -width $lebArgs($w,-labelwidth) -anchor $lebArgs($w,-anchor) \
+            -text $lebArgs($w,-text)
+    ttk::entry $w.entry -width $lebArgs($w,-width) -state $lebArgs($w,-state)        \
+            -textvariable $lebArgs($w,-variable)
+    ttk::button $w.button -text "..." -width 4  -state $lebArgs($w,-state)        \
+            -command $lebArgs($w,-command)
+
+    if {$lebArgs($w,-balloon) != ""} {
+        balloon_bind_info $w.button $lebArgs($w,-balloon)
+    }
+
+    # If no -command is set then bind the button to a
+    # file selection dialog.
+    if {$lebArgs($w,-command) == ""} {
+        $w.button configure -command "
+            labelentrybutton::select_file $w $lebArgs($w,-directory)
+        "
+    }
+
+    pack $w.label  -side left -fill x
+    pack $w.entry  -side left -fill both -expand y
+    pack $w.button -side left -fill x -padx {5 0}
+
+
+    rename ::$w $w
+    eval {
+        proc "::$w" {command args} {
+            ::labelentrybutton::lebcmd [lindex [info level 0] 0] $command $args
+        }
+    }
+    return
+}
+
+################################################################################
+# ParseArguments
+#    Command to parse the options for the labelentrybutton.
+#
+# Parameters:
+#    w: Path to the labelentrybytton.
+#    parameters: The arguments to parse.
+################################################################################
+proc ParseArguments {w parameters} {
+    variable lebArgs
+
+    upvar $parameters args
+
+    set lebArgs($w,-width)             20
+    set lebArgs($w,-labelwidth)        20
+    set lebArgs($w,-state)             normal
+    set lebArgs($w,-underline)        -1
+
+    set lebArgs($w,-anchor)            w
+    set lebArgs($w,-text)              ""
+    set lebArgs($w,-variable)          labelentrybutton::${w}.textvariable
+
+    set lebArgs($w,-directory)         0
+
+    set lebArgs($w,-expand)            0
+    set lebArgs($w,-padx)              {0 15}
+
+    set lebArgs($w,-balloon)           ""
+    set lebArgs($w,-command)           ""
+
+    set lebArgs($w,-save_open)         open
+    set lebArgs($w,-defaultextension)  ""
+    set lebArgs($w,-extensions)        ""
+
+    for {set i 0;set n [llength $args]} {$i<$n} {} {
+        set lebArgs($w,[lindex $args $i]) [lindex $args [incr i]]
+    }
+    return
+}
+
+################################################################################
+# lebcmd
+#    Invoked when the command associated to the labelentrybutton pseudowidget 
+#    is used.
+#
+# Parameters:
+#    w: Path to the labelentrybutton.
+#    command: The command used: 'configure', 'cget', 'set' or 'get'.
+#    args: The parameters for the command.
+################################################################################
+proc lebcmd {w command args} {
+
+    set state [lindex [lindex $args 0] 1]
+    switch -exact -- $command {
+        configure {
+            $w.button configure -state $state
+            $w.entry  configure -state $state
+        }
+        cget {
+            return [$w.entry cget -state $arg]
+        }
+        set {
+            $w.entry delete 0 end
+            $w.entry insert 0 $args
+        }
+        get {
+            set var [$w.entry cget -textvariable]
+            return [set $var]
+        }
+        default {
+            puts "We need another command for lebs: $command"
+        }
+    }
+    return
+}
+
+################################################################################
+# select_file
+#    The default action for the button is to choose a file or directory.
+#
+# Parameters:
+#    w: Path to the labelentrybutton.
+#    directory: '1' if we want a directory.
+################################################################################
+proc select_file {w directory} {
+    variable lebArgs
+
+    set var [$w.entry get]
+    if {$var != ""} {
+        set inifile [file tail $var]
+        if {$directory && [file isdirectory $var]} {
+            set inidir $var
+        } else {
+            set inidir [file dirname $var]
+        }
+    } else {
+        set inifile ""
+        set inidir ""
+    }
+    if {$directory} {
+        Editor&::DirDialog [winfo toplevel $w]                    \
+                -title [get_indep String Open]                    \
+                -script "$w set"                                  \
+                -dir $inidir
+    } else {
+        Editor&::FileDialog [winfo toplevel $w]                             \
+                -title  [get_indep String Open]                             \
+                -save_open $lebArgs($w,-save_open)                          \
+                -script "$w set"                                            \
+                -defaultextension $lebArgs($w,-defaultextension)            \
+                -extensions $lebArgs($w,-extensions) -initialdir ${inidir}  \
+                -initialfile ${inifile}
+    }
+    return
+}
+}
+
+
+
