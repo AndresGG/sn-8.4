@@ -35,19 +35,23 @@ proc display_bug_report {err info} {
 
     sourcenav::Window ${w}
     ${w} configure -title [get_indep String Error] -iconname \
-        [get_indep String Error] -borderwidth 3
+        [get_indep String Error] 
 
-    set l [label ${w}.errorlab -text [get_indep String ErrorOccured]]
-    set f [frame ${w}.textframe]
-    set button [button ${w}.button -text [get_indep String ButtonDismiss] \
+    set exF [ttk::frame ${w}.exF]
+    set l [ttk::label $exF.errorlab -text [get_indep String ErrorOccured]]
+    set f [ttk::frame $exF.textframe]
+    set button [ttk::button $exF.button -text [get_indep String ButtonDismiss] \
         -command [list itcl::delete object ${w}]]
 
+    grid $exF -ipadx 3 -ipady 3 -sticky news
     grid $l -row 0 -column 0 -sticky w
     grid $f -row 1 -column 0 -sticky news 
-    grid $button -row 2 -column 0
+    grid $button -row 2 -column 0 -pady 3
 
-    grid rowconfigure ${w} 1 -weight 1
+    grid rowconfigure    ${w} 0 -weight 1
     grid columnconfigure ${w} 0 -weight 1
+    grid rowconfigure    $exF 1 -weight 1
+    grid columnconfigure $exF 0 -weight 1
 
     set text [text ${f}.text -relief sunken -bd 2 \
         -xscrollcommand [list ${f}.xscroll set] \
@@ -56,18 +60,21 @@ proc display_bug_report {err info} {
     $text insert 0.0 ${info}
     $text mark set insert 0.0
 
-    set xscroll [scrollbar ${f}.xscroll -orient horizontal \
+    set xscroll [ttk::scrollbar ${f}.xscroll -orient horizontal \
         -command [list ${f}.text xview]]
-    set yscroll [scrollbar ${f}.yscroll -orient vertical \
+    set yscroll [ttk::scrollbar ${f}.yscroll -orient vertical \
         -command [list ${f}.text yview]]
 
-    grid ${text} -row 0 -column 0 -sticky news
+    grid ${text}    -row 0 -column 0 -sticky news
     grid ${xscroll} -row 1 -column 0 -sticky we
     grid ${yscroll} -row 0 -column 1 -sticky ns
 
-    grid rowconfigure ${f} 0 -weight 1
+    grid rowconfigure    ${f} 0 -weight 1
     grid columnconfigure ${f} 0 -weight 1
+
+    focus $button
 
     ${w} centerOnScreen
     ${w} grab set
 }
+
