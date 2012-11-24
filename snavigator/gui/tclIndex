@@ -756,5 +756,6 @@ set auto_index(::labelentrybutton::labelentrybutton) [list source [file join $di
 set auto_index(::labelentrybutton::ParseArguments) [list source [file join $dir tools.tcl]]
 set auto_index(::labelentrybutton::lebcmd) [list source [file join $dir tools.tcl]]
 set auto_index(::labelentrybutton::select_file) [list source [file join $dir tools.tcl]]
+set auto_index(::TtkDialog::MessageBox) [list source [file join $dir dialog.tcl]]
 set auto_index(::TtkDialog::ttk_dialog_with_widgets) [list source [file join $dir dialog.tcl]]
-set auto_index(::TileDialog::CenterDialog) [list source [file join $dir dialog.tcl]]
+set auto_index(::TtkDialog::CenterDialog) [list source [file join $dir dialog.tcl]]

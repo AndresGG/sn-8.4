@@ -94,10 +94,12 @@ proc sn_delete_project {prjname {ask ""}} {
     global sn_options
 
     if {${ask} != ""} {
-        set answer [tk_dialog auto [get_indep String ProjectDelete]\
-          "[get_indep String DeleteProjectQuestion] \"${prjname}\" ?"\
-          question_image 0 [get_indep String Yes] [get_indep String No]]
-        if {${answer} != 0} {
+        set answer [
+            TtkDialog::MessageBox .ques -title [get_indep String ProjectDelete]   \
+                    -message "[get_indep String DeleteProjectQuestion] \"${prjname}\" ?"\
+                    -icon question -type yesno -parent ""
+        ]
+        if {${answer} ne "yes"} {
             return -1
         }
     }

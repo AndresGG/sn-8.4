@@ -555,6 +555,40 @@ proc Callback {button} {
 }
 
 ################################################################################
+# MessageBox
+#     Invokes the ttk::dialog proc in Unix, and Tk's one in Mac and Win.
+#     It tries to be an "almost" drop-in replacement for tk_messageBox.
+#
+# Parameters
+#     args: The pameters to pass to the real dialog command.
+#
+# Returns:
+#     The pressed button.
+################################################################################
+proc MessageBox {args} {
+    variable pressedButton
+    variable buttonList
+
+    if {[tk windowingsystem] ne "x11"} {
+        return [eval tk_messageBox [lrange $args 1 end]]
+    }
+    set path [lindex $args 0]
+    if {[regsub {\.\.} $path {.} path]} {
+        lappend args "-parent {}"
+    }
+
+    set buttonList ""
+    eval ttk::dialog $path [lrange $args 1 end]   \
+            -command TtkDialog::Callback
+
+    CenterDialog $path
+
+    tkwait variable TtkDialog::pressedButton
+
+    return $pressedButton
+}
+
+################################################################################
 # ttk_dialog_with_widgets:
 #
 # This procedure displays a dialog box, with some extra widgets, waits for
