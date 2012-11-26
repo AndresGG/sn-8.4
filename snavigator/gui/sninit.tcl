@@ -212,6 +212,7 @@ catch {
 	}
     }
 }  
+
 #force flag
 #on windows we must force focusing the window
 #on unix, let the window manager do this.
@@ -268,11 +269,11 @@ proc init_some_font_attributes {} {
         set sn_options(def,layout-fg) SystemMenuText
         set sn_options(def,layout-bg) SystemMenu
     } else {
-        set sn_options(def,font-family) "Adobe"
+        set sn_options(def,font-family) [font actual TkDefaultFont -family]
         set sn_options(def,font-size) "120"
         set sn_options(def,balloon-font-size) "100"
         set sn_options(def,layout-font)\
-          "-$sn_options(def,font-family)-Helvetica-Medium-R-Normal--*-$sn_options(def,font-size)-*-*-*-*-iso8859-1"
+          "-*-$sn_options(def,font-family)-Medium-R-Normal--*-$sn_options(def,font-size)-*-*-*-*-iso8859-1"
         set sn_options(def,layout-fg) black
         #darkgray
         set sn_options(def,layout-bg) "#e0e0e0"
@@ -387,7 +388,7 @@ proc sn_init_globals {} {
             set sn_options(def,highlight-bg) SystemWindow
         } else {
             set sn_options(def,default-font)\
-              "-$sn_options(def,font-family)-Courier-Medium-R-Normal--*-$sn_options(def,font-size)-*-*-*-*-iso8859-1"
+              "-*-$sn_options(def,font-family)-Medium-R-Normal--*-$sn_options(def,font-size)-*-*-*-*-iso8859-1"
             set sn_options(def,default-fg) black
             set sn_options(def,default-bg) white
             set sn_options(def,highlight-fg) black
@@ -406,8 +407,7 @@ proc sn_init_globals {} {
         } else {
             #bold font
             set sn_options(def,bold-font)\
-              "-$sn_options(def,font-family)-Courier-Bold-R-Normal--*-$sn_options(def,font-size)-*-*-*-*-iso8859-1"
-
+              "-*-$sn_options(def,font-family)-Bold-R-Normal--*-$sn_options(def,font-size)-*-*-*-*-iso8859-1"
             if {$sn_options(iscolor)} {
                 set sn_options(def,select-fg) black
                 set sn_options(def,select-bg) "#d2d2ea"
@@ -435,7 +435,7 @@ proc sn_init_globals {} {
             set sn_options(def,balloon-bg) SystemInfoBackground
         } else {
             set sn_options(def,balloon-font)\
-              "-*-Helvetica-Medium-R-Normal--*-$sn_options(def,balloon-font-size)-*-*-*-*-iso8859-1"
+              "-*-*-Medium-R-Normal--*-$sn_options(def,balloon-font-size)-*-*-*-*-iso8859-1"
             set sn_options(def,balloon-fg) "#000000"
             set sn_options(def,balloon-bg) "#d2d2ea"
         }
@@ -468,7 +468,9 @@ proc sn_init_globals {} {
             set sn_options(def,edit-fg) SystemWindowText
             set sn_options(def,edit-bg) SystemWindow
         } else {
-            set sn_options(def,edit-font) $sn_options(def,default-font)
+#FIXME: A total kludge but TkFixedFont falls back to a non-fixed font
+            set sn_options(def,edit-font) \
+                    "-*-Monospace-Medium-R-Normal--*-$sn_options(def,font-size)-*-*-*-*-iso8859-1"
             set sn_options(def,edit-fg) black
             set sn_options(def,edit-bg) white
         }
@@ -606,8 +608,11 @@ proc sn_init_globals {} {
         set sn_options(def,grep-mark-all) 0
 
         #networking
-        sn_add_option def html-viewer "netscape -remote openURL(%s)"
-
+        if {$tcl_platform(platform) eq "windows"} {
+            sn_add_option def html-viewer default
+        } else {
+            sn_add_option def html-viewer "xdg-open"
+        }
         #option needs to be there for backward compatibility.
         set sn_options(def,send-bugs-via-mail) 0
 
@@ -956,7 +961,7 @@ proc sn_tcl_tk_init {} {
         set env(USERNAME) $env(LOGNAME)
         set sn_options(def,font-family) "*"
     } else {
-        set sn_options(def,font-family) "Adobe"
+        set sn_options(def,font-family) [font actual TkDefaultFont -family]
     }
 
     set tkPriv(oldGrab) ""

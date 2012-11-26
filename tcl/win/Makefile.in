@@ -442,7 +442,7 @@ install-binaries: binaries
 	    do \
 	    if [ ! -d $(LIB_INSTALL_DIR)/$$i ] ; then \
 		echo "Making directory $(LIB_INSTALL_DIR)/$$i"; \
-		$(MKDIR) $(LIB_INSTALL_DIR)/$$i; \
+		$(MKDIR) $(TCL_LIBRARY)/$$i; \
 		else true; \
 		fi; \
 	    done;
@@ -462,23 +462,23 @@ install-binaries: binaries
 	    done
 	@if [ -f $(DDE_DLL_FILE) ]; then \
 	    echo installing $(DDE_DLL_FILE); \
-	    $(COPY) $(DDE_DLL_FILE) $(LIB_INSTALL_DIR)/dde1.2; \
+	    $(COPY) $(DDE_DLL_FILE) $(TCL_LIBRARY)/dde1.2; \
 	    $(COPY) $(ROOT_DIR)/library/dde/pkgIndex.tcl \
-		$(LIB_INSTALL_DIR)/dde1.2; \
+		$(TCL_LIBRARY)/dde1.2; \
 	    fi
 	@if [ -f $(DDE_LIB_FILE) ]; then \
 	    echo installing $(DDE_LIB_FILE); \
-	    $(COPY) $(DDE_LIB_FILE) $(LIB_INSTALL_DIR)/dde1.2; \
+	    $(COPY) $(DDE_LIB_FILE) $(TCL_LIBRARY)/dde1.2; \
 	    fi
 	@if [ -f $(REG_DLL_FILE) ]; then \
 	    echo installing $(REG_DLL_FILE); \
-	    $(COPY) $(REG_DLL_FILE) $(LIB_INSTALL_DIR)/reg1.1; \
+	    $(COPY) $(REG_DLL_FILE) $(TCL_LIBRARY)/reg1.1; \
 	    $(COPY) $(ROOT_DIR)/library/reg/pkgIndex.tcl \
-		$(LIB_INSTALL_DIR)/reg1.1; \
+		$(TCL_LIBRARY)/reg1.1; \
 	    fi
 	@if [ -f $(REG_LIB_FILE) ]; then \
 	    echo installing $(REG_LIB_FILE); \
-	    $(COPY) $(REG_LIB_FILE) $(LIB_INSTALL_DIR)/reg1.1; \
+	    $(COPY) $(REG_LIB_FILE) $(TCL_LIBRARY)/reg1.1; \
 	    fi
 
 install-libraries: libraries
