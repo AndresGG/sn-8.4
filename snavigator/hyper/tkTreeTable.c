@@ -7032,8 +7032,9 @@ TreeTableUpdateVScrollbar(
      )
 {
     char string[60];
-    int result, last;
+    int result;
     int count;
+    double first,last;
 	
     if (tablePtr->yScrollCmd == NULL)
 	{
@@ -7044,17 +7045,16 @@ TreeTableUpdateVScrollbar(
     last = tablePtr->topIndex + tablePtr->numLines - 1;
     if (last >= count)
 	{
-        last = count-1;
+        last = 1.0;
 	}
     if (last < tablePtr->topIndex)
 	{
         last = tablePtr->topIndex;
 	}
-    sprintf(string, " %d %d %d %d",
-    	    count,
-			tablePtr->numLines,
-            tablePtr->topIndex,
-			last);
+
+    sprintf(string, " %f %f",
+            ((double)tablePtr->topIndex/(double)count),
+			(last/(double)count));
 	
     Tcl_Preserve((ClientData) tablePtr->interp);
     result = Tcl_VarEval(tablePtr->interp, tablePtr->yScrollCmd, string,
