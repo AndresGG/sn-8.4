@@ -130,6 +130,67 @@ proc tk_dialog {w title text bitmap default args} {
 # This procedure creates buttons in a frame.
 #
 # Arguments:
+# w -           Frame for buttons.
+# default -     Index of button that is to display the default ring
+#               (-1 means none).
+# pos -         top, bottom ...
+# args -        One or more strings to display in buttons across the
+#               bottom of the dialog box.
+proc sn_ttk_buttons {frm pos default args} {
+    global tcl_platform
+    if {${frm} == "."} {
+        set w ""
+    } else {
+        set w ${frm}
+    }
+
+    ttk::frame ${w}.button
+    if {$tcl_platform(platform) == "windows"} {
+        pack ${w}.button -side ${pos} -fill both -padx 5 -pady 5
+    } else {
+        pack ${w}.button -side ${pos} -fill both
+    }
+
+    #expand the width of the buttons
+    set len 10
+    foreach but ${args} {
+        set ll [string length ${but}]
+        if {${ll} < 14 && ${len} < ${ll}} {
+            set len ${ll}
+        }
+    }
+
+    set i 0
+    foreach but ${args} {
+        set cmd [list ttk::button ${w}.button_${i}]
+        if {[string index ${but} 0] == "@"} {
+            lappend cmd -image [string range ${but} 1 end]
+        } else {
+            lappend cmd -text ${but}
+            set len [string length ${but}]
+            if {${len} <= 6 && ${len} != 0} {
+                lappend cmd -width 7
+            }
+        }
+        if {${i} == ${default}} {
+            lappend cmd -default active
+        }
+        if {[string length ${but}] < ${len}} {
+            lappend cmd -width ${len}
+        }
+
+        eval ${cmd}
+        pack ${w}.button_${i} -in ${w}.button -side left -expand 1 -padx 3\
+          -pady 2 -ipadx 1m
+
+        incr i
+    }
+}
+
+#
+# This procedure creates buttons in a frame.
+#
+# Arguments:
 # w -		Frame for buttons.
 # default -	Index of button that is to display the default ring
 #		(-1 means none).
