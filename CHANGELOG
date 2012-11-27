@@ -1,3 +1,4 @@
+(INTERNAL) Create a sn_ttk_buttons proc to substitute sn_motif_buttons
 (INTERNAL) Change the dialog that pops up with Tcl/Tk errors to Ttk
 (ENHANCE) Ported the 'delete project' question dialog to Ttk
 (ENHANCE) Ported the 'new project' dialog to use Ttk widgets

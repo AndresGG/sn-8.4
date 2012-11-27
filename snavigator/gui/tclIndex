@@ -759,3 +759,4 @@ set auto_index(::labelentrybutton::select_file) [list source [file join $dir too
 set auto_index(::TtkDialog::MessageBox) [list source [file join $dir dialog.tcl]]
 set auto_index(::TtkDialog::ttk_dialog_with_widgets) [list source [file join $dir dialog.tcl]]
 set auto_index(::TtkDialog::CenterDialog) [list source [file join $dir dialog.tcl]]
+set auto_index(sn_ttk_buttons) [list source [file join $dir dialog.tcl]]
