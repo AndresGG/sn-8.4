@@ -1710,7 +1710,7 @@ proc sn_create_new_project {{import_file ""}} {
                 if {[llength ${dirs}] > 1 || $sn_newargs(old-dir) !=\
                   $sn_newargs(${dirname})} {
                     set answer [
-                        TileDialog::tile_messageBox .ask-info                     \
+                        TtkDialog::MessageBox .ask-info                           \
                                 -title [get_indep String ProjectEditor]           \
                                 -message "[get_indep String\
                                 YouHaveAddedSomeDirectories]:\n[join ${dirs}      \

@@ -51,7 +51,7 @@ itcl::body sourcenav::DirDialog::constructor { args } {
 
     ${this} transient [winfo parent $itk_component(hull)]
 
-    sn_motif_buttons $itk_component(hull) bottom 0 [get_indep String ok]\
+    sn_ttk_buttons $itk_component(hull) bottom 0 [get_indep String ok]\
         [get_indep String cancel]
 
     set ok_button $itk_component(hull).button_0

@@ -42,7 +42,7 @@ itcl_class Tree {
 
     constructor {args} {
 	global sn_options
-	
+
 	#set up a short name for accessing real name path
 	set thisTail [namespace tail $this]
 
@@ -50,7 +50,7 @@ itcl_class Tree {
 
 	if {$withframe} {
 	    set lframe $thisTail.fr
-	    ::frame $lframe -bd 2 -relief sunken
+	    ttk::frame $lframe -bd 2 -relief sunken
 	} else {
 	    set lframe $thisTail
 	}
@@ -67,10 +67,10 @@ itcl_class Tree {
 
 	set tree $lframe.tree
 
-	scrollbar $lframe.x \
+	ttk::scrollbar $lframe.x \
     		-orient horiz \
 		-command "$tree xview"
-	scrollbar $lframe.y \
+	ttk::scrollbar $lframe.y \
     		-command "$tree yview"
 
 	treetable $tree \
