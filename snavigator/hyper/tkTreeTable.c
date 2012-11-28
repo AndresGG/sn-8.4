@@ -7033,28 +7033,22 @@ TreeTableUpdateVScrollbar(
 {
     char string[60];
     int result;
-    int count;
     double first,last;
 	
     if (tablePtr->yScrollCmd == NULL)
 	{
         return;
 	}
-    count = TreeTableCountNotHidden (tablePtr, 0);
-    
-    last = tablePtr->topIndex + tablePtr->numLines - 1;
-    if (last >= count)
-	{
-        last = 1.0;
-	}
-    if (last < tablePtr->topIndex)
-	{
-        last = tablePtr->topIndex;
+
+	if (tablePtr->numItems==0) {
+		first = 0.0;
+		last  = 1.0;
+	} else {
+	    first=(double)tablePtr->topIndex/(double)tablePtr->numItems;
+	    last=(double)(tablePtr->topIndex + tablePtr->numLines - 1)/(double)tablePtr->numItems;
 	}
 
-    sprintf(string, " %f %f",
-            ((double)tablePtr->topIndex/(double)count),
-			(last/(double)count));
+    sprintf(string, " %g %g", first, last);
 	
     Tcl_Preserve((ClientData) tablePtr->interp);
     result = Tcl_VarEval(tablePtr->interp, tablePtr->yScrollCmd, string,
