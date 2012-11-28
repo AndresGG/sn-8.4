@@ -97,7 +97,7 @@ proc sn_delete_project {prjname {ask ""}} {
         set answer [
             TtkDialog::MessageBox .ques -title [get_indep String ProjectDelete]   \
                     -message "[get_indep String DeleteProjectQuestion] \"${prjname}\" ?"\
-                    -icon question -type yesno -parent ""
+                    -icon question -type yesno -parent ".sn_open_proj"
         ]
         if {${answer} ne "yes"} {
             return -1
