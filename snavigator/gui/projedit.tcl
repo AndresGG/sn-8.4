@@ -39,9 +39,9 @@ itcl::class Project& {
 
         ${this} on_close "${this} windows_close"
 
-        set Toolbar $itk_component(hull).exp
+        set Toolbar   $itk_component(hull).exp
         set Statusbar $itk_component(hull).msg
-        set Reuse $itk_component(hull).msg.reuse
+        set Reuse     $itk_component(hull).msg.reuse
 
         #state for new project dependent widgets
         if {$itk_option(-new_project)} {
@@ -63,32 +63,29 @@ itcl::class Project& {
             set sn_newargs(path) $sn_newargs(path).proj
         }
         set prjname_Entry $itk_component(hull).prjname
-
-        LabelEntryButton& ${prjname_Entry} -text [get_indep String\
-          ProjectName] -underline [get_indep Pos ProjectName] -anchor nw\
-          -variable sn_newargs(path) -native 1 -buttonballoon\
+        labelentrybutton::labelentrybutton ${prjname_Entry} -text [get_indep String\
+          ProjectName] -underline [get_indep Pos ProjectName] -anchor w\
+          -variable sn_newargs(path) -balloon\
           [get_indep String ChooseINFO] -save_open "save"\
           -defaultextension ".proj" -extensions $sn_options(project_extensions)
 
-
-        pack ${prjname_Entry} -side top -anchor nw -fill x -padx 5 -pady 5
+        pack ${prjname_Entry} -side top -anchor nw -fill x -ipadx 5 -ipady 5
         ${prjname_Entry} configure -state ${new_state}
 
         #frame for tree & Buttons
         set treebtnsfr $itk_component(hull).treebtns
-        pack [frame ${treebtnsfr}] -side top -fill both -expand 1
+        pack [ttk::frame ${treebtnsfr}] -side top -fill both -expand 1
 
         #Tree frame
         set treefr ${treebtnsfr}.tree
-        pack [frame ${treefr}] -side left -fill both -expand 1
+        pack [ttk::frame ${treefr}] -side left -fill both -expand 1
 
         #project views
-        set Views_Combo ${treefr}.views
-        Combo& ${Views_Combo} \
-          -label [get_indep String View] -entryvariable ${this}-view\
-          -selectcommand "${this} change_view ${Views_Combo}"\
-          -postcommand "${this} post_views ${Views_Combo}" -state ${exist_state}
-        pack ${Views_Combo} -side top -fill x
+        set Views_Label [ttk::label    ${treefr}.viewslb -text "[get_indep String View]: "]
+        set Views_Combo [ttk::combobox ${treefr}.views   -textvariable ${this}-view\
+          -postcommand "${this} post_views ${treefr}.views" -state ${exist_state}]
+ 
+        bind $Views_Combo <<ComboboxSelected>> "${this} change_view ${Views_Combo}"
 
         #Project tree
         set tree ${treefr}.tree
@@ -100,8 +97,16 @@ itcl::class Project& {
           -selectforeground $sn_options(def,select-fg)\
           -selectbackground $sn_options(def,select-bg) -plusimage plus_image\
           -minusimage minus_image
-        #		-hiddenimage dir+_image
-        pack ${tree} -side top -fill both -expand 1
+
+        grid ${Views_Label} ${Views_Combo} -sticky new -pady 2
+        grid ${tree} -sticky news
+
+        grid rowconfigure     ${treefr} 0 -weight 0
+        grid rowconfigure     ${treefr} 1 -weight 1
+        grid columnconfigure  ${treefr} 0 -weight 0
+        grid columnconfigure  ${treefr} 1 -weight 1
+        grid configure        ${tree}     -columnspan 2
+
         set treew [${tree} tree]
 
         ${tree} treebind <1> "${this} tree_toggle %W %x %y"
@@ -114,29 +119,29 @@ itcl::class Project& {
 
         #Buttons frame
         set btnsfr ${treebtnsfr}.btns
-        pack [frame ${btnsfr}] -side right -fill y -padx 5 -pady 5
+        pack [ttk::frame ${btnsfr}] -side right -fill y -padx 5 -pady 5
 
         #file commands frame
         set filefr ${treebtnsfr}.btns.file
-        pack [frame ${filefr}] -side left -fill y -padx 5 -pady 5
+        pack [ttk::frame ${filefr}] -side left -fill y -padx 5 -pady 5
 
         #View button
-        button ${filefr}.view -text [get_indep String View]\
+        ttk::button ${filefr}.view -text [get_indep String View]\
           -underline [get_indep Pos View] -state disabled -command "${this} hide_view_unload_files View \[${treew} curselection\]"
         balloon_bind_info ${filefr}.view [get_indep String ViewINFO]
 
         #hide button
-        button ${filefr}.hide -text [get_indep String Hide]\
+        ttk::button ${filefr}.hide -text [get_indep String Hide]\
           -underline [get_indep Pos Hide] -state disabled -command "${this} hide_view_unload_files Hide \[${treew} curselection\]"
         balloon_bind_info ${filefr}.hide [get_indep String HideINFO]
 
         #unload button
-        button ${filefr}.unload -text [get_indep String Unload]\
+        ttk::button ${filefr}.unload -text [get_indep String Unload]\
           -underline [get_indep Pos Unload] -state disabled -command "${this} hide_view_unload_files Unload \[${treew} curselection\]"
         balloon_bind_info ${filefr}.unload [get_indep String UnloadINFO]
 
         #statistic button
-        button ${filefr}.stat -text [get_indep String Statistics]\
+        ttk::button ${filefr}.stat -text [get_indep String Statistics]\
           -underline [get_indep Pos Statistics] -state disabled -command "
                 ${this} disp_file_statistic \[${treew} curselection\]"
         balloon_bind_info ${filefr}.stat [get_indep String StatisticsINFO]
@@ -147,27 +152,27 @@ itcl::class Project& {
 
         #project commands frame
         set btnsfr ${treebtnsfr}.btns.prj
-        pack [frame ${btnsfr}] -side right -fill y -padx 5 -pady 5 -anchor ne
+        pack [ttk::frame ${btnsfr}] -side right -fill y -padx 5 -pady 5 -anchor ne
 
         #Ok button
-        button ${btnsfr}.ok -text [get_indep String Ok] -underline\
+        ttk::button ${btnsfr}.ok -text [get_indep String Ok] -underline\
           [get_indep Pos Ok] -command " ${this} apply exit " -state ${new_state}
         balloon_bind_info ${btnsfr}.ok [get_indep String ProjectOkINFO]
 
         #Apply button
-        button ${btnsfr}.apply -text [get_indep String Apply]\
+        ttk::button ${btnsfr}.apply -text [get_indep String Apply]\
           -underline [get_indep Pos Apply] -command " ${this} apply "\
           -state ${exist_state}
         balloon_bind_info ${btnsfr}.apply [get_indep String ApplyINFO]
 
         #Undo button
-        button ${btnsfr}.undo -text [get_indep String EditUndo]\
+        ttk::button ${btnsfr}.undo -text [get_indep String EditUndo]\
           -underline [get_indep Pos EditUndo] -command " ${this} undo "\
           -state ${exist_state}
         balloon_bind_info ${btnsfr}.undo [get_indep String UndoINFO]
 
         #cancel button
-        button ${btnsfr}.cancel -text [get_indep String Cancel]\
+        ttk::button ${btnsfr}.cancel -text [get_indep String Cancel]\
           -underline [get_indep Pos Cancel] -command " ${this} windows_close "\
           -state normal
         balloon_bind_info ${btnsfr}.cancel [get_indep String ProjectCancelINFO]
@@ -175,25 +180,25 @@ itcl::class Project& {
             pack ${btnsfr}.${button} -side top -pady 3 -anchor nw -fill x
         }
 
-        pack [frame ${btnsfr}.space1 -height 15] -side top -fill x
+        pack [ttk::frame ${btnsfr}.space1 -height 15] -side top -fill x
 
         #allow to add files any way.
         set state normal
 
         #Add ... button
-        button ${btnsfr}.add -text [get_indep String LoadFiles]\
+        ttk::button ${btnsfr}.add -text [get_indep String LoadFiles]\
           -underline [get_indep Pos LoadFiles] -command " ${this} add_files "\
           -state ${state}
         balloon_bind_info ${btnsfr}.add [get_indep String LoadNewFilesINFO]
 
         #Add a directory
-        button ${btnsfr}.adddir -text [get_indep String LoadDirectory]\
+        ttk::button ${btnsfr}.adddir -text [get_indep String LoadDirectory]\
           -underline [get_indep Pos LoadDirectory] -command " ${this}\
           add_directory " -state ${state}
         balloon_bind_info ${btnsfr}.adddir [get_indep String LoadDirectoryINFO]
 
         #Add from a project
-        button ${btnsfr}.addprj -text [get_indep String LoadFromProject]\
+        ttk::button ${btnsfr}.addprj -text [get_indep String LoadFromProject]\
           -underline [get_indep Pos LoadFromProject] -command " ${this}\
           add_from_project " -state ${state}
         balloon_bind_info ${btnsfr}.addprj [get_indep String\
@@ -203,12 +208,12 @@ itcl::class Project& {
             pack ${btnsfr}.${button} -side top -pady 3 -anchor nw -fill x
         }
 
-        pack [frame ${btnsfr}.space2 -height 15] -side top -fill x
+        pack [ttk::frame ${btnsfr}.space2 -height 15] -side top -fill x
 
         #Project Preferences
         #No project preferences if the project already exists
         if {$itk_option(-new_project)} {
-            button ${btnsfr}.pref -text [get_indep String preference]\
+            ttk::button ${btnsfr}.pref -text [get_indep String preference]\
               -underline [get_indep Pos preference] -command\
               " sn_project_preferences $itk_option(-new_project) " -state normal
             balloon_bind_info ${btnsfr}.pref [get_indep String preference]
@@ -218,7 +223,7 @@ itcl::class Project& {
 
         if {$itk_option(-new_project)} {
             ${this} configure -title [sn_title [get_indep String NewProj]\
-	$itk_option(-new_project)]
+                $itk_option(-new_project)]
         } else {
             ${this} configure -title [sn_title [get_indep String ProjectEditor]]
         }
@@ -260,7 +265,7 @@ itcl::class Project& {
     }
 
     method AddToolbar {} {
-        frame ${Toolbar} -relief groove -border 2
+        ttk::frame ${Toolbar}
         pack ${Toolbar} -side top -fill x
 
         #View mode (tree, categorie, list)
@@ -268,12 +273,12 @@ itcl::class Project& {
         set ${this}-Tree_Mode ${Tree_Mode}
         set lbls [list [get_indep String Tree] [get_indep String Categorie]\
           [get_indep String List]]
-        Radio& ${Toolbar}.treemode -variable ${this}-Tree_Mode -labels ${lbls}\
-          -contents {tree cat list} -label [get_indep String ViewMode]\
+        radiolist::radiolist ${Toolbar}.treemode -variable ${this}-Tree_Mode -labels ${lbls}\
+          -contents {tree cat list} -text [get_indep String ViewMode]\
           -labelwidth -1 -command " ${this} toggle_disp_mode "
         pack ${Toolbar}.treemode -side left
 
-        pack [frame ${Toolbar}.space -width 5] -side left
+        pack [ttk::frame ${Toolbar}.space -width 5] -side left
 
         #display dirname
         #button $Toolbar.dirs  #		-text "directories"  #		-image sign_image \
@@ -283,7 +288,7 @@ itcl::class Project& {
         #pack $Toolbar.dirs -side left
         global ${this}-disp_Directories
         set ${this}-disp_Directories ${disp_Directories}
-        checkbutton ${Toolbar}.dirs -text [get_indep String Fullpath]\
+        ttk::checkbutton ${Toolbar}.dirs -text [get_indep String Fullpath]\
           -variable ${this}-disp_Directories -command " ${this}\
           toggle_directories ${Toolbar}.dirs " -onvalue 1 -offvalue 0\
           -state disabled
@@ -304,10 +309,10 @@ itcl::class Project& {
     method AddStatusbar {} {
         global sn_options
 
-        frame ${Statusbar}
+        ttk::frame ${Statusbar}
 
-        pack [label ${Statusbar}.msg -font $sn_options(def,layout-font)\
-          -relief groove -bd 2 -anchor w -textvar ${this}.msg] -expand y\
+        pack [ttk::label ${Statusbar}.msg -font $sn_options(def,layout-font)\
+          -relief sunken -anchor w -textvariable ${this}.msg] -expand y     \
           -fill x -side left
         pack ${Statusbar} -side bottom -fill x
     }
@@ -709,8 +714,9 @@ itcl::class Project& {
     method post_views {cmb} {
     }
 
-    method change_view {cmb view} {
+    method change_view {cmb} {
         upvar #0 ${this}-view vw
+        set view [$cmb get]
         if {${view} == ""} {
             set vw "default"
             set view ${vw}
@@ -721,10 +727,12 @@ itcl::class Project& {
         #if the current view is changed, ask if the
         #user wants to apply the changes to the current view
         if {${can_apply}} {
-            set answer [tk_dialog auto [get_indep String View]\
-              "${CurrentView}: [get_indep String HasBeenModified]"\
-              question_image 0 [get_indep String Apply] [get_indep String\
-              Cancel]]
+            set answer [
+                TileDialog::tile_dialog auto [get_indep String View]        \
+                        "${CurrentView}: [get_indep String HasBeenModified]"\
+                        question "" cancel [list apply cancel]              \
+                        [list  [get_indep String Apply] [get_indep String Cancel]]
+            ]
             if {${answer} != 0} {
                 set vw ${CurrentView}
                 return
@@ -749,10 +757,12 @@ itcl::class Project& {
         }
 
         if {${found} == 0} {
-            set answer [tk_dialog auto [get_indep String View] "${view}:\
-              [get_indep String AskForNewView]" question_image 0\
-              [get_indep String Yes] [get_indep String Cancel]]
-            if {${answer} != 0} {
+            set answer [
+                TileDialog::tile_messageBox .ques -title [get_indep String View]\
+                        -message "${view}: [get_indep String AskForNewView]"    \
+                        -icon question -type okcancel
+            ]
+            if {${answer} ne "ok"} {
                 set vw ${CurrentView}
                 return
             }
@@ -762,6 +772,7 @@ itcl::class Project& {
         set CurrentView ${view}
         sn_change_view ${view}
         ReadProjectFiles
+
     }
 
     method ReadProjectFiles {{reset 1}} {
@@ -822,11 +833,9 @@ itcl::class Project& {
     method Refresh {} {
         #refresh views
         if {[winfo exists ${Views_Combo}]} {
-            ${Views_Combo} configure -contents ${Views}
-            ${Views_Combo} selecttext ${CurrentView}
-            #$Views_Combo see 0
+            ${Views_Combo} configure -values ${Views}
+            tools::ComboSelectText ${Views_Combo} ${CurrentView}
         }
-
         #Add project files into tree
         Display_ProjectFiles
     }
@@ -1003,25 +1012,25 @@ itcl::class Project& {
         set ret [sn_is_project_busy ${name} in remuser remhost port pid]
         switch -- ${ret} {
             "othersystem" {
-                    sn_error_dialog [format \
+                    sn_error_dialog $itk_component(hull) [format        \
                         [get_indep String ProjAlreadyOpenedOtherSystem] \
                         ${remuser} ${name} ${remhost}]
                     return 0
             }
             "thisprocess" {
-                    sn_error_dialog [format \
+                    sn_error_dialog $itk_component(hull) [format        \
                         [get_indep String ProjAlreadyOpenedThisProcess] \
                         ${name}]
                     return 0
             }
             "thisuser" {
-                    sn_error_dialog [format \
+                    sn_error_dialog $itk_component(hull) [format     \
                         [get_indep String ProjAlreadyOpenedThisUser] \
                         ${name} ${pid}] 
                     return 0
             }
             "thissystem" {
-	            sn_error_dialog [format \
+	            sn_error_dialog $itk_component(hull) [format       \
                         [get_indep String ProjAlreadyOpenedThisSystem] \
                         ${remuser} ${name} ${pid}]
                     return 0
@@ -1032,9 +1041,11 @@ itcl::class Project& {
         }
 
         if {[file exists ${name}]} {
-            set answer [tk_dialog auto [get_indep String FileExists] ${name}\
-              question_image 0 [get_indep String Overwrite] [get_indep String\
-              cancel]]
+            set answer [
+                    TileDialog::tile_dialog auto [get_indep String FileExists] \
+                            ${name} question "" cancel [list overwrite cancel] \
+                            [list [get_indep String Overwrite] [get_indep String cancel]]
+            ]
             if {${answer} == 1} {
                 return 0
             } else {
@@ -1042,7 +1053,7 @@ itcl::class Project& {
                 set ret [sn_delete_project ${name}]
                 #unable to delete the project
                 if {${ret} == 0} {
-                    sn_error_dialog [get_indep String CannotDeleteProject]
+                    sn_error_dialog $itk_component(hull) [get_indep String CannotDeleteProject]
                     return 0
                 }
             }
@@ -1066,21 +1077,21 @@ itcl::class Project& {
 
             #valid project name ??
             if {${prjname} == ""} {
-                sn_error_dialog [get_indep String InvalidProjectName]
+                sn_error_dialog $itk_component(hull) [get_indep String InvalidProjectName]
                 focus [${prjname_Entry} entry]
                 return
             }
 
             #valid project name ??
             if {[catch {set realprjdir [realpath -pwd [pwd] ${prjdir}]} err]} {
-                sn_error_dialog "${prjdir}: ${err}"
+                sn_error_dialog $itk_component(hull) "${prjdir}: ${err}"
                 focus [${prjname_Entry} entry]
                 return
             }
 
             #Does the directory exist?
             if {![file isdirectory ${prjdir}]} {
-                sn_error_dialog [get_indep String InvalidProjectDir]
+                sn_error_dialog $itk_component(hull) [get_indep String InvalidProjectDir]
                 focus [${prjdir_Entry} entry]
                 return
             }
@@ -1253,7 +1264,7 @@ itcl::class Project& {
         global sn_options
         if {[catch {set fd [dbopen db_proj ${f} RDONLY [sn_db_perms] hash]}\
           err]} {
-            sn_error_dialog ${err}
+            sn_error_dialog $itk_component(hull) ${err}
             return 0
         }
         set ProjectDir [file dirname ${f}]
@@ -1263,7 +1274,7 @@ itcl::class Project& {
         if {[catch {set f_fd [dbopen db_f ${files_prefix}.f RDONLY\
           [sn_db_perms] btree]} err]} {
             ${fd} close
-            sn_error_dialog ${err}
+            sn_error_dialog $itk_component(hull) ${err}
             return 0
         }
         set files [db_f seq -col 0]

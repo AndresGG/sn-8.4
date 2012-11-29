@@ -135,8 +135,8 @@ itcl_class Tree {
 
 	#filter
 	if {$filter != ""} {
-	    frame $lframe.filter
-	    label $lframe.filter.label -text [get_indep String Pattern]
+	    ttk::frame $lframe.filter
+	    ttk::label $lframe.filter.label -text [get_indep String Pattern]
 	    set entry $lframe.filter.entry
 	    entry $entry \
 		    -relief sunken \

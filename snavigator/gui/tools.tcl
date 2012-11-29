@@ -156,7 +156,7 @@ itcl::class Radio& {
             set bal [lindex $itk_option(-balloons) ${i}]
 
             radiobutton ${fr}.radio-${i} -text ${n} -variable $itk_option(-variable)\
-              -value ${val} -anchor $itk_option(-anchor) -underline $itk_option(-underline)
+              -value ${val} -underline $itk_option(-underline)
 
             pack ${fr}.radio-${i} -side $itk_option(-side) -fill x -expand $itk_option(-expand)\
               -anchor nw
@@ -308,7 +308,7 @@ itcl::class LabelEntryButton& {
 
         # entry for path
         itk_component add entry {
-            ::entry $itk_interior.text
+            entry $itk_interior.text
 	} {
 	    keep -state -width
 	}
@@ -333,8 +333,8 @@ itcl::class LabelEntryButton& {
             $this configure -command [itcl::code ${this} select_file]
         }
 
-        pack $itk_component(label) -side left -fill x
-        pack $itk_component(entry) -side left -fill both -expand y
+        pack $itk_component(label)  -side left -fill x
+        pack $itk_component(entry)  -side left -fill both -expand y
         pack $itk_component(button) -side left -fill x
 
 
@@ -1238,7 +1238,7 @@ proc labelentrybutton {w args} {
             -text $lebArgs($w,-text)
     ttk::entry $w.entry -width $lebArgs($w,-width) -state $lebArgs($w,-state)        \
             -textvariable $lebArgs($w,-variable)
-    ttk::button $w.button -text "..." -width 4  -state $lebArgs($w,-state)        \
+    ttk::button $w.button -text "..." -width 4  -state $lebArgs($w,-state)           \
             -command $lebArgs($w,-command)
 
     if {$lebArgs($w,-balloon) != ""} {
@@ -1256,7 +1256,6 @@ proc labelentrybutton {w args} {
     pack $w.label  -side left -fill x
     pack $w.entry  -side left -fill both -expand y
     pack $w.button -side left -fill x -padx {5 0}
-
 
     rename ::$w $w
     eval {
@@ -1281,7 +1280,7 @@ proc ParseArguments {w parameters} {
     upvar $parameters args
 
     set lebArgs($w,-width)             20
-    set lebArgs($w,-labelwidth)        20
+    set lebArgs($w,-labelwidth)        10
     set lebArgs($w,-state)             normal
     set lebArgs($w,-underline)        -1
 
@@ -1384,5 +1383,110 @@ proc select_file {w directory} {
 }
 }
 
+################################################################################
+#
+# Radiolist a namespace to create a list of related radiobuttons
+#
+################################################################################
+namespace eval radiolist {
 
+proc radiolist {w args} {
+    variable rdArgs
 
+    ttk::frame $w
+    ParseArguments $w args
+
+    set lb [ttk::label $w.label -text $rdArgs(-text)                    \
+            -underline $rdArgs(-underline) -state $rdArgs(-state)       \
+            -width $rdArgs(-labelwidth) -anchor $rdArgs(-anchor)]
+    pack $lb -side $rdArgs(-side) -fill x -expand n -padx {0 5}
+
+    set i 0
+    foreach lab $rdArgs(-labels) val $rdArgs(-contents) bal $rdArgs(-balloons) {
+        if {${val} == ""} {
+            set val ${i}
+        }
+        ttk::radiobutton ${w}.radio-${i} -text ${lab}                   \
+              -variable $rdArgs(-variable)                              \
+              -value ${val} -underline $rdArgs(-underline)
+        pack ${w}.radio-${i} -side $rdArgs(-side) -fill x               \
+              -expand $rdArgs(-expand) -anchor $rdArgs(-anchor) -padx {0 15}
+
+        if {$rdArgs(-command)!= ""} {
+            ${w}.radio-${i} configure -command "eval $rdArgs(-command)"
+        }
+        if {${bal}!= ""} {
+            balloon_bind_info ${w}.radio-${i} ${bal}
+        }
+        incr i
+    }
+    rename ::$w $w
+
+    return $w
+}
+
+################################################################################
+# ParseArguements
+#    Command to parse the options for the radiolist.
+#
+# Parameters:
+#    w: Path to the radiolist.
+#    parameters: The arguments to parse.
+################################################################################
+proc ParseArguments {w parameters} {
+    variable rdArgs
+
+    upvar $parameters args
+
+    set rdArgs(-width)             20
+    set rdArgs(-labelwidth)        20
+    set rdArgs(-state)             normal
+    set rdArgs(-labelunderline)   -1
+
+    set rdArgs(-anchor)            w
+    set rdArgs(-text)              ""
+    set rdArgs(-textvariable)      radiolist::${w}.textvariable
+
+    set rdArgs(-side)              left
+    set rdArgs(-fill)              both
+    set rdArgs(-expand)            0
+
+    set rdArgs(-balloons)          ""
+
+    set rdArgs(-labels)            ""
+    set rdArgs(-contents)          ""
+    set rdArgs(-underline)         -1
+
+    set rdArgs(-command)           ""
+
+    array set rdArgs $args
+
+    return
+}
+
+}
+
+namespace eval tools {
+
+################################################################################
+# ComboSelectText
+#     Select combobox entry that matches a given string.
+#
+# Parameters:
+#    combo: Path to the combobox.
+#    value: Value to select if it exists.
+#
+# Returns
+#    The index of the selected entry.
+################################################################################
+proc ComboSelectText {combo value} {
+
+    set values [$combo cget -values]
+    set index  [lsearch -exact $values $value]
+    if {$index!=-1} {
+        $combo set [lindex $values $index]
+    }
+    return $index
+}
+
+}

@@ -760,3 +760,7 @@ set auto_index(::TtkDialog::MessageBox) [list source [file join $dir dialog.tcl]
 set auto_index(::TtkDialog::ttk_dialog_with_widgets) [list source [file join $dir dialog.tcl]]
 set auto_index(::TtkDialog::CenterDialog) [list source [file join $dir dialog.tcl]]
 set auto_index(sn_ttk_buttons) [list source [file join $dir dialog.tcl]]
+set auto_index(::radiolist::radiolist) [list source [file join $dir tools.tcl]]
+set auto_index(::radiolist::ParseArguments) [list source [file join $dir tools.tcl]]
+set auto_index(::tools::ComboSelectText) [list source [file join $dir tools.tcl]]
+
