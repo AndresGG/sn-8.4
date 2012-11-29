@@ -296,7 +296,7 @@ int Sn_Syntax_Highlight(ClientData clientData, Tcl_Interp * interp, int argc, ch
 				Tcl_ResetResult(interp);
 				TkTextTagCmd(textPtr, interp, tag_argc, (CONST char **)tag_argv);
 
-				p_end = strchr(interp->result, ' ');
+				p_end = strchr(Tcl_GetStringResult(interp), ' ');
 				/* Check whether it is synchronized ! */
 				if(p_end && strcmp(p_end + 1, endpos) == 0) {
 					eos_read = 1;

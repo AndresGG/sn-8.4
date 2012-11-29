@@ -1133,9 +1133,9 @@ dbtclfetch(Tcl_Interp *interp,tcldbpars *pars,int argc,char **argv)
 #ifdef UPDATE_COMMAND
 		if (update_command != NULL && (counter%update_stips)==0 && counter > 0)
 		{
-			int res;
-			res = Tcl_Eval (interp, update_command);
-			if (res == TCL_OK && (interp->result && interp->result[0] == '0'))
+			const char *result=Tcl_GetStringResult(interp);
+			int res = Tcl_Eval (interp, update_command);
+			if (res == TCL_OK && (result && result[0] == '0'))
 			{
 				break;  /* canceled by user */
 			}
@@ -2712,7 +2712,7 @@ Tcl_TempNam(ClientData clientData,Tcl_Interp *interp,int argc,char **argv)
     Tcl_UtfToExternalDString(NULL, argv[2], -1, &prefixName);
     if ((ret = mxtempnam(Tcl_DStringValue(&nativeName),Tcl_DStringValue(&prefixName))) == NULL)
     {
-	interp->result = (char *)Tcl_PosixError (interp);
+	Tcl_SetResult(interp, (char *)Tcl_PosixError (interp), TCL_VOLATILE);
 	Tcl_DStringFree(&nativeName);
 	Tcl_DStringFree(&prefixName);
 	return TCL_ERROR;

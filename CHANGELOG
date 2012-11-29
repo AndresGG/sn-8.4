@@ -1,3 +1,4 @@
+(INTERNAL) Remove direct access to interp->result
 (BUGFIX) Fix the dialog that pops up when looking for an implementation
 (ENHANCE) Use, for the time being,  Tk default fonts
 (BUGFIX) Fix the Help->Online manuals menu entry

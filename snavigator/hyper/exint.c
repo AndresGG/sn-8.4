@@ -83,6 +83,7 @@ brace_balance(ClientData clientData, Tcl_Interp *interp, int argc, char **argv)
     char    close_brace;
     int	lev = 0;
     char    *p;
+    char    result[50];
 
     if (argc != 5)
     {
@@ -112,7 +113,8 @@ brace_balance(ClientData clientData, Tcl_Interp *interp, int argc, char **argv)
 	    {
 		if (forw)
 		p++;
-		sprintf(interp->result, "%d", p - cont);
+		sprintf(result, "%d", p - cont);
+                Tcl_SetResult(interp,result,TCL_STATIC);
 		return TCL_OK;
 	    }
 	}
@@ -122,7 +124,8 @@ brace_balance(ClientData clientData, Tcl_Interp *interp, int argc, char **argv)
 	else
 	    p--;
     }
-    sprintf(interp->result, "%d", -1);
+    sprintf(result, "%d", -1);
+    Tcl_SetResult(interp,result,TCL_STATIC);
     return TCL_OK;
 }
 
@@ -456,9 +459,9 @@ fill_recursive (Tcl_Interp *interp, int idx, char *prefix, int list_size, char**
 	    }
 #endif
 
-	    if (interp->result)
+	    if (Tcl_GetStringResult(interp))
 	    {
-		newidx = atoi (interp->result);
+		newidx = atoi ((char *)Tcl_GetStringResult(interp));
 	    }
 	    strcpy (olddir, fp->dirname);
 	

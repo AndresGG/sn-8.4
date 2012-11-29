@@ -4825,8 +4825,10 @@ static int yySearch
  yyCurLine = 1000000;
  yyNode = yyTheTree;
  yySearch3 = yySearch5;
+ char yyresult[50];
  TraverseTreeTD (yyTheTree, yySearch2);
- (void) sprintf (yyinterp->result, "%lu", (unsigned long) yyNode);
+ (void) sprintf (yyresult, "%lu", (unsigned long) yyNode);
+ Tcl_SetResult(yyinterp, yyresult, TCL_VOLATILE);
  return TCL_OK;
 }
 
