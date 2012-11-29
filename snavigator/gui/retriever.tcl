@@ -492,8 +492,8 @@ itcl_class Retriever& {
     }
     proc warning_many_matches {} {
         tk_dialog_with_widgets .retr-info [get_indep String ManyMatchesTitle]\
-          [get_indep String ManyMatchesINFO] info_image 0 "Retriever& ::\
-          add_donot_call_checkbutton" [get_indep String Ok]
+          [get_indep String ManyMatchesINFO] info_image 0 \
+          "Retriever&::add_donot_call_checkbutton" [get_indep String Ok]
     }
 
     #search item with following prototype
