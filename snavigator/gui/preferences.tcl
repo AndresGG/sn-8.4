@@ -47,94 +47,99 @@ itcl_class Preferences& {
     constructor {{args ""}} {
         global sn_options
 
-        set width 780
+        set width  780
         set height 580
 
         withdraw
 
         eval itk_initialize $args
 
-        set NoteBook [tixNoteBook $itk_component(hull).nbook -ipadx 0 -ipady 0\
-          -borderwidth 0 -background white]
+        # We need a external frame to cover all of the toplevel
+        # as it is of a different colour as the ttk frames.
+        set extFrame [ttk::frame $itk_component(hull).extFrame]
+        set NoteBook [ttk::notebook $extFrame.nbook]
+        ttk::notebook::enableTraversal ${NoteBook}
+        pack $extFrame -expand 1 -fill both
 
-        ${NoteBook} add proj -createcmd "${this} AddProject ${NoteBook} proj"\
-          -raisecmd "${this} RaiseProject" -label [get_indep String\
-          ProjectMenu] -under [get_indep Pos ProjectMenu]\
+        ttk::frame ${NoteBook}.proj
+        ${this} AddProject ${NoteBook} proj
+        ${NoteBook} add ${NoteBook}.proj -text [get_indep String ProjectMenu] \
+          -underline [get_indep Pos ProjectMenu]                              \
           -state [tool_availiable proj 1]
+        ttk::notebook::enableTraversal ${NoteBook}
 
-        ${NoteBook} add edit -createcmd "${this} AddEditor ${NoteBook} edit"\
-          -raisecmd "${this} RaiseEditor" -label [get_indep String\
-          MultiEditor] -under [get_indep Pos MultiEditor]\
-          -state [tool_availiable edit 1]
+        ttk::frame ${NoteBook}.edit
+        ${this} AddEditor ${NoteBook} edit
+        ${NoteBook} add ${NoteBook}.edit -text [get_indep String MultiEditor] \
+                -underline [get_indep Pos MultiEditor]                        \
+                -state [tool_availiable edit 1]
 
         #window is for class hierarchy and browser
-        ${NoteBook} add ctree -createcmd "${this} AddClassHierarchy\
-          ${NoteBook} ctree" -raisecmd "${this} RaiseClassHierarchy"\
-          -image tree_image -label [get_indep String PrefClassAndHierarchy]\
-          -under [get_indep Pos MultiClassHierarchy] -state\
-          [tool_availiable ctree 1]
+        ttk::frame ${NoteBook}.ctree
+        ${this} AddClassHierarchy ${NoteBook} ctree
+        ${NoteBook} add ${NoteBook}.ctree                                      \
+                -text [get_indep String PrefClassAndHierarchy]                 \
+                -underline [get_indep Pos MultiClassHierarchy]                 \
+                -state [tool_availiable ctree 1]
 
-        ${NoteBook} add xref -createcmd "${this} AddXReference ${NoteBook}\
-          xref" -raisecmd "${this} RaiseXReference" -label [get_indep String\
-          MultiXRef] -under [get_indep Pos MultiXRef] -state\
-          [tool_availiable xref 1]
+        ttk::frame ${NoteBook}.xref
+        ${this} AddXReference ${NoteBook} xref
+        ${NoteBook} add ${NoteBook}.xref -text [get_indep String MultiXRef]    \
+                -underline [get_indep Pos MultiXRef]                           \
+                -state [tool_availiable xref 1]
 
-        ${NoteBook} add incbr -createcmd "${this} AddInclude ${NoteBook}\
-          incbr" -raisecmd "${this} RaiseInclude" -label [get_indep String\
-          MultiInclude] -under [get_indep Pos MultiInclude]\
-          -state [tool_availiable incbr 1]
+        ttk::frame ${NoteBook}.incbr
+        ${this} AddInclude ${NoteBook} incbr
+        ${NoteBook} add ${NoteBook}.incbr -text [get_indep String MultiInclude]\
+                -underline [get_indep Pos MultiInclude]                         \
+                -state [tool_availiable incbr 1]
 
         #parser
-        ${NoteBook} add parser -createcmd "${this} AddParser ${NoteBook}\
-          parser" -raisecmd "${this} RaiseParser" -label [get_indep String\
-          Parser] -under [get_indep Pos Parser] -state [tool_availiable parser\
-          1]
+        ttk::frame ${NoteBook}.parser
+        ${this} AddParser ${NoteBook} parser
+        ${NoteBook} add ${NoteBook}.parser -text [get_indep String Parser]     \
+                -underline [get_indep Pos Parser]                              \
+                -state [tool_availiable parser 1]
 
         #Revision Control System
-        ${NoteBook} add rcs \
-          -createcmd "${this} AddRcs ${NoteBook} rcs" \
-          -raisecmd "${this} RaiseRcs" \
-          -label [get_indep String Rcs] \
-          -under [get_indep Pos Rcs] \
+        ttk::frame ${NoteBook}.rcs
+        ${this} AddRcs ${NoteBook} rcs
+        ${NoteBook} add ${NoteBook}.rcs -text [get_indep String Rcs]           \
+          -underline [get_indep Pos Rcs]                                       \
           -state [tool_availiable rcs ${new_project}]
 
-        ${NoteBook} add others \
-          -createcmd "${this} AddOthers ${NoteBook} others" \
-          -raisecmd "${this} RaiseOthers" \
-          -label [get_indep String Others] \
-          -under [get_indep Pos Others] \
+        ttk::frame ${NoteBook}.others
+        ${this} AddOthers ${NoteBook} others
+        ${NoteBook} add ${NoteBook}.others -text [get_indep String Others]     \
+          -underline [get_indep Pos Others]                                    \
           -state [tool_availiable others 1]
 
-        ${NoteBook} add clrfont \
-          -createcmd "${this} AddColorAndFont ${NoteBook} clrfont" \
-          -raisecmd "${this} RaiseColorAndFont" \
-          -label [get_indep String ColorAndFont] \
-          -under [get_indep Pos ColorAndFont] \
+        ttk::frame ${NoteBook}.clrfont
+        ${this} AddColorAndFont ${NoteBook} clrfont
+        ${NoteBook} add ${NoteBook}.clrfont                                    \
+          -text [get_indep String ColorAndFont]                                \
+          -underline [get_indep Pos ColorAndFont]                              \
           -state [tool_Exists clrfont 1]
 
-        sn_motif_buttons $itk_component(hull) bottom 0 \
-          [get_indep String ok] \
-          [get_indep String Apply] \
-          [get_indep String SaveDefault] \
-          [get_indep String cancel]
+        sn_ttk_buttons $extFrame bottom 0        \
+                [get_indep String ok]            \
+                [get_indep String Apply]         \
+                [get_indep String SaveDefault]   \
+                [get_indep String cancel]
 
-        $itk_component(hull).button_0 config \
-          -command " ${this} apply "
-        $itk_component(hull).button_1 config \
-          -command " ${this} apply 0 " \
-          -underline [get_indep Pos Apply]
-        $itk_component(hull).button_2 config \
-          -command " ${this} save_cb default " \
-          -underline [get_indep Pos SaveDefault]
-        $itk_component(hull).button_3 config \
-          -command " ${this} exitPreferences "
+        $extFrame.button_0 config -command " ${this} apply "
+        $extFrame.button_1 config -command " ${this} apply 0 "         \
+                -underline [get_indep Pos Apply]
+        $extFrame.button_2 config -command " ${this} save_cb default " \
+                -underline [get_indep Pos SaveDefault]
+        $extFrame.button_3 config -command " ${this} exitPreferences "
 
         #bind Return to apply the current window
         bind $itk_component(hull) <Return> "${this} apply"
 
         #no apply by creating new project
         if {${new_project}} {
-            $itk_component(hull).button_1 config -state disabled
+            $extFrame.button_1 config -state disabled
         }
 
         pack ${NoteBook} -fill both -expand 1 -padx 4 -pady 4
@@ -175,7 +180,7 @@ itcl_class Preferences& {
     }
 
     method exitPreferences {} {
-        set lastPage [${NoteBook} raised]
+        set lastPage [${NoteBook} select]
         set preferences_wait cancel
         itcl::delete object ${this}
     }
@@ -187,22 +192,18 @@ itcl_class Preferences& {
         global sn_options
         global tcl_platform
 
-        set ProjectPage [${nb} subwidget ${page}]
-        set Project ${ProjectPage}
+        set Project $nb.$page
 
         set xstep 30
 
         #project frame
-        set prj [tixLabelFrame ${Project}.prj \
-          -label [get_indep String Project]]
-        ${prj} config -background $sn_options(def,layout-bg)
-        set win [${Project}.prj subwidget frame]
-        set lbl [${Project}.prj subwidget label]
-        pack ${prj} -side top -fill x
+        set prj [ttk::labelframe ${Project}.prj -text [get_indep String Project]\
+                -padding 5]
+        pack ${prj} -side top -fill x -pady 5 -padx 5
 
         #Read-Only Project
         set sn_options(opt_readonly) $sn_options(readonly)
-        set ronly ${win}.ronly
+        set ronly ${prj}.ronly
         CheckButton& ${ronly} \
           -labels [list ""] \
           -balloons [list [get_indep String ReadOnly]] \
@@ -215,7 +216,7 @@ itcl_class Preferences& {
         #Scan Project by opening
         set sn_options(opt_def,refresh-project)\
           $sn_options(def,refresh-project)
-        set scan ${win}.scan
+        set scan ${prj}.scan
         CheckButton& ${scan} \
           -labels [list ""] \
           -balloons [list [get_indep String PrefScanProjectINFO]] \
@@ -226,11 +227,9 @@ itcl_class Preferences& {
         pack ${scan} -side top -anchor nw -fill x
 
         #database frame
-        set db [tixLabelFrame ${Project}.db \
-          -label [get_indep String Database]]
-        ${db} config -background $sn_options(def,layout-bg)
-        set win [${Project}.db subwidget frame]
-        pack ${db} -side top -fill x
+        set db [ttk::labelframe ${Project}.db \
+          -text [get_indep String Database] -padding 5]
+        pack ${db} -side top -fill x -pady 5 -padx 5
 
         if {${new_project}} {
             set state normal
@@ -240,7 +239,7 @@ itcl_class Preferences& {
 
         #database directory
         set sn_options(opt_both,db-directory) $sn_options(both,db-directory)
-        set dbdir ${win}.prjname
+        set dbdir ${db}.prjname
         LabelEntryButton& ${dbdir} \
           -text [get_indep String PafWdDir] \
           -underline [get_indep Pos PafWdDir] \
@@ -261,7 +260,7 @@ itcl_class Preferences& {
         set sn_options(opt_both,others-write) $sn_options(both,others-write)
 
         foreach var {FilePermUser FilePermGroup FilePermOther} {
-            lappend lbls "[get_indep String FilePermRead] [get_indep String\
+            lappend lbls "[get_indep String FilePermRead]  [get_indep String\
               ${var}]"
             lappend lbls "[get_indep String FilePermWrite] [get_indep String\
               ${var}]"
@@ -275,7 +274,7 @@ itcl_class Preferences& {
           OwnerWrite] [get_indep String GroupRead] [get_indep String\
           GroupWrite] [get_indep String OthersRead] [get_indep String\
           OthersWrite]]
-        set perms ${win}.perms
+        set perms ${db}.perms
         CheckButton& ${perms} \
           -labels ${lbls} \
           -balloons ${balloons} \
@@ -288,7 +287,7 @@ itcl_class Preferences& {
         #comment database
         set sn_options(opt_both,create-comment-db)\
           $sn_options(both,create-comment-db)
-        set commentdb ${win}.commentdb
+        set commentdb ${db}.commentdb
         CheckButton& ${commentdb} \
           -labels [list ""] \
           -values [list {-r ""}] \
@@ -304,7 +303,7 @@ itcl_class Preferences& {
 
         # database cache size
         set sn_options(opt_def,db_cachesize) $sn_options(def,db_cachesize)
-        set dbcache ${win}.dbcache
+        set dbcache ${db}.dbcache
 
         Entry& ${dbcache} \
           -width 2 \
@@ -312,56 +311,52 @@ itcl_class Preferences& {
           -label [get_indep String CacheSize] \
           -underline [get_indep Pos CacheSize] \
           -textvariable sn_options(opt_def,db_cachesize) \
-	  -state ${cache_state} -filter natural
+	  -state ${cache_state} -filter natural -anchor nw
 
         pack ${dbcache} -side top -anchor nw -fill x
-        pack [label ${dbcache}.dbbytes -text [get_indep String KBytes]]\
+        pack [ttk::label ${dbcache}.dbbytes -text [get_indep String KBytes]]\
           -side left -fill y
 
         #xref database cache size
         set sn_options(opt_def,xref-db-cachesize)\
           $sn_options(def,xref-db-cachesize)
-        set dbxcache ${win}.dbxcache
+        set dbxcache ${db}.dbxcache
         Entry& ${dbxcache} \
           -width 2 \
           -labelwidth ${xstep} \
           -label [get_indep String xrefCacheSize] \
           -underline [get_indep Pos xrefCacheSize] \
           -textvariable sn_options(opt_def,xref-db-cachesize) \
-          -state ${cache_state} -filter natural
+          -state ${cache_state} -filter natural -anchor nw
 
         pack ${dbxcache} -side top -anchor nw -fill x
-        pack [label ${dbxcache}.dbbytes \
+        pack [ttk::label ${dbxcache}.dbbytes \
           -text [get_indep String KBytes]] \
           -side left -fill y
 
         #Window options
-        set fr [tixLabelFrame ${Project}.projfr \
-          -label [get_indep String Window]]
-        ${fr} config -background $sn_options(def,layout-bg)
-        set win [${Project}.projfr subwidget frame]
-        pack ${fr} -side top -fill x
+        set fr [ttk::labelframe ${Project}.projfr \
+          -text [get_indep String Window] -padding 5]
+        pack ${fr} -side top -fill x -pady 5 -padx 5
 
         #Split Windows
         set sn_options(opt_def,window-alighment)\
           $sn_options(def,window-alighment)
         set aligns [list [get_indep String AlighmentHorizontal]\
           [get_indep String AlighmentVertical]]
-        Radio& ${win}.aligh \
+        Radio& ${fr}.aligh \
           -variable sn_options(opt_def,window-alighment) \
           -labels ${aligns} \
           -contents {horizontal vertical} \
           -label [get_indep String SplitWindows] \
           -labelunderline [get_indep Pos SplitWindows] \
           -labelwidth ${xstep}
-        pack ${win}.aligh -fill x -expand y -side top -padx ${padx}\
-          -pady ${pady}
-
+        pack ${fr}.aligh -fill x -expand y -side top
         #New Windows
         set sn_options(opt_def,reuse-window) $sn_options(def,reuse-window)
         set sn_options(opt_def,window-switchable)\
           $sn_options(def,window-switchable)
-        CheckButton& ${win}.reuse \
+        CheckButton& ${fr}.reuse \
           -label [get_indep String CreateNewWindow] \
           -labelunderline [get_indep Pos CreateNewWindow] \
           -labelwidth ${xstep} \
@@ -376,12 +371,10 @@ itcl_class Preferences& {
           -variables [list \
                        sn_options(opt_def,reuse-window) \
                        sn_options(opt_def,window-switchable)]
-        pack ${win}.reuse -side top -fill x -expand y -padx ${padx}\
-          -pady ${pady}
-
+        pack ${fr}.reuse -side top -fill x -expand y
         #window size
         set sn_options(opt_def,window-size) $sn_options(def,window-size)
-        set winsize ${win}.winsize
+        set winsize ${fr}.winsize
 
         Entry& ${winsize} \
           -width 3 \
@@ -391,28 +384,24 @@ itcl_class Preferences& {
           -textvariable sn_options(opt_def,window-size) \
           -balloon [get_indep String WindowSizeINFO] \
           -expand n \
-	  -filter natural
+	  -filter natural -anchor nw
 
         pack ${winsize} -side top -anchor nw -fill x
-        label ${winsize}.procent -text "% [get_indep String OfScreenSize]"
+        ttk::label ${winsize}.procent -text "% [get_indep String OfScreenSize]"
         pack ${winsize}.procent -side left -anchor nw
 
         # Internationalization
 
-        set fr [tixLabelFrame ${Project}.intl -label [get_indep String\
-          Internationalization]]
-        ${fr} config -background $sn_options(def,layout-bg)
-        set intlframe [${Project}.intl subwidget frame]
+        set fr [ttk::labelframe ${Project}.intl -text [get_indep String\
+          Internationalization] -padding 5]
         set sn_options(opt_def,encoding) $sn_options(def,encoding)
-        Combo& ${intlframe}.encodings \
-          -label [get_indep String Encoding] \
-          -labelwidth ${xstep} \
-          -underline [get_indep Pos Encoding] \
-          -contents [encoding names] \
-          -entryvariable sn_options(opt_def,encoding)
-        ${intlframe}.encodings selecttext $sn_options(def,encoding)
-        pack ${fr} -side top -fill x
-        pack ${intlframe}.encodings -side top -anchor w -padx 4 -pady 4
+        ttk::label    ${fr}.label -text [get_indep String Encoding] -width ${xstep}
+        ttk::combobox ${fr}.encodings -values [encoding names] \
+          -textvariable sn_options(opt_def,encoding)
+        ${fr}.encodings set $sn_options(def,encoding)
+        pack ${fr} -side top -fill x  -pady 5 -padx 5
+        pack ${fr}.label     -side left -anchor w -pady 10
+        pack ${fr}.encodings -side left -anchor w -pady 10
 
         lappend AvailTools ${Project}
     }
@@ -435,19 +424,16 @@ itcl_class Preferences& {
     method AddEditor {nb page} {
         global sn_options
 
-        set EditorPage [${nb} subwidget ${page}]
-        set Editor ${EditorPage}
+        set Editor ${nb}.${page}
 
         #Format
-        set frmt [tixLabelFrame ${Editor}.frm \
-          -label [get_indep String Format]]
-        ${frmt} config -background $sn_options(def,layout-bg)
-        set win [${Editor}.frm subwidget frame]
-        pack ${frmt} -side top -anchor c -fill x
+        set frmt [ttk::labelframe ${Editor}.frmt \
+          -text [get_indep String Format] -padding 5]
+        pack ${frmt} -side top -fill x -padx 5 -pady 5
 
         #tab stop
         set sn_options(opt_def,edit-tabstop) $sn_options(def,edit-tabstop)
-        set tabstop ${win}.tabstop
+        set tabstop ${frmt}.tabstop
 
         Entry& ${tabstop} \
           -width 2 \
@@ -455,14 +441,14 @@ itcl_class Preferences& {
           -label [get_indep String PrefTabStop] \
           -underline [get_indep Pos PrefTabStop] \
           -textvariable sn_options(opt_def,edit-tabstop) \
-	  -filter natural
+	  -filter natural -anchor nw
 
         pack ${tabstop} -side top -anchor nw
 
         #Auto Indent delay
         set sn_options(opt_def,edit-indentwidth)\
           $sn_options(def,edit-indentwidth)
-        set indent ${win}.indent
+        set indent ${frmt}.indent
 
         Entry& ${indent} \
           -width 2 \
@@ -470,13 +456,13 @@ itcl_class Preferences& {
           -label [get_indep String AutoIndentWidth] \
           -underline [get_indep Pos AutoIndentWidth] \
           -textvariable sn_options(opt_def,edit-indentwidth) \
-	  -filter natural
+	  -filter natural -anchor nw
 
         pack ${indent} -side top -anchor nw
 
         #wrap
         set sn_options(opt_def,edit-wrap) $sn_options(def,edit-wrap)
-        set wrap ${win}.wrap
+        set wrap ${frmt}.wrap
         set lbls [list [get_indep String None] [get_indep String Char]\
           [get_indep String Word]]
         Radio& ${wrap} \
@@ -489,16 +475,14 @@ itcl_class Preferences& {
         pack ${wrap} -side top -expand y -fill x
 
         #Work
-        set work [tixLabelFrame ${Editor}.work \
-          -label [get_indep String Work]]
-        ${work} config -background $sn_options(def,layout-bg)
-        set win [${Editor}.work subwidget frame]
-        pack ${work} -side top -anchor c -fill x
+        set work [ttk::labelframe ${Editor}.work \
+          -text [get_indep String Work] -padding 5]
+        pack ${work} -side top -fill x -padx 5 -pady 5
 
         #create .bak files
         set sn_options(opt_def,edit-create-bak)\
           $sn_options(def,edit-create-bak)
-        set bak ${win}.bak
+        set bak ${work}.bak
         CheckButton& ${bak} \
           -labels [list ""] \
           -variables sn_options(opt_def,edit-create-bak) \
@@ -508,7 +492,7 @@ itcl_class Preferences& {
         pack ${bak} -side top -anchor nw
 
         #output file translation
-        set ftrans ${win}.ftrans
+        set ftrans ${work}.ftrans
         set sn_options(opt_def,edit-file-translation)\
           $sn_options(def,edit-file-translation)
         Radio& ${ftrans} \
@@ -536,7 +520,7 @@ itcl_class Preferences& {
         #bracket delay
         set sn_options(opt_def,edit-bracket-delay)\
           $sn_options(def,edit-bracket-delay)
-        set brack ${win}.bracket
+        set brack ${work}.bracket
 
         Entry& ${brack} \
           -width 4 \
@@ -544,12 +528,12 @@ itcl_class Preferences& {
           -label [get_indep String EditBracketMatchDelay] \
           -underline [get_indep Pos EditBracketMatchDelay] \
           -textvariable sn_options(opt_def,edit-bracket-delay) \
-	  -filter natural
+	  -filter natural -anchor nw
 
         pack ${brack} -side top -anchor nw
 
         #right mouse scroll/edit menu
-        set rmouse ${win}.rmouse
+        set rmouse ${work}.rmouse
         set sn_options(opt_def,edit-rightmouse-action)\
           $sn_options(def,edit-rightmouse-action)
         Radio& ${rmouse} \
@@ -567,7 +551,7 @@ itcl_class Preferences& {
         #Convert Inserted Tabs Into Spaces
         set sn_options(opt_def,edit-tab-inserts-spaces)\
           $sn_options(def,edit-tab-inserts-spaces)
-        set tabspaces ${win}.tabspaces
+        set tabspaces ${work}.tabspaces
         CheckButton& ${tabspaces} \
           -labels [list ""]\
           -variables sn_options(opt_def,edit-tab-inserts-spaces) \
@@ -579,7 +563,7 @@ itcl_class Preferences& {
 
         #more toolbar buttons
         set sn_options(opt_def,edit-more-buttons) $sn_options(def,edit-more-buttons)
-        set morebtns ${win}.morebtns
+        set morebtns ${work}.morebtns
         CheckButton& ${morebtns} \
           -labels [list ""] \
           -variables sn_options(opt_def,edit-more-buttons) \
@@ -591,7 +575,7 @@ itcl_class Preferences& {
 
         # External editor settings
         set sn_options(opt_def,edit-external-always) $sn_options(def,edit-external-always)
-	set extedit_always ${win}.extedit_always
+	set extedit_always ${work}.extedit_always
 	CheckButton& ${extedit_always} \
           -labels [list ""] \
           -variables sn_options(opt_def,edit-external-always) \
@@ -602,7 +586,7 @@ itcl_class Preferences& {
         pack ${extedit_always} -side top -anchor nw
 	  
         set sn_options(opt_def,edit-external-editor) $sn_options(def,edit-external-editor)
-        set extedit ${win}.extedit
+        set extedit ${work}.extedit
         LabelEntryButton& ${extedit} \
           -text [get_indep String ExternalEditor] \
           -underline [get_indep Pos ExternalEditor] \
@@ -626,21 +610,18 @@ itcl_class Preferences& {
     method AddClassHierarchy {nb page} {
         global sn_options
 
-        set ClassHierarchyPage [${nb} subwidget ${page}]
-        set ClassHierarchy ${ClassHierarchyPage}
+        set ClassHierarchy ${nb}.${page}
 
         #Class browser options
-        set class [tixLabelFrame ${ClassHierarchy}.class \
-          -label [get_indep String Class]]
-        ${class} config -background $sn_options(def,layout-bg)
-        set win [${ClassHierarchy}.class subwidget frame]
-        pack ${class} -side top -anchor c -fill x
+        set class [ttk::labelframe ${ClassHierarchy}.class \
+          -text [get_indep String Class] -padding 5]
+        pack ${class} -side top -fill x -padx 5 -pady 5
 
         #goto Def. or Impl. by selecting a method
         set sn_options(opt_def,class-goto-imp) $sn_options(def,class-goto-imp)
         set lbls [list [get_indep String Definition] [get_indep String\
           Implementation]]
-        set defimp ${win}.defimp
+        set defimp ${class}.defimp
         Radio& ${defimp} \
           -labelwidth 35 \
           -variable sn_options(opt_def,class-goto-imp) \
@@ -655,7 +636,7 @@ itcl_class Preferences& {
           $sn_options(def,class-orientation)
         set lbls [list [get_indep String AlighmentHorizontal]\
           [get_indep String AlighmentVertical]]
-        set classorient ${win}.classorient
+        set classorient ${class}.classorient
         Radio& ${classorient} \
           -labelwidth 35 \
           -variable sn_options(opt_def,class-orientation) \
@@ -668,7 +649,7 @@ itcl_class Preferences& {
         #members order
         set sn_options(opt_def,members-order) $sn_options(def,members-order)
         set lbls [list [get_indep String First] [get_indep String Second]]
-        set memord ${win}.memord
+        set memord ${class}.memord
         Radio& ${memord} \
           -labelwidth 35 \
           -variable sn_options(opt_def,members-order) \
@@ -679,14 +660,12 @@ itcl_class Preferences& {
         pack ${memord} -side top -expand y -fill x
 
         #Layout
-        set layout [tixLabelFrame ${ClassHierarchy}.layout \
-          -label [get_indep String HierarchyLayout]]
-        ${layout} config -background $sn_options(def,layout-bg)
-        set win [${ClassHierarchy}.layout subwidget frame]
-        pack ${layout} -side top -anchor c -fill x
+        set layout [ttk::labelframe ${ClassHierarchy}.layout \
+          -text [get_indep String HierarchyLayout] -padding 5]
+        pack ${layout} -side top -fill x -padx 5 -pady 5
 
         #Display order
-        set order ${win}.order
+        set order ${layout}.order
         set sn_options(opt_def,ctree-view-order)\
           $sn_options(def,ctree-view-order)
         Radio& ${order} \
@@ -699,10 +678,10 @@ itcl_class Preferences& {
           -contents {0 1} \
           -label [get_indep String PrefDispOrder] \
           -labelunderline [get_indep Pos PrefDispOrder]
-        pack ${order} -side top -expand y -fill x -padx ${padx} -pady ${pady}
+        pack ${order} -side top -expand y -fill x
 
         #Display format
-        set frmt ${win}.frmt
+        set frmt ${layout}.frmt
         set sn_options(opt_def,ctree-layout) $sn_options(def,ctree-layout)
         Radio& ${frmt} \
           -labelwidth 35 \
@@ -714,12 +693,12 @@ itcl_class Preferences& {
           -contents {isi tree} \
           -label [get_indep String PrefDispLayout] \
           -labelunderline [get_indep Pos PrefDispLayout]
-        pack ${frmt} -side top -expand y -fill x -padx ${padx} -pady ${pady}
+        pack ${frmt} -side top -expand y -fill x
 
         #space vertical
         set sn_options(opt_def,ctree-vertspace)\
           $sn_options(def,ctree-vertspace)
-        set svert ${win}.svert
+        set svert ${layout}.svert
 
         Entry& ${svert} \
           -width 3 \
@@ -727,14 +706,14 @@ itcl_class Preferences& {
           -label [get_indep String SpaceVertical] \
           -underline [get_indep Pos SpaceVertical] \
           -textvariable sn_options(opt_def,ctree-vertspace) \
-	  -filter natural
+	  -filter natural -anchor w
 
         pack ${svert} -side top -anchor nw
 
         #space horizontal
         set sn_options(opt_def,ctree-horizspace)\
           $sn_options(def,ctree-horizspace)
-        set shoriz ${win}.shoriz
+        set shoriz ${layout}.shoriz
 
         Entry& ${shoriz} \
           -width 3 \
@@ -742,7 +721,7 @@ itcl_class Preferences& {
           -label [get_indep String SpaceHorizontal] \
           -underline [get_indep Pos SpaceHorizontal] \
           -textvariable sn_options(opt_def,ctree-horizspace) \
-	  -filter natural
+	  -filter natural -anchor nw
 
         pack ${shoriz} -side top -anchor nw
 
@@ -758,19 +737,17 @@ itcl_class Preferences& {
     method AddXReference {nb page} {
         global sn_options
 
-        set XReferencePage [${nb} subwidget ${page}]
+        set XReferencePage ${nb}.${page}
         set XReference ${XReferencePage}
 
         #XRef informations
-        set xproc [tixLabelFrame ${XReference}.xproc \
-          -label [get_indep String CrossReferencing]]
-        ${xproc} config -background $sn_options(def,layout-bg)
-        set win [${XReference}.xproc subwidget frame]
-        pack ${xproc} -side top -anchor c -fill x
+        set xproc [ttk::labelframe ${XReference}.xproc \
+          -text [get_indep String CrossReferencing] -padding 5]
+        pack ${xproc} -side top -fill x -padx 5 -pady 5
 
         #generate xref
         set sn_options(opt_both,xref-create) $sn_options(both,xref-create)
-        set genxref ${win}.genxref
+        set genxref ${xproc}.genxref
         CheckButton& ${genxref} \
           -balloons [list [get_indep String GenerateXRefINFO]] \
           -labels [list ""] \
@@ -779,12 +756,12 @@ itcl_class Preferences& {
           -label [get_indep String GenerateXRef] \
           -labelunderline [get_indep Pos GenerateXRef] \
           -labelwidth 35 \
-          -command " ${this} XRef_Enable ${win}.genlocal ${win}.xrefbell "
+          -command " ${this} XRef_Enable ${xproc}.genlocal ${xproc}.xrefbell "
         pack ${genxref} -side top -anchor nw
 
         #Generate references to local variables
         set sn_options(opt_both,xref-locals) $sn_options(both,xref-locals)
-        set genlocal ${win}.genlocal
+        set genlocal ${xproc}.genlocal
         CheckButton& ${genlocal} \
           -labels [list ""] \
           -values [list {-l ""}] \
@@ -796,7 +773,7 @@ itcl_class Preferences& {
 
         #Bell after terminated XRef
         set sn_options(opt_def,xref-bell) $sn_options(def,xref-bell)
-        set xrefbell ${win}.xrefbell
+        set xrefbell ${xproc}.xrefbell
         CheckButton& ${xrefbell} \
           -variables sn_options(opt_def,xref-bell) \
           -labels [list ""] \
@@ -806,19 +783,17 @@ itcl_class Preferences& {
           -labelwidth 35
         pack ${xrefbell} -side top -anchor nw
 
-        XRef_Enable ${win}.genlocal ${win}.xrefbell
+        XRef_Enable ${xproc}.genlocal ${xproc}.xrefbell
 
         #Layout
-        set layout [tixLabelFrame ${XReference}.layout -label\
-          [get_indep String Layout]]
-        ${layout} config -background $sn_options(def,layout-bg)
-        set win [${XReference}.layout subwidget frame]
-        pack ${layout} -side top -anchor c -fill x
+        set layout [ttk::labelframe ${XReference}.layout -text\
+          [get_indep String Layout] -padding 5]
+        pack ${layout} -side top -fill x -padx 5 -pady 5
 
         #Accept parameters
         set sn_options(opt_both,xref-accept-param)\
           $sn_options(both,xref-accept-param)
-        set aparam ${win}.aparam
+        set aparam ${layout}.aparam
         CheckButton& ${aparam} \
           -labels [list ""] \
           -variables sn_options(opt_both,xref-accept-param) \
@@ -830,7 +805,7 @@ itcl_class Preferences& {
         #Accept static flag
         set sn_options(opt_both,xref-accept-static)\
           $sn_options(both,xref-accept-static)
-        set astatic ${win}.astatic
+        set astatic ${layout}.astatic
         CheckButton& ${astatic} \
           -labels [list ""] \
           -variables sn_options(opt_both,xref-accept-static) \
@@ -842,7 +817,7 @@ itcl_class Preferences& {
         #Display functions parameters
         set sn_options(opt_both,xref-disp-param)\
           $sn_options(both,xref-disp-param)
-        set dspfunc ${win}.dspfunc
+        set dspfunc ${layout}.dspfunc
         CheckButton& ${dspfunc} \
           -labels [list ""] \
           -variables sn_options(opt_both,xref-disp-param) \
@@ -854,7 +829,7 @@ itcl_class Preferences& {
         #Display boxes around the symbols
         set sn_options(opt_both,xref-draw-rect)\
           $sn_options(both,xref-draw-rect)
-        set dspbox ${win}.dspbox
+        set dspbox ${layout}.dspbox
         CheckButton& ${dspbox} \
           -labels [list ""] \
           -variables sn_options(opt_both,xref-draw-rect) \
@@ -864,7 +839,7 @@ itcl_class Preferences& {
         pack ${dspbox} -side top -anchor nw
 
         #Display order
-        set order ${win}.order
+        set order ${layout}.order
         set sn_options(opt_def,xref-disp-order)\
           $sn_options(def,xref-disp-order)
         Radio& ${order} \
@@ -877,10 +852,10 @@ itcl_class Preferences& {
           -contents {0 1} \
           -label [get_indep String PrefDispOrder] \
           -labelunderline [get_indep Pos PrefDispOrder]
-        pack ${order} -side top -expand y -fill x -padx ${padx} -pady ${pady}
+        pack ${order} -side top -expand y -fill x
 
         #Display format
-        set frmt ${win}.frmt
+        set frmt ${layout}.frmt
         set sn_options(opt_def,xref-layout) $sn_options(def,xref-layout)
         Radio& ${frmt} \
           -labelwidth 35 \
@@ -892,11 +867,11 @@ itcl_class Preferences& {
           -contents {isi tree} \
           -label [get_indep String PrefDispLayout] \
           -labelunderline [get_indep Pos PrefDispLayout]
-        pack ${frmt} -side top -expand y -fill x -padx ${padx} -pady ${pady}
+        pack ${frmt} -side top -expand y -fill x
 
         #space vertical
         set sn_options(opt_def,xref-vertspace) $sn_options(def,xref-vertspace)
-        set svert ${win}.svert
+        set svert ${layout}.svert
 
         Entry& ${svert} \
           -width 3 \
@@ -904,14 +879,14 @@ itcl_class Preferences& {
           -label [get_indep String SpaceVertical] \
           -underline [get_indep Pos SpaceVertical] \
           -textvariable sn_options(opt_def,xref-vertspace) \
-	  -filter natural
+	  -filter natural -anchor nw
 
         pack ${svert} -side top -anchor nw
 
         #space horizontal
         set sn_options(opt_def,xref-horizspace)\
           $sn_options(def,xref-horizspace)
-        set shoriz ${win}.shoriz
+        set shoriz ${layout}.shoriz
 
         Entry& ${shoriz} \
           -width 3 \
@@ -919,7 +894,7 @@ itcl_class Preferences& {
           -label [get_indep String SpaceHorizontal] \
           -underline [get_indep Pos SpaceHorizontal] \
           -textvariable sn_options(opt_def,xref-horizspace) \
-	  -filter natural
+	  -filter natural -anchor nw
 
         pack ${shoriz} -side top -anchor nw
 
@@ -945,18 +920,16 @@ itcl_class Preferences& {
     method AddInclude {nb page} {
         global sn_options
 
-        set IncludePage [${nb} subwidget ${page}]
+        set IncludePage ${nb}.${page}
         set Include ${IncludePage}
 
         #Layout
-        set layout [tixLabelFrame ${Include}.layout \
-          -label [get_indep String Layout]]
-        ${layout} config -background $sn_options(def,layout-bg)
-        set win [${Include}.layout subwidget frame]
-        pack ${layout} -side top -anchor c -fill x
+        set layout [ttk::labelframe ${Include}.layout \
+          -text [get_indep String Layout] -padding 5]
+        pack ${layout} -side top -fill x -padx 5 -pady 5
 
         #Display order
-        set order ${win}.order
+        set order ${layout}.order
         set sn_options(opt_def,include-disporder)\
           $sn_options(def,include-disporder)
         Radio& ${order} \
@@ -969,10 +942,10 @@ itcl_class Preferences& {
           -contents {0 1} \
           -label [get_indep String PrefDispOrder] \
           -labelunderline [get_indep Pos PrefDispOrder]
-        pack ${order} -side top -expand y -fill x -padx ${padx} -pady ${pady}
+        pack ${order} -side top -expand y -fill x
 
         #Display format
-        set frmt ${win}.frmt
+        set frmt ${layout}.frmt
         set sn_options(opt_def,include-layout) $sn_options(def,include-layout)
         Radio& ${frmt} \
           -labelwidth 35 \
@@ -984,12 +957,12 @@ itcl_class Preferences& {
           -contents {isi tree} \
           -label [get_indep String PrefDispLayout] \
           -labelunderline [get_indep Pos PrefDispLayout]
-        pack ${frmt} -side top -expand y -fill x -padx ${padx} -pady ${pady}
+        pack ${frmt} -side top -expand y -fill x
 
         #space vertical
         set sn_options(opt_def,include-vertspace)\
           $sn_options(def,include-vertspace)
-        set svert ${win}.svert
+        set svert ${layout}.svert
 
         Entry& ${svert} \
           -width 3 \
@@ -997,14 +970,14 @@ itcl_class Preferences& {
           -label [get_indep String SpaceVertical] \
           -underline [get_indep Pos SpaceVertical] \
           -textvariable sn_options(opt_def,include-vertspace) \
-	  -filter natural
+	  -filter natural -anchor nw
 
         pack ${svert} -side top -anchor nw
 
         #space horizontal
         set sn_options(opt_def,include-horizspace)\
           $sn_options(def,include-horizspace)
-        set shoriz ${win}.shoriz
+        set shoriz ${layout}.shoriz
 
         Entry& ${shoriz} \
           -width 3 \
@@ -1012,37 +985,34 @@ itcl_class Preferences& {
           -label [get_indep String SpaceHorizontal] \
           -underline [get_indep Pos SpaceHorizontal] \
           -textvariable sn_options(opt_def,include-horizspace) \
-	  -filter natural
+	  -filter natural -anchor nw
 
         pack ${shoriz} -side top -anchor nw
 
         #Include directories
-        set incdir [tixLabelFrame ${Include}.incdir \
-          -label [get_indep String PrefInclude]]
-        ${incdir} config -background $sn_options(def,layout-bg)
-        set win [${Include}.incdir subwidget frame]
-        pack ${incdir} -side top -anchor c -fill both -expand y
+        set incdir [ttk::labelframe ${Include}.incdir \
+          -text [get_indep String PrefInclude] -padding 5]
+        pack ${incdir} -side top -fill both -expand y -padx 5 -pady 5
 
         #verify if we want to look for included header files
-        #Locate Headers is used to control whether or not header files are\
-          searched
-        #for during parsing.  If this checkbutton is disabled, then the parsers
+        #Locate Headers is used to control whether or not header files are
+        #searched for during parsing.
+        #If this checkbutton is disabled, then the parsers
         #will just write out the literal filename from the source:
         #
         #		#include <stdlib.h>
         #
         #will cause just `stdlib.h' to be written to the database.
         #
-        #If you enable it, a comprehensive search of all of the directories\
-          listed
-        #in the include directories text box will occur.  Then the result\
-          might be
+        #If you enable it, a comprehensive search of all of the directories
+        #listed in the include directories text box will occur.
+        #Then the result might be
         #`/usr/include/stdlib.h'.
         #It is added as a quick and easy way of improving performance over NFS
         #file systems.
         set sn_options(opt_def,include-locatefiles)\
           $sn_options(def,include-locatefiles)
-        set lookforinc ${win}.lookforinc
+        set lookforinc ${incdir}.lookforinc
         CheckButton& ${lookforinc} \
           -labels [list ""] \
           -variables sn_options(opt_def,include-locatefiles) \
@@ -1050,20 +1020,27 @@ itcl_class Preferences& {
           -underlines [list [get_indep Pos LocateIncludeFiles]] \
           -balloons [list [get_indep String LocateIncludeFilesINFO]] \
           -labelwidth 35
-        pack ${lookforinc} -side top -anchor nw
 
-        set inc_editor ${win}.t
-        scrollbar ${win}.x -orient horiz -command " ${inc_editor} xview "
-        scrollbar ${win}.y -command " ${inc_editor} yview "
-        text ${inc_editor} -wrap none -xscrollcommand "${win}.x set"\
-          -yscrollcommand "${win}.y set"
+        set inc_editor ${incdir}.t
+        ttk::scrollbar ${incdir}.x -orient horiz -command " ${inc_editor} xview "
+        ttk::scrollbar ${incdir}.y               -command " ${inc_editor} yview "
+        text ${inc_editor} -wrap none -xscrollcommand "${incdir}.x set"\
+          -yscrollcommand "${incdir}.y set"
         ${inc_editor} insert end [join $sn_options(include-source-directories)\
           "\n"]
         ${inc_editor} mark set insert 0.0
         ${inc_editor} see 0.0
-        pack ${win}.y -side right -fill y
-        pack ${win}.x -side bottom -fill x
-        pack ${inc_editor} -side left -fill both -expand y
+
+        grid ${lookforinc} -in $incdir -row 0 -column 0 -sticky w
+        grid ${inc_editor} -in $incdir -row 1 -column 0 -sticky news
+        grid ${incdir}.y   -in $incdir -row 1 -column 1 -sticky ns
+        grid ${incdir}.x   -in $incdir -row 2 -column 0 -sticky ew
+
+        grid rowconfigure    ${incdir} 0 -weight 0
+        grid rowconfigure    ${incdir} 1 -weight 1
+        grid rowconfigure    ${incdir} 2 -weight 0
+        grid columnconfigure ${incdir} 0 -weight 1
+        grid columnconfigure ${incdir} 1 -weight 0
 
         # Don't dismiss entire dialog when Return key is presed in editor
         bindtags ${inc_editor} {Text all}
@@ -1082,7 +1059,7 @@ itcl_class Preferences& {
         global Avail_Parsers Parser_Info
         global opt_Parser_Info
 
-        set ParserPage [${nb} subwidget ${page}]
+        set ParserPage ${nb}.${page}
         set Parser ${ParserPage}
 
         #language extensitions
@@ -1090,13 +1067,11 @@ itcl_class Preferences& {
         foreach tt [array names Parser_Info] {
             set opt_Parser_Info(${tt}) $Parser_Info(${tt})
         }
-        set ext [tixLabelFrame ${Parser}.ext -label [get_indep String\
-          LanguageExt]]
-        ${ext} config -background $sn_options(def,layout-bg)
-        set win [${Parser}.ext subwidget frame]
-        pack ${ext} -fill x -side top -anchor c
+        set ext [ttk::labelframe ${Parser}.ext \
+                -text [get_indep String LanguageExt] -padding 5]
+        pack ${ext} -fill x -side top -padx 5 -pady 5
 
-        label $win.label -text [get_indep String LanguageExtLanguage]
+        ttk::label $ext.label -text [get_indep String LanguageExtLanguage]
 
         # Figure out how many chars wide the combo should be.
         # Default to the first parser in the list.
@@ -1114,51 +1089,51 @@ itcl_class Preferences& {
         }
         incr max_width 1
 
-        set extension_entry ${win}.ext_entry
-        set editor_entry ${win}.edit_entry
-        set combo ${win}.combo
-
-        combobox::combobox $combo \
-            -editable 0 \
-            -width $max_width
+        set extension_entry ${ext}.ext_entry
+        set editor_entry ${ext}.edit_entry
+        set combo ${ext}.combo
 
         foreach type [lsort -dictionary ${Avail_Parsers}] {
-            $combo listinsert end $type
+            lappend parserList $type
         }
+        ttk::combobox $combo -state readonly  \
+                -width $max_width -values $parserList
 
-        grid $win.label -row 0 -column 0 -sticky ew
+        grid $ext.label -row 0 -column 0 -sticky ew
         grid $combo -row 0 -column 1 -sticky ew -pady 5
 
-        label $win.ext_label -text [get_indep String LanguageExtFileExtensions]
-        entry $extension_entry
+        ttk::label $ext.ext_label -text [get_indep String LanguageExtFileExtensions]
+        ttk::entry $extension_entry
 
-        grid $win.ext_label -row 1 -column 0 -sticky w -pady 5
+        grid $ext.ext_label -row 1 -column 0 -sticky w -pady 5
         grid $extension_entry -row 1 -column 1 -sticky we -columnspan 2
 
-        label $win.edit_label -text [get_indep String ExternalEditor]
-        entry $editor_entry
+        ttk::label $ext.edit_label -text [get_indep String ExternalEditor]
+        ttk::entry $editor_entry
 
-        grid $win.edit_label -row 2 -column 0 -sticky w -pady 5
-        grid $editor_entry -row 2 -column 1 -sticky we -columnspan 2
+        grid $ext.edit_label -row 2 -column 0 -sticky w -pady 5
+        grid $editor_entry   -row 2 -column 1 -sticky we -columnspan 2
 
-        grid columnconfigure ${win} 2 -weight 1              
+        grid columnconfigure ${ext} 2 -weight 1              
 
         #Macro files
-        set macfr [tixLabelFrame ${Parser}.macros -label [get_indep String\
-          MacroFiles]]
-        ${macfr} config -background $sn_options(def,layout-bg)
-        set win [${Parser}.macros subwidget frame]
-        pack ${macfr} -side top -anchor c -fill x
-        set macros ${win}.edit
+        set macfr [ttk::labelframe ${Parser}.macros -text [get_indep String\
+          MacroFiles] -padding 5]
+        pack ${macfr} -side top -fill x -padx 5 -pady 5
+
+        set macros ${macfr}.edit
         set sn_options(opt_macrofiles) $sn_options(macrofiles)
-        button ${win}.add -text [get_indep String Choose] -command " ${this}\
-          choose_macrofile ${macros} "
-        balloon_bind_info ${win}.add [get_indep String ChooseINFO]
-        pack ${win}.add -side right -anchor nw
-        pack [scrollbar ${win}.y -command " ${macros} yview "] -side right\
-          -fill y
+
+        ttk::button ${macfr}.add -text [get_indep String Choose] \
+                -command " ${this} choose_macrofile ${macros}"   \
+                -width [string len [get_indep String Choose]]
+        balloon_bind_info ${macfr}.add [get_indep String ChooseINFO]
+
+        pack ${macfr}.add -side right -anchor nw -padx {5 0}
+        pack [ttk::scrollbar ${macfr}.y -command " ${macros} yview "] \
+                -side right -fill y
         pack [text ${macros} -wrap word -height 5 -yscrollcommand\
-          "${win}.y set"] -side left -fill x -expand y
+          "${macfr}.y set"] -side left -fill x -expand y
         bind ${macros} <Tab> {focus [tk_focusNext %W]; break}
         bind ${macros} <Shift-Tab> {focus [tk_focusPrev %W]; break}
         ${macros} insert 0.0 [join $sn_options(opt_macrofiles) \n]
@@ -1167,14 +1142,13 @@ itcl_class Preferences& {
         # Set parser type selected callback and invoke it once with
         # the default type to get things in the proper state.
 
-        $combo configure -command \
+        bind $combo <<ComboboxSelected>> \
             [itcl::code parser_type_combo_changed $extension_entry $editor_entry \
-                $win.add $macros]
+                $macfr.add $macros $combo]
 
-        $combo entryset $default_type
-
+        tools::ComboSelectText $combo $default_type
         parser_type_combo_changed $extension_entry $editor_entry \
-            $win.add $macros $combo $default_type
+            $macfr.add $macros $combo $default_type
 
         lappend AvailTools ${Parser}
     }
@@ -1187,7 +1161,12 @@ itcl_class Preferences& {
     # entries and disable or enable the macro widgets.
 
     proc parser_type_combo_changed { extension_widget editor_widget
-            macro_button_widget macro_text_widget combo_widget type } {
+            macro_button_widget macro_text_widget combo_widget {type ""}} {
+
+        if {$type==""} {
+            set type [$combo_widget get]
+        }
+
         $extension_widget configure -textvariable opt_Parser_Info(${type},SUF)
         $editor_widget configure -textvariable opt_Parser_Info(${type},EDIT)
 
@@ -1284,18 +1263,17 @@ itcl_class Preferences& {
     method AddRcs {nb page} {
         global sn_options
 
-        set RcsPage [${nb} subwidget ${page}]
+        set RcsPage ${nb}.${page}
         set Rcs ${RcsPage}
 
         #Revision Control System
-        set rcsys [tixLabelFrame ${Rcs}.rcsys -label [get_indep String PrefRcs]]
-        ${rcsys} config -background $sn_options(def,layout-bg)
-        set win [${Rcs}.rcsys subwidget frame]
-        pack ${rcsys} -fill x -side top -anchor c
+        set rcsys [ttk::labelframe ${Rcs}.rcsys -text [get_indep String PrefRcs]\
+                -padding 5]
+        pack ${rcsys} -fill x -side top -padx 5 -pady 5
 
         #choose revision control
         set sn_options(opt_both,rcs-type) $sn_options(both,rcs-type)
-        set sys ${win}.sys
+        set sys ${rcsys}.sys
         set lbls ""
         set values ""
         foreach rcs $sn_options(sys,supported-vcsystems) {
@@ -1307,20 +1285,19 @@ itcl_class Preferences& {
         pack ${sys} -side top -expand y -fill x
 
         # Ignore directories
-        set ignoredir [tixLabelFrame ${Rcs}.ignoredir \
-          -label [get_indep String IgnoredDirectories]]
-        ${ignoredir} config -background $sn_options(def,layout-bg)
-        set win [${Rcs}.ignoredir subwidget frame]
-        pack ${ignoredir} -side top -anchor c -fill both
-        set ign_editor ${win}.t
-        scrollbar ${win}.y -command " ${ign_editor} yview "
-        text ${ign_editor} -height 6 -wrap none -yscrollcommand "${win}.y set"
+        set ignoredir [ttk::labelframe ${Rcs}.ignoredir \
+          -text [get_indep String IgnoredDirectories] -padding 5]
+        pack ${ignoredir} -side top -fill both -padx 5 -pady 5
+
+        set ign_editor ${ignoredir}.t
+        ttk::scrollbar ${ignoredir}.y -command " ${ign_editor} yview "
+        text ${ign_editor} -height 6 -wrap none -yscrollcommand "${ignoredir}.y set"
         #		bindtags $ign_editor [list $ign_editor Text all]
         ${ign_editor} insert end [join $sn_options(def,ignored-directories)\
           "\n"]
         ${ign_editor} mark set insert 0.0
         ${ign_editor} see 0.0
-        pack ${win}.y -side right -fill y
+        pack ${ignoredir}.y -side right -fill y
         pack ${ign_editor} -side left -fill both -expand y
 
         lappend AvailTools ${Rcs}
@@ -1335,37 +1312,33 @@ itcl_class Preferences& {
     method AddOthers {nb page} {
         global sn_options tcl_platform
 
-        set OthersPage [${nb} subwidget ${page}]
+        set OthersPage ${nb}.${page}
         set Others ${OthersPage}
 
         #Make settings
-        set make [tixLabelFrame ${Others}.make -label [get_indep String\
-          PrefMake]]
-        ${make} config -background $sn_options(def,layout-bg)
-        set win [${Others}.make subwidget frame]
-        pack ${make} -fill x -side top -anchor c
+        set make [ttk::labelframe ${Others}.make -text [get_indep String\
+          PrefMake] -padding 5]
+        pack ${make} -fill x -side top -padx 5 -pady 5
 
         #Make command
         set sn_options(opt_both,make-command) $sn_options(both,make-command)
-        set makecmd ${win}.makecmd
+        set makecmd ${make}.makecmd
         LabelEntryButton& ${makecmd} -text "" -anchor nw\
           -variable sn_options(opt_both,make-command) -native 1\
           -extensions $sn_options(executable_ext)\
           -defaultextension $sn_options(executable_defaultext)
         pack ${makecmd} -side top -anchor nw -fill x
 
-        # Windows will use fault HTML viewer.
+        # Windows will use default HTML viewer.
         if {$tcl_platform(platform)!="windows"} {
             #Help settings
-            set help [tixLabelFrame ${Others}.help -label [get_indep String\
-              PafHtmlView]]
-            ${help} config -background $sn_options(def,layout-bg)
-            set win [${Others}.help subwidget frame]
-            pack ${help} -fill x -side top -anchor c
+            set help [ttk::labelframe ${Others}.help -text [get_indep String\
+              PafHtmlView] -padding 5]
+            pack ${help} -fill x -side top -padx 5 -pady 5
 
             #HTML viewer
             set sn_options(opt_def,html-viewer) $sn_options(def,html-viewer)
-            set html ${win}.html
+            set html ${help}.html
             LabelEntryButton& ${html} -text "" -anchor nw\
               -variable sn_options(opt_def,html-viewer)\
               -extensions $sn_options(executable_ext)\
@@ -1376,16 +1349,14 @@ itcl_class Preferences& {
         #no printer commands on windows
         if {$tcl_platform(platform) != "windows"} {
             #Printer
-            set printer [tixLabelFrame ${Others}.printer -label\
-              [get_indep String PrefPrinter]]
-            ${printer} config -background $sn_options(def,layout-bg)
-            set win [${Others}.printer subwidget frame]
-            pack ${printer} -fill x -side top -anchor c
+            set printer [ttk::labelframe ${Others}.printer -text\
+              [get_indep String PrefPrinter] -padding 5]
+            pack ${printer} -fill x -side top -padx 5 -pady 5
 
             #Ascii Print command
             set sn_options(opt_def,ascii-print-command)\
               $sn_options(def,ascii-print-command)
-            set prncmd ${win}.prncmd
+            set prncmd ${printer}.prncmd
             LabelEntryButton& ${prncmd} -text [get_indep String\
               PrefAsciiPrintCommand] -labelwidth 25 -anchor nw\
               -variable sn_options(opt_def,ascii-print-command)\
@@ -1396,7 +1367,7 @@ itcl_class Preferences& {
             #Print command
             set sn_options(opt_def,print-command)\
               $sn_options(def,print-command)
-            set pcmd ${win}.pcmd
+            set pcmd ${printer}.pcmd
             LabelEntryButton& ${pcmd} -text [get_indep String\
               PrefPrintCommand] -labelwidth 25 -anchor nw\
               -variable sn_options(opt_def,print-command)\
@@ -1405,15 +1376,13 @@ itcl_class Preferences& {
             pack ${pcmd} -side top -anchor nw -fill x
         }
 
-        set debug [tixLabelFrame ${Others}.debug -label [get_indep String\
-          DebuggerCommand]]
-        ${debug} config -background $sn_options(def,layout-bg)
-        set win [${Others}.debug subwidget frame]
-        pack ${debug} -fill x -side top -anchor c
+        set debug [ttk::labelframe ${Others}.debug -text [get_indep String\
+          DebuggerCommand] -padding 5]
+        pack ${debug} -fill x -side top -padx 5 -pady 5
 
         #Debugger command
         set sn_options(opt_def,gdb-command) $sn_options(def,gdb-command)
-        set dbgcmd ${win}.dbgcmd
+        set dbgcmd ${debug}.dbgcmd
         LabelEntryButton& ${dbgcmd} -text "" -labelwidth 0 -anchor nw\
           -variable sn_options(opt_def,gdb-command) -native 1\
           -extensions $sn_options(executable_ext)\
@@ -1421,14 +1390,12 @@ itcl_class Preferences& {
         pack ${dbgcmd} -side top -fill x
 
         #Retriever
-        set retr [tixLabelFrame ${Others}.retr -label [get_indep String\
-          PrefRetriever]]
-        ${retr} config -background $sn_options(def,layout-bg)
-        set win [${Others}.retr subwidget frame]
-        pack ${retr} -fill x -side top -anchor c
+        set retr [ttk::labelframe ${Others}.retr -text [get_indep String\
+          PrefRetriever] -padding 5]
+        pack ${retr} -fill x -side top -padx 5 -pady 5
 
         set sn_options(opt_donot_display) $sn_options(donot_display)
-        set retr ${win}.retr
+        set retr ${retr}.retr
         CheckButton& ${retr} -labels [list [get_indep String\
           DonotDisplayWarning]] -underlines [list [get_indep Pos\
           DonotDisplayWarning]] -balloons [list [get_indep String\
@@ -1448,7 +1415,7 @@ itcl_class Preferences& {
     method AddColorAndFont {nb page} {
         global sn_options
 
-        set ColorAndFontPage [${nb} subwidget ${page}]
+        set ColorAndFontPage ${nb}.${page}
         set ColorAndFont ${ColorAndFontPage}
 
         #Don't hide any settings on windows, even if the standard
@@ -1674,8 +1641,8 @@ itcl_class Preferences& {
                     set pane "others"
                 }
         }
-        if {[catch {${NoteBook} raise ${pane}}]} {
-            ${NoteBook} raise proj
+        if {[catch {${NoteBook} select ${NoteBook}.${pane}}]} {
+            ${NoteBook} select ${NoteBook}.proj
         }
     }
 
@@ -2072,7 +2039,7 @@ itcl_class Preferences& {
 
         if {${terminate}} {
             #store last page
-            set lastPage [${NoteBook} raised]
+            set lastPage [${NoteBook} select]
 
             global preferences_wait
             set preferences_wait "ok"
@@ -2733,8 +2700,6 @@ itcl_class Preferences& {
     #last accessed page
     common lastPage "proj"
 
-    public padx 5
-    public pady 5
     public raise "proj"
     public widget ""
     public new_project 0

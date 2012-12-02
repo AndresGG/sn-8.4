@@ -41,9 +41,9 @@ itcl::class itk::Widget {
         set itk_interior $itk_hull
 
         itk_component add hull {
-            frame $itk_hull -class [namespace tail [info class]]
+            ttk::frame $itk_hull -class [namespace tail [info class]]
         } {
-            keep -background -cursor
+            keep -cursor
         }
         bind itk-delete-$itk_hull <Destroy> [list itcl::delete object $this]
 

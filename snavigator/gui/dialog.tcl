@@ -131,9 +131,9 @@ proc tk_dialog {w title text bitmap default args} {
 #
 # Arguments:
 # w -           Frame for buttons.
+# pos -         top, bottom ...
 # default -     Index of button that is to display the default ring
 #               (-1 means none).
-# pos -         top, bottom ...
 # args -        One or more strings to display in buttons across the
 #               bottom of the dialog box.
 proc sn_ttk_buttons {frm pos default args} {

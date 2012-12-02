@@ -36,7 +36,7 @@ itcl::class Entry& {
     constructor {args} {
 
         itk_component add label {
-            label $itk_interior.label
+            ttk::label $itk_interior.label
         } {
             rename -text -label label Label
             rename -width -labelwidth labelWidth Width
@@ -44,7 +44,7 @@ itcl::class Entry& {
 	}
 
 	itk_component add entry {
-	    entry $itk_interior.entry
+	    ttk::entry $itk_interior.entry
 	} {
 	    keep -textvariable -exportselection -state -width
 	}
@@ -137,7 +137,7 @@ itcl::class Radio& {
         }
 
         if {$itk_option(-label) != ""} {
-            label $itk_component(hull).label -text $itk_option(-label) -underline $itk_option(-labelunderline)
+            ttk::label $itk_component(hull).label -text $itk_option(-label) -underline $itk_option(-labelunderline)
             pack $itk_component(hull).label -side $itk_option(-side) -fill x -expand n
             if {$itk_option(-labelwidth) != -1} {
                 $itk_component(hull).label configure -width $itk_option(-labelwidth)
@@ -155,7 +155,7 @@ itcl::class Radio& {
             }
             set bal [lindex $itk_option(-balloons) ${i}]
 
-            radiobutton ${fr}.radio-${i} -text ${n} -variable $itk_option(-variable)\
+            ttk::radiobutton ${fr}.radio-${i} -text ${n} -variable $itk_option(-variable)\
               -value ${val} -underline $itk_option(-underline)
 
             pack ${fr}.radio-${i} -side $itk_option(-side) -fill x -expand $itk_option(-expand)\
@@ -220,7 +220,7 @@ itcl::class CheckButton& {
         eval itk_initialize $args
 
         itk_component add label {
-            ::label $itk_interior.label
+            ttk::label $itk_interior.label
 	} {
 	    keep -underline
             rename -text -label text Text
@@ -231,7 +231,6 @@ itcl::class CheckButton& {
         set fr $itk_component(hull)
         set i 0
         foreach n $itk_option(-labels) {
-
             set var [lindex $itk_option(-variables) ${i}]
             set bal [lindex $itk_option(-balloons) ${i}]
             if {${var} == ""} {
@@ -249,8 +248,8 @@ itcl::class CheckButton& {
             if {${underline} == ""} {
                 set underline -1
             }
-            checkbutton ${fr}.check-${i} -text ${n} -variable ${var}\
-              -onvalue ${onval} -offvalue ${offval} -anchor ${anchor}\
+            ttk::checkbutton ${fr}.check-${i} -text ${n} -variable ${var}\
+              -onvalue ${onval} -offvalue ${offval} 			 \
               -underline ${underline} -state ${state}
 
             pack ${fr}.check-${i} -side ${side} -fill x -expand ${expand}\
@@ -300,7 +299,7 @@ itcl::class LabelEntryButton& {
         global sn_options
 
         itk_component add label {
-            label $itk_component(hull).label
+            ttk::label $itk_component(hull).label
         } {
             rename -width -labelwidth labelWidth Width
             keep -underline -anchor -text
@@ -308,13 +307,14 @@ itcl::class LabelEntryButton& {
 
         # entry for path
         itk_component add entry {
-            entry $itk_interior.text
+            ttk::entry $itk_interior.text
 	} {
 	    keep -state -width
 	}
 
         itk_component add button {
-	    button $itk_interior.button -text [get_indep String Choose]
+	    ttk::button $itk_interior.button -text [get_indep String Choose] \
+                -width [string len [get_indep String Choose]]
         } {
             rename -underline -buttonunderline buttonUnderline Underline
             keep -state -command
@@ -335,7 +335,7 @@ itcl::class LabelEntryButton& {
 
         pack $itk_component(label)  -side left -fill x
         pack $itk_component(entry)  -side left -fill both -expand y
-        pack $itk_component(button) -side left -fill x
+        pack $itk_component(button) -side left -fill x    -padx {4 0}
 
 
         # Link up the widget and the -value option
@@ -425,43 +425,46 @@ itcl::class ChooseColor& {
 
         eval itk_initialize $args
 
-	$this configure -modality application
+#	$this configure -modality application
 
-        ${this} withdraw
+#       ${this} withdraw
 
         $this configure -title [get_indep String ChooseColor]
 
+        set extFrame [ttk::frame $itk_component(hull).extFrame]
+        pack $extFrame -fill both -expand y 
+
         # Ok/Apply/Cancel buttons can't be itk'd since they are
-	# created in the sn_motif_buttons just now.
-
-        sn_motif_buttons $itk_component(hull) bottom 0 [get_indep String ok]\
+	# created in the sn_ttk_buttons just now.
+        sn_ttk_buttons $extFrame bottom 0 [get_indep String ok]\
           [get_indep String Apply] [get_indep String cancel]
-        $itk_component(hull).button_0 configure -command "${this} apply"
-        $itk_component(hull).button_1 configure -command "${this} apply 0"
-        $itk_component(hull).button_2 configure -command "$this deactivate 0"
+        $extFrame.button_0 configure -command "${this} apply"
+        $extFrame.button_1 configure -command "${this} apply 0"
+        $extFrame.button_2 configure -command "$this deactivate 0"
 
-        label $itk_component(hull).sample -text " "
-        pack $itk_component(hull).sample -side top -fill x -expand y -pady 10 -padx 20
+        label $extFrame.sample -text " "
+        pack $extFrame.sample -side top -fill x -expand y -pady 10 -padx 20
 
-        if {[catch {$itk_component(hull).sample configure -bg $itk_option(-current)}]} {
-             $itk_component(hull).sample configure -bg white
+        if {[catch {$extFrame.sample configure -bg $itk_option(-current)}]} {
+             $extFrame.sample configure -bg white
         }
 
         if {$itk_option(-current) == ""} {
             set current black
         }
 
-        $this configure -current [winfo rgb $itk_component(hull).sample $itk_option(-current)]
+        $this configure -current [winfo rgb $extFrame.sample $itk_option(-current)]
 
-        set bg [$itk_component(hull) cget -background]
         set i 0
         foreach clr {red green blue} {
-            scale $itk_component(hull).${clr} -label ${clr} -from 0 -to 255 -showvalue y\
-              -orient horizontal -variable [itcl::scope ${clr}] -bg ${bg} -command\
+            ttk::label $extFrame.l${clr} -text ${clr}
+            ttk::scale $extFrame.${clr} -from 0 -to 255 -value 0\
+              -orient horizontal -variable [itcl::scope ${clr}] -command\
               "${this} view_color $clr"
             set ${clr} [format %i "0x[string range [format "%02x"\
               [lindex $itk_option(-current) ${i}]] 0 1]"]
-            pack $itk_component(hull).${clr} -side top -fill x -expand y -padx 5 -pady 2
+            pack $extFrame.l${clr} -side top -anchor w         -padx 5 -pady 2
+            pack $extFrame.${clr}  -side top -fill x -expand y -padx 5 -pady 2
             incr i
         }
 
@@ -474,8 +477,11 @@ itcl::class ChooseColor& {
     }
 
     method view_color {clrname value} {
-        $this configure -current [format "#%02x%02x%02x" $red $green $blue]
-        $itk_component(hull).sample configure -bg $itk_option(-current)
+        set r [expr round($red)]
+        set g [expr round($green)]
+        set b [expr round($blue)]
+        $this configure -current [format "#%02x%02x%02x" $r $g $b]
+        $itk_component(hull).extFrame.sample configure -bg $itk_option(-current)
     }
 
     method apply {{exit 1}} {
@@ -515,70 +521,65 @@ itcl::class ChooseFont& {
 
         $this configure -title [get_indep String ChooseFont]
 
+        # External frame to cover all of the toplevel
+        set extFrame [ttk::frame $itk_component(hull).extFrame]
+        pack $extFrame -fill both -expand y 
+
         #ok/apply/cancel buttons
-        sn_motif_buttons $itk_component(hull) bottom 0 [get_indep String ok]\
+        sn_ttk_buttons $extFrame bottom 0 [get_indep String ok]\
           [get_indep String Apply] [get_indep String cancel]
-        $itk_component(hull).button_0 configure -command "${this} apply "
-        $itk_component(hull).button_1 configure -command "${this} apply 0"
-        $itk_component(hull).button_2 configure -command "${this} deactivate 0"
+        $extFrame.button_0 configure -command "${this} apply "
+        $extFrame.button_1 configure -command "${this} apply 0"
+        $extFrame.button_2 configure -command "${this} deactivate 0"
 
-        label $itk_component(hull).sample -text  [get_indep String Sample] -anchor c
-        pack  $itk_component(hull).sample -side top -fill x -expand y -pady 10 -padx 20
-
-        if {[catch {$itk_component(hull).sample configure -font $itk_option(-current)}]} {
-            set current $sn_options(def,default-font)
-             $itk_component(hull).sample configure -font $itk_option(-current)
-        }
-
-        set fntfr  $itk_component(hull).font
-        frame ${fntfr}
+        set fntfr  $extFrame.font
+        ttk::frame ${fntfr}
         pack ${fntfr} -side top -fill x -padx 10 -pady 5
 
-        set fntfr $itk_component(hull).font.name
-        pack [frame ${fntfr}] -side top -fill x
+        set fntfr $extFrame.font.name
+        pack [ttk::frame ${fntfr}] -side top -fill x
 
         #font Family
-        label ${fntfr}.famlbl -text [get_indep String Family] -anchor ne
+        ttk::label ${fntfr}.famlbl -text [get_indep String Family] -anchor ne
         set fam ${fntfr}.fam
-        Combo& ${fam} -width 12 -selectcommand "${this} view_font"
+        ttk::combobox ${fam} -width 12 -postcommand "${this} view_font"
         #no family for windows
         if {$tcl_platform(platform) == "windows"} {
-            ${fam} configure -contents [list "*"]
+            ${fam} configure -values [list "*"]
         } else {
-            ${fam} configure -contents [list "*" Adobe Sony Schumacher B&H Bitstream Misc]
+            ${fam} configure -values [list "*" Adobe Sony Schumacher B&H Bitstream Misc]
             pack ${fntfr}.famlbl -side left
             pack ${fam} -side left
         }
 
         #font name
-        label ${fntfr}.namlbl -text [get_indep String FontName] -anchor ne
+        ttk::label ${fntfr}.namlbl -text [get_indep String FontName] -anchor ne
         pack ${fntfr}.namlbl -side left
         set nam ${fntfr}.nam
-        Combo& ${nam} -width 22 -selectcommand "${this} view_font"
+        ttk::combobox ${nam} -width 22 -postcommand "${this} view_font"
         if {$tcl_platform(platform) == "windows"} {
-            ${nam} configure -contents [list "*" Arial {Comic Sans MS} Courier\
+            ${nam} configure -values [list "*" Arial {Comic Sans MS} Courier\
               {Courier New} Fixedsys Garamond {Lucida Console} {MS Sans Serif}\
               System {Times New Roman}]
         } else {
-            ${nam} configure -contents [list "*" Courier Clean Fixed Lucida Terminal\
+            ${nam} configure -values [list "*" Courier Clean Fixed Lucida Terminal\
               Charter Helvetica {New Century Schoolbook} Times Utopia]
         }
         pack ${nam} -side left
 
         #font size
-        label ${fntfr}.sizlbl -text [get_indep String FontSize] -anchor ne
+        ttk::label ${fntfr}.sizlbl -text [get_indep String FontSize] -anchor ne
         pack ${fntfr}.sizlbl -side left
         set siz ${fntfr}.siz
-        Combo& ${siz} -width 3 -selectcommand "${this} view_font"
-        ${siz} configure -contents [list "*" 8 10 11 12 13 14 15 16 18 20 22 24 28]
+        ttk::spinbox ${siz} -width 3 -command "${this} view_font" -from 8 -to 28
         pack ${siz} -side left
 
-        set fntfr $itk_component(hull).font.checks
-        pack [frame ${fntfr}] -side top -fill x -anchor c
+        set fntfr $extFrame.font.checks
+        pack [ttk::frame ${fntfr}] -side top -fill x -anchor c
 
         #Normal/Bold
         set bld ${fntfr}.bld
-        checkbutton ${bld} -text [get_indep String FontBold]\
+        ttk::checkbutton ${bld} -text [get_indep String FontBold]\
           -variable ${this}-bold -onvalue "bold" -offvalue "medium"\
           -underline ${underline} -command " ${this} view_font "
 
@@ -586,10 +587,18 @@ itcl::class ChooseFont& {
 
         #Normal/Cursive
         set cursive ${fntfr}.cursive
-        checkbutton ${cursive} -text [get_indep String FontCursive]\
+        ttk::checkbutton ${cursive} -text [get_indep String FontCursive]\
           -variable ${this}-cursive -onvalue "o" -offvalue "r"\
           -underline ${underline} -command " ${this} view_font "
         pack ${cursive} -side left -anchor c
+
+        ttk::label $extFrame.sample -text  [get_indep String Sample] -anchor c
+        pack  $extFrame.sample -side top -fill x -expand y -pady {3 10} -padx 20
+
+        if {[catch {$extFrame.sample configure -font $itk_option(-current)}]} {
+            set current $sn_options(def,default-font)
+             $extFrame.sample configure -font $itk_option(-current)
+        }
 
         disp_font $itk_option(-current)
 
@@ -633,8 +642,8 @@ itcl::class ChooseFont& {
         if {${name} == ""} {
             set name "Courier"
         }
-        ${fam} selecttext ${family}
-        ${nam} selecttext ${name}
+        ${fam} set ${family}
+        ${nam} set ${name}
 
         if {${sz} != "*" && [catch {set x [expr ${sz} + 0]}]} {
             set sz 120
@@ -642,13 +651,14 @@ itcl::class ChooseFont& {
         if {${sz} != "*"} {
             set sz [expr ${sz} / 10]
         }
-        ${siz} selecttext ${sz}
+        ${siz} set ${sz}
 
         set bold [string tolower ${bld}]
         set cursive [string tolower ${crsv}]
     }
 
     method view_font {{value ""}} {
+        global sn_options
         upvar #0 ${this}-bold bold
         upvar #0 ${this}-cursive cursive
 
@@ -658,9 +668,9 @@ itcl::class ChooseFont& {
         if {${cursive} == ""} {
             set cursive "r"
         }
-        set family [${fam} cget -entrytext]
-        set name [${nam} cget -entrytext]
-        set size [${siz} cget -entrytext]
+        set family [${fam} get]
+        set name   [${nam} get]
+        set size   [${siz} get]
 
         #add '0' to the font size
         if {${size} != "*"} {
@@ -669,9 +679,9 @@ itcl::class ChooseFont& {
 
         set itk_option(-current) \
           "-${family}-${name}-${bold}-${cursive}-Normal--*-${size}-*-*-*-*-iso8859-1"
-        if {[catch {$itk_component(hull).sample configure -font $itk_option(-current)}]} {
+        if {[catch {$itk_component(hull).extFrame.sample configure -font $itk_option(-current)}]} {
             set itk_option(-current) $sn_options(def,default-font)
-            $itk_component(hull).sample configure -font $itk_option(-current)
+            $itk_component(hull).extFrame.sample configure -font $itk_option(-current)
             bell
         }
     }
@@ -717,7 +727,7 @@ itcl::class Color& {
         set minus_bitmap [file join $sn_path(bitmapdir) minus.xbm]
 
         set cmbfr $itk_component(hull).cmbfr
-        frame ${cmbfr}
+        ttk::frame ${cmbfr}
         pack ${cmbfr} -side left -fill y
 
         #Schemes
@@ -740,7 +750,7 @@ itcl::class Color& {
         set treew [${tree} tree]
 
         set fr $itk_component(hull).fr
-        pack [frame ${fr}] -side right -fill both -expand y
+        pack [ttk::frame ${fr}] -side right -fill both -expand y
 
         #sample for current setting
         set sample ${fr}.sample
@@ -754,7 +764,7 @@ itcl::class Color& {
           choose_font ${fnt_btn} " -anchor e -state disabled
 
         # Since error handling is currently broken, disable typing.
-#        ${fnt_btn}.txt configure -state disabled
+        # ${fnt_btn}.txt configure -state disabled
 
         bind ${fnt_btn} <FocusOut> "${this} verify_font"
         pack ${fnt_btn} -side top -fill x
@@ -768,7 +778,7 @@ itcl::class Color& {
           choose_fg ${fg_btn} " -anchor e -state disabled
 
         # Since error handling is currently broken, disable typing.
-#        ${fg_btn}.txt configure -state disabled
+        # ${fg_btn}.txt configure -state disabled
 
         bind ${fg_btn} <FocusOut> "${this} verify_color fg"
         pack ${fg_btn} -side top -fill x
@@ -782,15 +792,15 @@ itcl::class Color& {
           choose_bg ${bg_btn} " -anchor e -state disabled
 
         # Since error handling is currently broken, disable typing.
-#        ${bg_btn}.txt configure -state disabled
+        # ${bg_btn}.txt configure -state disabled
 
         bind ${bg_btn} <FocusOut> "${this} verify_color bg"
         pack ${bg_btn} -side top -fill x
 
         #reset
         set rst ${fr}.rst
-        button ${rst} -text [get_indep String Reset] -command " ${this} reset "
-        pack ${rst} -side top -anchor ne
+        ttk::button ${rst} -text [get_indep String Reset] -command " ${this} reset "
+        pack ${rst} -side top -anchor ne -pady 5 -padx 1
 
         eval itk_initialize $args
 

@@ -28,7 +28,6 @@ itcl::class XRef& {
         global sn_options
 
         set class [${this} info class]
-        set bg [$itk_component(hull) cget -background]
 
         set can $itk_component(hull).can
 
@@ -241,7 +240,7 @@ itcl::class XRef& {
           -jump $sn_options(def,canvas-tree-jump)
 
         #Option menu for XRef items
-        menu ${can}.menu -tearoff 0 -background ${bg} -postcommand\
+        menu ${can}.menu -tearoff 0 -postcommand\
           "${this} update_post_menu"
         wm overrideredirect ${can}.menu 1
         #References To/By
