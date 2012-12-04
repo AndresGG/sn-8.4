@@ -372,13 +372,9 @@ PrintTextCmd(clientData, interp, argc, argv)
     text to be seen. */
 
     numLines = TkBTreeNumLines(textPtr->tree);
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
+
     TkTextMakeByteIndex(textPtr->tree, 0, 0, &first);
     TkTextMakeByteIndex(textPtr->tree, numLines, 100, &last);
-#else
-    TkTextMakeIndex(textPtr->tree, 0, 0, &first);
-    TkTextMakeIndex(textPtr->tree, numLines, 100, &last);
-#endif
     TkTextChanged(textPtr, &first, &last);
 
     /*

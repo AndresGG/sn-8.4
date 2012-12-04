@@ -54,11 +54,7 @@ static char *high_tag_names[] = {
 
 static int eos_read;
 
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
 #define CHARINDEX byteIndex
-#else
-#define CHARINDEX charIndex
-#endif
 
 int lexinput_tktext(char *buf, int max_size, int buf_size, void *index1, void *index2)
 {

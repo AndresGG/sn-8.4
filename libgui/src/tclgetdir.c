@@ -78,14 +78,13 @@ get_directory_command (ClientData cd, Tcl_Interp *interp, int argc,
   char *p;
   int atts;
   Tcl_DString tempBuffPtr;
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
+
   Tcl_DString titleDString;
   Tcl_DString initialDirDString;
   Tcl_DString resultDString;
 
   Tcl_DStringInit(&titleDString);
   Tcl_DStringInit(&initialDirDString);
-#endif
 
   Tcl_DStringInit(&tempBuffPtr);
 
@@ -124,12 +123,8 @@ get_directory_command (ClientData cd, Tcl_Interp *interp, int argc,
 	  if (v == argc)
 	    goto arg_missing;
 
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
 	  Tcl_UtfToExternalDString(NULL, argv[v], -1, &titleDString);
 	  bi.lpszTitle = Tcl_DStringValue(&titleDString);
-#else
-	  bi.lpszTitle = argv[v];
-#endif
 	}
       else if (strncmp (argv[i], "-initialdir", len) == 0)
 	{
@@ -138,11 +133,8 @@ get_directory_command (ClientData cd, Tcl_Interp *interp, int argc,
 
 	  /* bi.lParam will be passed to the callback function.(save the need for globals)*/
 	  bi.lParam = (LPARAM) Tcl_TranslateFileName(interp, argv[v], &tempBuffPtr);
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
 	  Tcl_UtfToExternalDString(NULL, (char *) bi.lParam, -1, &initialDirDString);
 	  bi.lParam = (LPARAM) Tcl_DStringValue(&initialDirDString);
-#endif
-	  bi.lpfn   = MyBrowseCallbackProc;
 	}
       else
 	{
@@ -190,25 +182,17 @@ get_directory_command (ClientData cd, Tcl_Interp *interp, int argc,
   
 
   /* Normalize the path for Tcl.  */
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
   Tcl_ExternalToUtfDString(NULL, buf, -1, &resultDString);
   p = Tcl_DStringValue(&resultDString);
-#else
-  p = buf;
-#endif
   for (; *p != '\0'; ++p)
     if (*p == '\\')
       *p = '/';
 
   Tcl_ResetResult(interp);
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
   Tcl_SetResult(interp, Tcl_DStringValue(&resultDString), TCL_VOLATILE);
   Tcl_DStringFree(&resultDString);
   Tcl_DStringFree(&titleDString);
   Tcl_DStringFree(&initialDirDString);
-#else
-  Tcl_SetResult(interp, buf, TCL_VOLATILE);
-#endif
   Tcl_DStringFree(&tempBuffPtr);
 
   return TCL_OK;

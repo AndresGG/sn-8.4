@@ -374,10 +374,6 @@ isfileused(ClientData clientData,Tcl_Interp *interp,int argc,char **argv)
   return TCL_OK;
 }
 
-#if !_WINDOWS
-extern int SN_donot_call_motif_filedialog_box;
-#endif /* !_WINDOWS */
-
 static	void
 sn_init_mycommands(Tcl_Interp *interp,ClientData main_win)
 {
@@ -492,12 +488,6 @@ sn_init_mycommands(Tcl_Interp *interp,ClientData main_win)
 	ide_create_win_choose_font_command(interp);
 #endif
 	
-#if (TCL_MAJOR_VERSION <= 8) && (TCL_MINOR_VERSION < 1)
-#ifndef _WINDOWS
-	/* Don't call the motif dialog box */
-	SN_donot_call_motif_filedialog_box = 1;
-#endif
-#endif
 }
 
 /*
@@ -1059,12 +1049,9 @@ Sn_setup_Init(Tcl_Interp *interp)		/* Interpreter for application. */
 
 	    commandObj = Tcl_NewStringObj(findShareScript, -1);
 	    Tcl_IncrRefCount(commandObj);
-/* Be compatible with tcl8.1. */
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION == 1)            
-	    result = Tcl_EvalObj(interp, commandObj, 0);
-#else
+
 	    result = Tcl_EvalObj(interp, commandObj);
-#endif
+
 	    Tcl_DecrRefCount(commandObj);
 	    if (TCL_ERROR != result) {
 		resultObj = Tcl_GetObjResult(interp);
