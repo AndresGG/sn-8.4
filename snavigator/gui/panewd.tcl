@@ -181,7 +181,9 @@ itcl::class PanedWindow {
     # ------------------------------------------------------------------
     #  METHOD:  config - used to change public attributes
     # ------------------------------------------------------------------
-    method config {config} { }
+    method config {args} { 
+        eval configure $args
+    }
 
     # ------------------------------------------------------------------
     #  DESTRUCTOR - destroy window containing widget

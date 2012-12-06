@@ -198,7 +198,8 @@ itcl::class Retr& {
     }
     method cget {config} {
     }
-    method config {config} {
+    method config {args} {
+        eval configure $args
     }
 
     #by default, all scopes are enabled except files

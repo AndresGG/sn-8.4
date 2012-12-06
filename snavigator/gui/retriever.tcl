@@ -437,7 +437,8 @@ itcl_class Retriever& {
         set return_status -1
     }
 
-    method config {config} {
+    method config {args} {
+        eval configure $args
     }
 
     #pattern to search an item

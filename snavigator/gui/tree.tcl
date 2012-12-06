@@ -304,7 +304,8 @@ after idle "update idletasks ; if \[winfo exists $top\] \{pack propagate $top\}"
 	return [::eval $tree cget $args]
     }
 
-    method config {config} {
+    method config {args} {
+        eval configure $args
     }
 
     method xview {args} {
