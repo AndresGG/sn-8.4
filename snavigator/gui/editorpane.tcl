@@ -395,9 +395,21 @@ itcl::class Editor& {
 	bind ${t} <greater> {+Editor&::Insert_Mark_Bracket %W %A}
 	bind ${t} <quotedbl> {+Editor&::Insert_Mark_Bracket %W %A}
 	bind ${t} <parenright> {+Editor&::Insert_Mark_Bracket %W %A}
-	bind ${t} <bracketright> {+Editor&::Insert_Mark_Bracket %W %A}
-	bind ${t} <braceright> {+Editor&::Insert_Mark_Bracket %W %A}
 
+#       These bindings don't work if you need the right Alt key to 
+#       get to the braces and brackets. 
+#	bind ${t} <bracketright> {+Editor&::Insert_Mark_Bracket %W %A}
+#	bind ${t} <braceright> {+Editor&::Insert_Mark_Bracket %W %A}
+#       I can't get a binding to the right Alt key , so I have to
+#       bind every key (hope it doesn't get to be too slow)
+        bind ${t} <KeyRelease> {
+            set ch [%W get {insert - 1 char}]
+            if {$ch eq "\}"} {
+                Editor&::Insert_Mark_Bracket %W "\}" 1
+            } elseif {$ch eq "\]"} {
+                Editor&::Insert_Mark_Bracket %W "\]" 1
+            }
+        }
 	# "{" "[" "]" "}" are bound on Alt-(7,8,9,0), so we need to bind the
 	# numbers for windows nt/95, since bind <braceright> doesn't work.
 	bind ${t} <KeyPress-9> {+Editor&::Insert_Mark_Bracket %W %A}
