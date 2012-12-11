@@ -411,7 +411,7 @@ itcl::class Editor& {
 
 	bind ${t} <Insert> "Editor&::set_overwrite %W \$tkText(%W,ovwrt);break"
 
-	bind ${t} <Double-1><ButtonRelease-1> {
+	bind ${t} <Double-1> {
 	    switch -- [%W get {insert - 1 char}] {
 	        "\}" {
 	            Editor&::Insert_Mark_Bracket %W "\}" 0
@@ -444,7 +444,6 @@ itcl::class Editor& {
 	            Editor&::Insert_Mark_Bracket %W "\'" 0
 	        }
 	    }
-	    break
 	}
     }
 
@@ -1659,7 +1658,7 @@ itcl::class Editor& {
     #
     # w: 	  Editor widget
     # sb: 	  start bracket
-    # eb:	  end bracket
+    # eb:	  end bracket (It isn't an arg to the proc)
     # insert: marks if a bracket is inserted or the region
     #		  has to selected
     proc Insert_Mark_Bracket {args} {
