@@ -702,13 +702,8 @@ sn_glob(ClientData clientData,Tcl_Interp *interp,int argc,Tcl_Obj *CONST objv[])
      * Return directory list, if no variable is availiable */
     if (rec_params.dirvar)
     {
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION == 1)
-            char *dirvar = Tcl_GetStringFromObj(rec_params.dirvar, NULL);
-	Tcl_SetObjVar2(interp, dirvar, NULL, rec_params.dirlist, 0);
-#else
 	Tcl_ObjSetVar2(interp, rec_params.dirvar, NULL, 
 	           rec_params.dirlist, 0);
-#endif
     }
     else
     {
@@ -722,13 +717,8 @@ sn_glob(ClientData clientData,Tcl_Interp *interp,int argc,Tcl_Obj *CONST objv[])
      * Return file list, if no variable is availiable */
     if (rec_params.filevar)
     {
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION == 1)
-            char *filevar = Tcl_GetStringFromObj(rec_params.filevar, NULL);
-	Tcl_SetObjVar2(interp, filevar, NULL, rec_params.filelist, 0);
-#else
 	Tcl_ObjSetVar2(interp,rec_params.filevar,NULL,
 	           rec_params.filelist,0);
-#endif
     }
     else
     {

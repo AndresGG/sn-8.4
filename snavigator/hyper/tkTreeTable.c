@@ -1343,7 +1343,7 @@ TreeTableCmd(ClientData clientData, /* Main window associated with interpreter *
 		Tk_DestroyWindow(tablePtr->tkwin);
 		return TCL_ERROR;
 	}
-	interp->result = Tk_PathName(tablePtr->tkwin);
+	Tcl_SetResult(interp, Tk_PathName(tablePtr->tkwin), TCL_VOLATILE);
 	return TCL_OK;
 }
 
@@ -1419,6 +1419,7 @@ TreeTableWidgetCmd(
     int index;
     char tmp [256];
 	Tcl_Obj *errm;
+    char interpresult[50];
 	
 	errm = Tcl_NewObj();
 	
@@ -1685,7 +1686,7 @@ TreeTableWidgetCmd(
 			itemPtr = TreeTableFindItem (tablePtr, index);
 			if (itemPtr != NULL)
 			{
-				interp->result = itemPtr->text; /*CHG*/
+				Tcl_SetResult(interp, itemPtr->text, TCL_VOLATILE); /*CHG*/
 			}
 		}
 		/* find a couple of items */
@@ -1828,7 +1829,8 @@ TreeTableWidgetCmd(
 			goto error;
 		}
 		index = NearestTreeTableItem(tablePtr, y);
-		sprintf(interp->result, "%d", index);
+                sprintf(interpresult, "%d", index);
+                Tcl_SetResult(interp, interpresult, TCL_VOLATILE);
 	} else if ((c == 'i') && (strncmp(cmd, "index", length) == 0)) {
 		if (argc != 3)
 		{
@@ -1839,7 +1841,8 @@ TreeTableWidgetCmd(
 		{
 			goto error;
 		}
-		sprintf(interp->result, "%d", index);
+		sprintf(interpresult, "%d", index);
+                Tcl_SetResult(interp, interpresult, TCL_VOLATILE);
 	}
 	else if ((c == 'p') && (length >= 2) && (strncmp(cmd, "parent", length) == 0))
 	{
@@ -1875,7 +1878,8 @@ TreeTableWidgetCmd(
 								 O_STR(2), "\"", (char *) NULL);
 				goto error;
 			}
-			sprintf(interp->result, "%d", parent);
+			sprintf(interpresult, "%d", parent);
+                        Tcl_SetResult(interp, interpresult, TCL_VOLATILE);
 		}
 	}
 	else if ((c == 's') && (length >= 2) 
@@ -1931,11 +1935,11 @@ TreeTableWidgetCmd(
 			itemPtr = TreeTableFindItem (tablePtr, index);
 			if (itemPtr != NULL && (itemPtr->flags&ITEM_SELECTED))
 			{
-				sprintf (interp->result, "1");
+				Tcl_SetResult(interp, "1", TCL_STATIC);
 			}
 			else
 			{
-				sprintf (interp->result, "0");
+				Tcl_SetResult(interp, "0", TCL_STATIC);
 			}
 			
 			goto done;
@@ -2003,7 +2007,8 @@ TreeTableWidgetCmd(
     else if ((c == 's') && (length > 2)
 			 && (strncmp(cmd, "size", length) == 0))
 	{
-		sprintf(interp->result, "%d", tablePtr->numItems);
+		sprintf(interpresult, "%d", tablePtr->numItems);
+                Tcl_SetResult(interp, interpresult, TCL_VOLATILE);
 	}
     else if ((c == 'x') && (strncmp(cmd, "xview", length) == 0))
 	{
@@ -2013,7 +2018,7 @@ TreeTableWidgetCmd(
 		{
 			if (tablePtr->maxWidth == 0)
 			{
-				interp->result = "0 1";
+				Tcl_SetResult(interp, "0 1", TCL_STATIC);
 			}
 			else
 			{
@@ -2030,7 +2035,8 @@ TreeTableWidgetCmd(
 				{
 					fraction2 = 1.0;
 				}
-				sprintf(interp->result, "%g %g", fraction, fraction2);
+				sprintf(interpresult, "%g %g", fraction, fraction2);
+                                Tcl_SetResult(interp, interpresult, TCL_VOLATILE);
 			}
 			goto done;
 		}
@@ -2096,7 +2102,7 @@ TreeTableWidgetCmd(
 		{
 			if (tablePtr->numItems == 0)
 			{
-				interp->result = "0 1";
+				Tcl_SetResult(interp, "0 1", TCL_STATIC);
 			}
 			else
 			{
@@ -2111,7 +2117,8 @@ TreeTableWidgetCmd(
 				{
 					fraction2 = 1.0;
 				}
-				sprintf(interp->result, "%g %g", fraction, fraction2);
+				sprintf(interpresult, "%g %g", fraction, fraction2);
+                                Tcl_SetResult(interp, interpresult, TCL_VOLATILE);
 			}
 			goto done;
 		}
@@ -2258,7 +2265,8 @@ TreeTableWidgetCmd(
 			p = "";
 			break;
 		}
-		strcpy (interp->result, p);
+		strcpy (interpresult, p);
+                Tcl_SetResult(interp, interpresult, TCL_VOLATILE);
 	}
     else if ((c == 't') && (strncmp(cmd, "toggle", length) == 0))
 	{
@@ -2422,7 +2430,8 @@ TreeTableWidgetCmd(
 	}
     else if ((c == 'x') && (strncmp(cmd, "xoffset", length) == 0))
 	{
-		sprintf(interp->result, "%d", tablePtr->xOffset);
+		sprintf(interpresult, "%d", tablePtr->xOffset);
+                Tcl_SetResult(interp, interpresult, TCL_VOLATILE);
 	}
     else if ((c == 'b') && (strncmp(cmd, "bbox", length) == 0))
 	{
@@ -7385,7 +7394,7 @@ TreeTableSearchCmd(TreeTable *tablePtr, int argc, char **argv)
 		{
 			if (i >= (argc-1))
 			{
-				tablePtr->interp->result = "no value given for \"-count\" option";
+				Tcl_SetResult(tablePtr->interp, "no value given for \"-count\" option", TCL_STATIC);
 				return TCL_ERROR;
 			}
 			i++;

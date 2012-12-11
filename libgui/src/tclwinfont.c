@@ -127,11 +127,7 @@ win_choose_font (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
       /* This code is taken from TkpGetFontFromAttributes.  It
          converts a TkFontAttributes structure into a LOGFONT
          structure.  */
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
       lf.lfHeight = - fa->size;
-#else
-      lf.lfHeight = - fa->pointsize;
-#endif
       if (lf.lfHeight < 0)
 	lf.lfHeight = MulDiv (lf.lfHeight,
 			      254 * WidthOfScreen (Tk_Screen (parent)),
@@ -171,12 +167,7 @@ win_choose_font (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
 
 	  sprintf (buf, "Windows common dialog error 0x%lx", (unsigned long) code);
 	  Tcl_ResetResult (interp);
-          #if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
             Tcl_ExternalToUtfDString(NULL, buf, -1, &resultStr);
-          #else
-            Tcl_InitDString(&resultStr);
-            Tcl_DStingAppend(&resultStr, buf, -1);
-          #endif
 	  Tcl_AppendStringsToObj (Tcl_GetObjResult (interp),
 				  Tcl_DStringValue(&resultStr),
 				  (char *) NULL);
@@ -195,12 +186,7 @@ win_choose_font (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
   if (hfont == NULL)
     {
       /* This should be impossible.  */
-      #if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
         Tcl_ExternalToUtfDString(NULL, "CreateFontIndirect failed on chosen font", -1, &resultStr);
-      #else
-        Tcl_InitDString(&resultStr);
-        Tcl_DStingAppend(&resultStr, "CreateFontIndirect failed on chosen font", -1);
-      #endif
       Tcl_SetResult (interp, Tcl_DStringValue(&resultStr), TCL_STATIC);
       Tcl_DStringFree(&resultStr);
       return TCL_ERROR;
@@ -213,12 +199,7 @@ win_choose_font (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
 
   Tcl_ResetResult (interp);
 
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
   Tcl_ExternalToUtfDString(NULL, facebuf, -1, &resultStr);
-#else
-  Tcl_InitDString(&resultStr);
-  Tcl_DStingAppend(&resultStr,facebuf,-1);
-#endif
 
   if (Tcl_ListObjAppendElement (interp, Tcl_GetObjResult (interp),
 				Tcl_NewStringObj (Tcl_DStringValue(&resultStr), -1)) != TCL_OK) {
@@ -242,12 +223,7 @@ win_choose_font (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
   else
     s = "normal";
 
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
   Tcl_ExternalToUtfDString(NULL, s, -1, &resultStr);
-#else
-  Tcl_InitDString(&resultStr);
-  Tcl_DStingAppend(&resultStr, s, -1);
-#endif
 
   if (Tcl_ListObjAppendElement (interp, Tcl_GetObjResult (interp),
 				Tcl_NewStringObj (Tcl_DStringValue(&resultStr), -1)) != TCL_OK) {
@@ -262,12 +238,7 @@ win_choose_font (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
   else
     s = "roman";
 
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
   Tcl_ExternalToUtfDString(NULL, s, -1, &resultStr);
-#else
-  Tcl_InitDString(&resultStr);
-  Tcl_DStingAppend(&resultStr, s, -1);
-#endif
 
   if (Tcl_ListObjAppendElement (interp, Tcl_GetObjResult (interp),
 				Tcl_NewStringObj (Tcl_DStringValue(&resultStr), -1)) != TCL_OK) {
@@ -278,12 +249,8 @@ win_choose_font (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
 
   if (tm.tmUnderlined)
     {
-      #if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
+
         Tcl_ExternalToUtfDString(NULL, "underline", -1, &resultStr);
-      #else
-        Tcl_InitDString(&resultStr);
-        Tcl_DStingAppend(&resultStr,"underline",-1);
-      #endif
       if (Tcl_ListObjAppendElement (interp, Tcl_GetObjResult (interp),
 				    Tcl_NewStringObj (Tcl_DStringValue(&resultStr), -1))
 	  != TCL_OK) {
@@ -295,12 +262,7 @@ win_choose_font (ClientData cd, Tcl_Interp *interp, int argc, CONST char **argv)
 
   if (tm.tmStruckOut)
     {
-      #if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
         Tcl_ExternalToUtfDString(NULL, "overstrike", -1, &resultStr);
-      #else
-        Tcl_InitDString(&resultStr);
-        Tcl_DStingAppend(&resultStr, "overstrike", -1);
-      #endif
       if (Tcl_ListObjAppendElement (interp, Tcl_GetObjResult (interp),
 				    Tcl_NewStringObj (Tcl_DStringValue(&resultStr), -1))
 	  != TCL_OK) {

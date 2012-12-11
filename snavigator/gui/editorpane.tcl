@@ -395,9 +395,21 @@ itcl::class Editor& {
 	bind ${t} <greater> {+Editor&::Insert_Mark_Bracket %W %A}
 	bind ${t} <quotedbl> {+Editor&::Insert_Mark_Bracket %W %A}
 	bind ${t} <parenright> {+Editor&::Insert_Mark_Bracket %W %A}
-	bind ${t} <bracketright> {+Editor&::Insert_Mark_Bracket %W %A}
-	bind ${t} <braceright> {+Editor&::Insert_Mark_Bracket %W %A}
 
+#       These bindings don't work if you need the right Alt key to 
+#       get to the braces and brackets. 
+#	bind ${t} <bracketright> {+Editor&::Insert_Mark_Bracket %W %A}
+#	bind ${t} <braceright> {+Editor&::Insert_Mark_Bracket %W %A}
+#       I can't get a binding to the right Alt key , so I have to
+#       bind every key (hope it doesn't get to be too slow)
+        bind ${t} <KeyRelease> {
+            set ch [%W get {insert - 1 char}]
+            if {$ch eq "\}"} {
+                Editor&::Insert_Mark_Bracket %W "\}" 1
+            } elseif {$ch eq "\]"} {
+                Editor&::Insert_Mark_Bracket %W "\]" 1
+            }
+        }
 	# "{" "[" "]" "}" are bound on Alt-(7,8,9,0), so we need to bind the
 	# numbers for windows nt/95, since bind <braceright> doesn't work.
 	bind ${t} <KeyPress-9> {+Editor&::Insert_Mark_Bracket %W %A}
@@ -411,7 +423,7 @@ itcl::class Editor& {
 
 	bind ${t} <Insert> "Editor&::set_overwrite %W \$tkText(%W,ovwrt);break"
 
-	bind ${t} <Double-1><ButtonRelease-1> {
+	bind ${t} <Double-1> {
 	    switch -- [%W get {insert - 1 char}] {
 	        "\}" {
 	            Editor&::Insert_Mark_Bracket %W "\}" 0
@@ -444,7 +456,6 @@ itcl::class Editor& {
 	            Editor&::Insert_Mark_Bracket %W "\'" 0
 	        }
 	    }
-	    break
 	}
     }
 
@@ -1659,7 +1670,7 @@ itcl::class Editor& {
     #
     # w: 	  Editor widget
     # sb: 	  start bracket
-    # eb:	  end bracket
+    # eb:	  end bracket (It isn't an arg to the proc)
     # insert: marks if a bracket is inserted or the region
     #		  has to selected
     proc Insert_Mark_Bracket {args} {

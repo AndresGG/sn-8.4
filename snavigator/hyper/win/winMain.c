@@ -433,7 +433,7 @@ Tcl_AppInit(interp)
     return TCL_OK;
 
 error:
-    WishPanic(interp->result);
+    WishPanic(Tcl_GetStringResult(interp));
     return TCL_ERROR;
 }
 

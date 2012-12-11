@@ -89,7 +89,8 @@ itcl_class SymBr& {
             catch {uplevel #0 unset ${v}}
         }
     }
-    method config {config} {
+    method config {args} {
+        eval configure $args
     }
     method AddToolbar {} {
         set exp ${Toolbar}

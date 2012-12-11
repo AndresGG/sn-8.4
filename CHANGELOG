@@ -8,6 +8,11 @@
 (ENHANCE) Ported the 'new project' dialog to use Ttk widgets
 (ENHANCE) Update the project management window to use Ttk widgets
 (INTERNAL) Add tile extension for Ttk widgets support
+(BUGFIX) Fix the auto selection when "}" or "]" are typed
+(BUGFIX) Double click to the right of "{}()<>[]" selects the content
+(ENHANCE) Configure will add TruType support by default
+(INTERNAL) Remove code to support old Tcl/Tk versions
+(INTERNAL) Remove direct access to interp->result
 (BUGFIX) Fix the dialog that pops up when looking for an implementation
 (ENHANCE) Use, for the time being,  Tk default fonts
 (BUGFIX) Fix the Help->Online manuals menu entry

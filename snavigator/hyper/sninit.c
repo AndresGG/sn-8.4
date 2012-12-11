@@ -237,7 +237,7 @@ mx_save_and_set_cursor(Tcl_Interp *interp,char *tkpath,char *cursor,Tcl_Obj *res
 		if (Tcl_VarEval(interp,tkpath," cget -cursor",NULL) != TCL_OK)
 			return;
 
-		old_cursor = Tcl_NewStringObj(interp->result,-1);
+		old_cursor = Tcl_NewStringObj(Tcl_GetStringResult(interp),-1);
 
 		if (Tcl_VarEval(interp,tkpath," configure -cursor ",cursor,NULL) != TCL_OK)
 			return;
@@ -374,10 +374,6 @@ isfileused(ClientData clientData,Tcl_Interp *interp,int argc,char **argv)
   return TCL_OK;
 }
 
-#if !_WINDOWS
-extern int SN_donot_call_motif_filedialog_box;
-#endif /* !_WINDOWS */
-
 static	void
 sn_init_mycommands(Tcl_Interp *interp,ClientData main_win)
 {
@@ -492,12 +488,6 @@ sn_init_mycommands(Tcl_Interp *interp,ClientData main_win)
 	ide_create_win_choose_font_command(interp);
 #endif
 	
-#if (TCL_MAJOR_VERSION <= 8) && (TCL_MINOR_VERSION < 1)
-#ifndef _WINDOWS
-	/* Don't call the motif dialog box */
-	SN_donot_call_motif_filedialog_box = 1;
-#endif
-#endif
 }
 
 /*
@@ -1059,12 +1049,9 @@ Sn_setup_Init(Tcl_Interp *interp)		/* Interpreter for application. */
 
 	    commandObj = Tcl_NewStringObj(findShareScript, -1);
 	    Tcl_IncrRefCount(commandObj);
-/* Be compatible with tcl8.1. */
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION == 1)            
-	    result = Tcl_EvalObj(interp, commandObj, 0);
-#else
+
 	    result = Tcl_EvalObj(interp, commandObj);
-#endif
+
 	    Tcl_DecrRefCount(commandObj);
 	    if (TCL_ERROR != result) {
 		resultObj = Tcl_GetObjResult(interp);
@@ -1146,7 +1133,7 @@ Sn_setup_Init(Tcl_Interp *interp)		/* Interpreter for application. */
 	if (Tcl_Init(interp) == TCL_ERROR)
 	{
 #if !_WINDOWS
-		fprintf(stderr,"%s\n",interp->result);
+		fprintf(stderr,"%s\n",Tcl_GetStringResult(interp));
 #endif /* !_WINDOWS */
 
 		return TCL_ERROR;
@@ -1174,7 +1161,7 @@ Sn_setup_Init(Tcl_Interp *interp)		/* Interpreter for application. */
 	if (Tk_Init(interp) == TCL_ERROR)
 	{
 #if !_WINDOWS
-		fprintf(stderr,"%s\n",interp->result);
+		fprintf(stderr,"%s\n",Tcl_GetStringResult(interp));
 
 		exit(2);
 #else
@@ -1190,14 +1177,14 @@ Sn_setup_Init(Tcl_Interp *interp)		/* Interpreter for application. */
 	cmd_ret = Itcl_Init(interp);
 	if(cmd_ret != TCL_OK)
 	{
-		LOGGER((LOGFP,"Itcl Error: %s\n",interp->result));
+		LOGGER((LOGFP,"Itcl Error: %s\n",Tcl_GetStringResult(interp)));
 		return cmd_ret;
 	}
 
 	cmd_ret = Itk_Init(interp);
 	if(cmd_ret != TCL_OK)
 	{
-		LOGGER((LOGFP,"Itk Error: %s\n",interp->result));
+		LOGGER((LOGFP,"Itk Error: %s\n",Tcl_GetStringResult(interp)));
 		return cmd_ret;
 	}
 
@@ -1285,14 +1272,14 @@ Sn_setup_Init(Tcl_Interp *interp)		/* Interpreter for application. */
 	cmd_ret = Tcl_Eval(interp, initCmd);
 	if(cmd_ret != TCL_OK)
 	{
-		LOGGER((LOGFP,"sn_tcl_tk_init Error: %s\n",interp->result));
+		LOGGER((LOGFP,"sn_tcl_tk_init Error: %s\n",Tcl_GetStringResult(interp)));
 
 		if ((parg = (char *)Tcl_GetVar(interp,"errorInfo",TCL_GLOBAL_ONLY)))
 		{
 			LOGGER((LOGFP,"  errorInfo <%s>\n",parg));
 		}
 #if !_WINDOWS
-		fprintf(stderr,"Error: %s\n",interp->result);
+		fprintf(stderr,"Error: %s\n",Tcl_GetStringResult(interp));
 		exit(2);
 #endif /* !_WINDOWS */
 		return TCL_ERROR;
@@ -1339,7 +1326,7 @@ Sn_setup_Init(Tcl_Interp *interp)		/* Interpreter for application. */
 		cmd_ret = Tcl_Eval(interp,eval_exp);
 		if (cmd_ret != TCL_OK)
 		{
-			LOGGER((LOGFP,"Tcl Error: %s\n",interp->result));
+			LOGGER((LOGFP,"Tcl Error: %s\n",Tcl_GetStringResult(interp)));
 		}
 	}
 

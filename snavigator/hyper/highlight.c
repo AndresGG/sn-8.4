@@ -54,11 +54,7 @@ static char *high_tag_names[] = {
 
 static int eos_read;
 
-#if (TCL_MAJOR_VERSION >= 8) && (TCL_MINOR_VERSION >= 1)
 #define CHARINDEX byteIndex
-#else
-#define CHARINDEX charIndex
-#endif
 
 int lexinput_tktext(char *buf, int max_size, int buf_size, void *index1, void *index2)
 {
@@ -296,7 +292,7 @@ int Sn_Syntax_Highlight(ClientData clientData, Tcl_Interp * interp, int argc, ch
 				Tcl_ResetResult(interp);
 				TkTextTagCmd(textPtr, interp, tag_argc, (CONST char **)tag_argv);
 
-				p_end = strchr(interp->result, ' ');
+				p_end = strchr(Tcl_GetStringResult(interp), ' ');
 				/* Check whether it is synchronized ! */
 				if(p_end && strcmp(p_end + 1, endpos) == 0) {
 					eos_read = 1;
