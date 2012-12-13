@@ -416,87 +416,6 @@ itcl::class LabelEntryButton& {
     public variable directory 0
 }
 
-#Choose colors
-itcl::class ChooseColor& {
-    inherit sourcenav::Dialog
-
-    constructor {args} {
-        global sn_options
-
-        eval itk_initialize $args
-
-	$this configure -modality application
-
-        ${this} withdraw
-
-        $this configure -title [get_indep String ChooseColor]
-
-        # Ok/Apply/Cancel buttons can't be itk'd since they are
-	# created in the sn_motif_buttons just now.
-
-        sn_motif_buttons $itk_component(hull) bottom 0 [get_indep String ok]\
-          [get_indep String Apply] [get_indep String cancel]
-        $itk_component(hull).button_0 configure -command "${this} apply"
-        $itk_component(hull).button_1 configure -command "${this} apply 0"
-        $itk_component(hull).button_2 configure -command "$this deactivate 0"
-
-        label $itk_component(hull).sample -text " "
-        pack $itk_component(hull).sample -side top -fill x -expand y -pady 10 -padx 20
-
-        if {[catch {$itk_component(hull).sample configure -bg $itk_option(-current)}]} {
-             $itk_component(hull).sample configure -bg white
-        }
-
-        if {$itk_option(-current) == ""} {
-            set current black
-        }
-
-        $this configure -current [winfo rgb $itk_component(hull).sample $itk_option(-current)]
-
-        set bg [$itk_component(hull) cget -background]
-        set i 0
-        foreach clr {red green blue} {
-            scale $itk_component(hull).${clr} -label ${clr} -from 0 -to 255 -showvalue y\
-              -orient horizontal -variable [itcl::scope ${clr}] -bg ${bg} -command\
-              "${this} view_color $clr"
-            set ${clr} [format %i "0x[string range [format "%02x"\
-              [lindex $itk_option(-current) ${i}]] 0 1]"]
-            pack $itk_component(hull).${clr} -side top -fill x -expand y -padx 5 -pady 2
-            incr i
-        }
-
-        #view current color
-        view_color red 0
-
-        #center window
-        ${this} move_to_mouse
-        ${this} take_focus
-    }
-
-    method view_color {clrname value} {
-        $this configure -current [format "#%02x%02x%02x" $red $green $blue]
-        $itk_component(hull).sample configure -bg $itk_option(-current)
-    }
-
-    method apply {{exit 1}} {
-
-        if {${command} != ""} {
-            eval ${command} [list $itk_option(-current)]
-        }
-
-        if {${exit}} {
-	    deactivate 1
-        }
-    }
-
-    private variable red ""
-    private variable green ""
-    private variable blue ""
-    public variable command ""
-    public variable variable ""
-    itk_option define -current current Current "#000000"
-}
-
 #Choose Font
 itcl::class ChooseFont& {
     inherit sourcenav::Dialog
@@ -537,32 +456,12 @@ itcl::class ChooseFont& {
         set fntfr $itk_component(hull).font.name
         pack [frame ${fntfr}] -side top -fill x
 
-        #font Family
-        label ${fntfr}.famlbl -text [get_indep String Family] -anchor ne
-        set fam ${fntfr}.fam
-        Combo& ${fam} -width 12 -selectcommand "${this} view_font"
-        #no family for windows
-        if {$tcl_platform(platform) == "windows"} {
-            ${fam} configure -contents [list "*"]
-        } else {
-            ${fam} configure -contents [list "*" Adobe Sony Schumacher B&H Bitstream Misc]
-            pack ${fntfr}.famlbl -side left
-            pack ${fam} -side left
-        }
-
         #font name
         label ${fntfr}.namlbl -text [get_indep String FontName] -anchor ne
         pack ${fntfr}.namlbl -side left
         set nam ${fntfr}.nam
         Combo& ${nam} -width 22 -selectcommand "${this} view_font"
-        if {$tcl_platform(platform) == "windows"} {
-            ${nam} configure -contents [list "*" Arial {Comic Sans MS} Courier\
-              {Courier New} Fixedsys Garamond {Lucida Console} {MS Sans Serif}\
-              System {Times New Roman}]
-        } else {
-            ${nam} configure -contents [list "*" Courier Clean Fixed Lucida Terminal\
-              Charter Helvetica {New Century Schoolbook} Times Utopia]
-        }
+        ${nam} configure -contents [lsort -unique [font families]]
         pack ${nam} -side left
 
         #font size
@@ -603,7 +502,6 @@ itcl::class ChooseFont& {
         #vwait $variable
     }
     destructor {
-        catch {itcl::delete object ${fam}}
         catch {itcl::delete object ${nam}}
         catch {itcl::delete object ${siz}}
         foreach v [::info globals "${this}-*"] {
@@ -633,7 +531,6 @@ itcl::class ChooseFont& {
         if {${name} == ""} {
             set name "Courier"
         }
-        ${fam} selecttext ${family}
         ${nam} selecttext ${name}
 
         if {${sz} != "*" && [catch {set x [expr ${sz} + 0]}]} {
@@ -658,7 +555,6 @@ itcl::class ChooseFont& {
         if {${cursive} == ""} {
             set cursive "r"
         }
-        set family [${fam} cget -entrytext]
         set name [${nam} cget -entrytext]
         set size [${siz} cget -entrytext]
 
@@ -668,7 +564,7 @@ itcl::class ChooseFont& {
         }
 
         set itk_option(-current) \
-          "-${family}-${name}-${bold}-${cursive}-Normal--*-${size}-*-*-*-*-iso8859-1"
+          "-*-${name}-${bold}-${cursive}-Normal--*-${size}-*-*-*-*-iso8859-1"
         if {[catch {$itk_component(hull).sample configure -font $itk_option(-current)}]} {
             set itk_option(-current) $sn_options(def,default-font)
             $itk_component(hull).sample configure -font $itk_option(-current)
@@ -685,7 +581,6 @@ itcl::class ChooseFont& {
         }
     }
 
-    protected variable fam
     protected variable nam
     protected variable siz
 
@@ -1071,12 +966,11 @@ itcl::class Color& {
         if {[itcl::find object ${win}] == $win} {
             itcl::delete object ${win}
         }
-        ChooseColor& ${win} -current $sn_options(${opt_fg}) -command " ${this}\
-          setcolor fg ${cls} sn_options(${opt_fg}) "
-
-	$win activate
-
-	itcl::delete object $win
+        set tempColor [tk_chooseColor -initialcolor $sn_options(${opt_fg}) \
+                -parent ${cls} -title  [get_indep String ChooseColor]]
+        if {$tempColor ne ""} {
+                ${this} setcolor fg ${cls} sn_options(${opt_fg}) $tempColor
+        }
     }
 
     #choose bg color
@@ -1086,10 +980,11 @@ itcl::class Color& {
         if {[itcl::find object ${win}] == $win} {
             itcl::delete object ${win}
         }
-        ChooseColor& ${win} -current $sn_options(${opt_bg}) -command " ${this}\
-          setcolor bg ${cls} sn_options(${opt_bg}) "
-	$win activate
-	itcl::delete object $win
+        set tempColor [tk_chooseColor -initialcolor $sn_options(${opt_bg}) \
+                -parent ${cls} -title  [get_indep String ChooseColor]]
+        if {$tempColor ne ""} {
+                ${this} setcolor bg ${cls} sn_options(${opt_bg}) $tempColor
+        }
     }
 
     protected variable fnt ""

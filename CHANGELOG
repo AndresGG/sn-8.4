@@ -1,3 +1,5 @@
+(ENHANCE) Use tk_chooseColor
+(ENHANCE) Simplify the dialog to choose fonts and add all the available ones
 (BUGFIX) Fix the auto selection when "}" or "]" are typed
 (BUGFIX) Double click to the right of "{}()<>[]" selects the content
 (ENHANCE) Configure will add TruType support by default
