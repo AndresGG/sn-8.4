@@ -21,7 +21,7 @@ namespace eval ::tk::dialog {}
 namespace eval ::tk::dialog::color {
     namespace import ::tk::msgcat::*
 }
-
+package require tile
 # ::tk::dialog::color:: --
 #
 #	Create a color dialog and let the user choose a color. This function
@@ -207,38 +207,36 @@ proc ::tk::dialog::color::BuildDialog {w} {
 
     # TopFrame contains the color strips and the color selection
     #
-    set topFrame [frame $w.top -relief raised -bd 1]
+    set topFrame [ttk::frame $w.top]
 
     # StripsFrame contains the colorstrips and the individual RGB entries
-    set stripsFrame [frame $topFrame.colorStrip]
+    set stripsFrame [ttk::frame $topFrame.colorStrip]
 
     set maxWidth [::tk::mcmaxamp &Red &Green &Blue]
     set maxWidth [expr {$maxWidth<6?6:$maxWidth}]
     set colorList [list \
-	    red		[mc "&Red"]	\
+	    red       [mc "&Red"]	\
 	    green	[mc "&Green"]	\
 	    blue	[mc "&Blue"]	\
 	    ]
     foreach {color l} $colorList {
 	# each f frame contains an [R|G|B] entry and the equiv. color strip.
-	set f [frame $stripsFrame.$color]
+	set f [ttk::frame $stripsFrame.$color]
 
 	# The box frame contains the label and entry widget for an [R|G|B]
-	set box [frame $f.box]
+	set box [ttk::frame $f.box]
 
-	bind [::tk::AmpWidget label $box.label -text $l: -width $maxWidth \
+	bind [::tk::AmpWidget ttk::label $box.label -text $l: -width $maxWidth \
 	    -anchor ne] <<AltUnderlined>> [list focus $box.entry]
 	
-	entry $box.entry -textvariable \
+	ttk::entry $box.entry -textvariable \
 		::tk::dialog::color::[winfo name $w]($color,intensity) \
 		-width 4
 	pack $box.label -side left -fill y -padx 2 -pady 3
 	pack $box.entry -side left -anchor n -pady 0
 	pack $box -side left -fill both
 
-	set height [expr \
-	    {[winfo reqheight $box.entry] - \
-	    2*([$box.entry cget -highlightthickness] + [$box.entry cget -bd])}]
+	set height [expr [winfo reqheight $box.entry] - 2]
 
 	canvas $f.color -height $height\
 	    -width $data(BARS_WIDTH) -relief sunken -bd 2
@@ -273,14 +271,14 @@ proc ::tk::dialog::color::BuildDialog {w} {
     # The selFrame contains a frame that demonstrates the currently
     # selected color
     #
-    set selFrame [frame $topFrame.sel]
-    set lab [::tk::AmpWidget label $selFrame.lab -text [mc "&Selection:"] \
+    set selFrame [ttk::frame $topFrame.sel]
+    set lab [::tk::AmpWidget ttk::label $selFrame.lab -text [mc "&Selection:"] \
 	    -anchor sw]
-    set ent [entry $selFrame.ent \
+    set ent [ttk::entry $selFrame.ent \
 	-textvariable ::tk::dialog::color::[winfo name $w](selection) \
 	-width 16]
-    set f1  [frame $selFrame.f1 -relief sunken -bd 2]
-    set data(finalCanvas) [frame $f1.demo -bd 0 -width 100 -height 70]
+    set f1  [ttk::frame $selFrame.f1 -relief sunken -borderwidth 2]
+    set data(finalCanvas) [frame $f1.demo -borderwidth 0 -width 100 -height 70]
 
     pack $lab $ent -side top -fill x -padx 4 -pady 2
     pack $f1 -expand yes -anchor nw -fill both -padx 6 -pady 10
@@ -293,11 +291,11 @@ proc ::tk::dialog::color::BuildDialog {w} {
 
     # the botFrame frame contains the buttons
     #
-    set botFrame [frame $w.bot -relief raised -bd 1]
+    set botFrame [ttk::frame $w.bot]
     
-    ::tk::AmpWidget button $botFrame.ok     -text [mc "&OK"]		\
+    ::tk::AmpWidget ttk::button $botFrame.ok     -text [mc "&OK"]		\
 	    -command [list tk::dialog::color::OkCmd $w]
-    ::tk::AmpWidget button $botFrame.cancel -text [mc "&Cancel"]	\
+    ::tk::AmpWidget ttk::button $botFrame.cancel -text [mc "&Cancel"]	\
 	    -command [list tk::dialog::color::CancelCmd $w]
 
     set data(okBtn)      $botFrame.ok
@@ -423,7 +421,7 @@ proc ::tk::dialog::color::DrawColorScale {w c {create 0}} {
     }
     
     # Draw the color bars.
-    set highlightW [expr {[$col cget -highlightthickness] + [$col cget -bd]}]
+    set highlightW [expr {[$col cget -highlightthickness] + [$col cget -borderwidth]}]
     for {set i 0} { $i < $data(NUM_COLORBARS)} { incr i} {
 	set intensity [expr {$i * $data(intensityIncr)}]
 	set startx [expr {$i * $data(colorbarWidth) + $highlightW}]

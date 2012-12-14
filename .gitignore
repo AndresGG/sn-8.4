@@ -96,3 +96,5 @@ tk/unix/config.log
 tk/unix/config.status
 tk/unix/tkConfig.sh
 tk/unix/wish
+tile/pkgIndex.tcl
+tile/tile.so

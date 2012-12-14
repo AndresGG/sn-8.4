@@ -456,7 +456,8 @@ itcl::class ChooseFont& {
         ttk::label ${fntfr}.namlbl -text [get_indep String FontName] -anchor ne
         pack ${fntfr}.namlbl -side left
         set nam ${fntfr}.nam
-        ttk::combobox ${nam} -width 22 -postcommand "${this} view_font"
+        ttk::combobox ${nam} -width 22 
+        bind ${nam} <<ComboboxSelected>> "${this} view_font"
         ${nam} configure -values [lsort -unique [font families]]
         pack ${nam} -side left
 
@@ -571,7 +572,7 @@ itcl::class ChooseFont& {
 
         set itk_option(-current) \
           "-*-${name}-${bold}-${cursive}-Normal--*-${size}-*-*-*-*-iso8859-1"
-        if {[catch {$itk_component(hull).sample configure -font $itk_option(-current)}]} {
+        if {[catch {$itk_component(hull).extFrame.sample configure -font $itk_option(-current)}]} {
             set itk_option(-current) $sn_options(def,default-font)
             $itk_component(hull).extFrame.sample configure -font $itk_option(-current)
             bell
@@ -622,8 +623,8 @@ itcl::class Color& {
         pack ${cmbfr} -side left -fill y
 
         #Schemes
-        set combo ${cmbfr}.schemes
-        Combo& ${combo} -selectcommand "${this} display_scheme"
+        set combo [ttk::combobox ${cmbfr}.schemes]
+        bind $combo <<ComboboxSelected>> "${this} display_scheme"
         pack ${combo} -side top -fill x
 
         #Categories
@@ -712,8 +713,8 @@ itcl::class Color& {
                 set default_scheme ${sname}
             }
         }
-        ${combo} configure -contents $contents
-        ${combo} selecttext ${default_scheme}
+        ${combo} configure -values $contents
+        ${combo} set ${default_scheme}
         display_scheme ${default_scheme}
     }
 
