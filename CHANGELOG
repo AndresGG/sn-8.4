@@ -8,6 +8,9 @@
 (ENHANCE) Ported the 'new project' dialog to use Ttk widgets
 (ENHANCE) Update the project management window to use Ttk widgets
 (INTERNAL) Add tile extension for Ttk widgets support
+(BUGFIX) Fix cancelling in Windows the choose font dialog
+(ENHANCE) Use tk_chooseColor
+(ENHANCE) Simplify the dialog to choose fonts and add all the available ones
 (BUGFIX) Fix the auto selection when "}" or "]" are typed
 (BUGFIX) Double click to the right of "{}()<>[]" selects the content
 (ENHANCE) Configure will add TruType support by default
