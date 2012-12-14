@@ -924,9 +924,12 @@ itcl::class Color& {
 
         if {$tcl_platform(platform) == "windows"} {
             # use native Windows common Dialog font selector
-            set sn_options(${opt_fnt}) [ide_win_choose_font\
+            set tempFont [ide_win_choose_font\
               -default $sn_options(${opt_fnt}) -parent ${cls}]
-            sn_log "New font (for ${opt_fnt}) = $sn_options(${opt_fnt})"
+            if {$tempFont ne ""} {
+                set sn_options(${opt_fnt}) $tempFont
+                sn_log "New font (for ${opt_fnt}) = $sn_options(${opt_fnt})"
+            }
         } else {
             set win ${this}-font
 
