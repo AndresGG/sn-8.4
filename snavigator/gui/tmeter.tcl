@@ -80,17 +80,17 @@ proc make_scale_window {filenum {enable_cancel 0}} {
     ${t} on_close "${thull}.cancel invoke"
     ${t} configure -title [get_indep String Scanning]
 
-    frame ${thull}.i
-    label ${thull}.i.run -image company_image -bg black
-
-    label ${thull}.i.filename -width 50 -anchor w
+    ttk::frame ${thull}.i
+    ttk::label ${thull}.i.run -image company_image
+    ttk::label ${thull}.i.filename -width 50 -anchor w
 
     #use a normal termometer (not bad unix scaler)
     set sn_progress_value 0
-    ProgressBar ${thull}.scale -maxvalue ${filenum} -orientation horizontal\
-      -showvalue 1 -variable sn_progress_value
+    ttk::progressbar ${thull}.scale -maximum ${filenum} -orient horizontal \
+        -variable sn_progress_value
 
-    button ${thull}.cancel -text [get_indep String Cancel] -command "sn_processing_canceled 2"
+    ttk::button ${thull}.cancel -text [get_indep String Cancel]             \
+        -command "sn_processing_canceled 2"
 
     pack ${thull}.i.run -side left -padx 2 -pady 1 -anchor w
     pack ${thull}.i.filename -side left -fill x -anchor w -padx 10 -pady 20

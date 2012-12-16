@@ -1718,7 +1718,6 @@ proc sn_create_new_project {{import_file ""}} {
                                 -icon question -type yesno
                     ]
                     if {${answer} == "yes"} {
-
                         sn_loading_message
 
                         set fil_list ""

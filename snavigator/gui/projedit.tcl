@@ -728,7 +728,7 @@ itcl::class Project& {
         #user wants to apply the changes to the current view
         if {${can_apply}} {
             set answer [
-                TileDialog::tile_dialog auto [get_indep String View]        \
+                TtkDialog::ttk_dialog auto [get_indep String View]          \
                         "${CurrentView}: [get_indep String HasBeenModified]"\
                         question "" cancel [list apply cancel]              \
                         [list  [get_indep String Apply] [get_indep String Cancel]]
@@ -758,7 +758,7 @@ itcl::class Project& {
 
         if {${found} == 0} {
             set answer [
-                TileDialog::tile_messageBox .ques -title [get_indep String View]\
+                TtkDialog::MessageBox .ques -title [get_indep String View]      \
                         -message "${view}: [get_indep String AskForNewView]"    \
                         -icon question -type okcancel
             ]
@@ -1042,7 +1042,7 @@ itcl::class Project& {
 
         if {[file exists ${name}]} {
             set answer [
-                    TileDialog::tile_dialog auto [get_indep String FileExists] \
+                    TtkDialog::ttk_dialog auto [get_indep String FileExists]   \
                             ${name} question "" cancel [list overwrite cancel] \
                             [list [get_indep String Overwrite] [get_indep String cancel]]
             ]

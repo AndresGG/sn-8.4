@@ -650,6 +650,68 @@ proc MessageBox {args} {
 }
 
 ################################################################################
+# ttk_dialog
+#
+# This procedure displays a dialog box, waits for a button in the dialog
+# to be invoked, then returns the index of the selected button.
+#
+# Parameters:
+# w -           Window to use for dialog top-level.
+# title -       Title to display in dialog's decorative frame.
+# text -        Message to display in dialog.
+# icon -        Icon to display in dialog (empty string means none).
+# default -     Symbolic name of the button that is to display the default ring
+#               ("" means none).
+# cancel -      Symbolic name of the button to be invoked when the user 
+#               hits the Esc key
+# buttons -     Symbolic names for the buttons.
+# labels -      One or more strings to display in buttons across the
+#               bottom of the dialog box.
+################################################################################
+proc ttk_dialog {w title text icon default cancel buttons labels} {
+    global tkeWinNumber
+    variable buttonList
+    variable pressedButton
+
+    if {[sn_batch_mode]} {
+        if {${title} != ""} {
+            set msg "${title}: ${text}"
+        } else {
+            set msg ${text}
+        }
+        puts stderr "WARNING: ${msg} <[lindex ${args} 0]>"
+        return 0
+    }
+
+    if {${w} == "auto"} {
+        incr tkeWinNumber
+        set w ".info-${tkeWinNumber}"
+    }
+    set buttonList $buttons
+
+    set mix ""
+    foreach name $buttons string $labels {
+        lappend mix $name $string
+    }
+    ttk::dialog $w -title $title -message $text -icon $icon              \
+            -default $default -cancel $cancel                            \
+            -buttons $buttons -labels $mix                               \
+            -command TtkDialog::Callback -parent ""
+    if {![winfo viewable $w]} {
+        tkwait visibility $w
+    }
+    if {[regexp {^(\.)([^\.]*)$} $w]} {
+        CenterDialog $w
+    }
+
+    grab $w
+    tkwait variable TtkDialog::pressedButton
+    grab release $w
+
+    return $pressedButton
+}
+
+################################################################################
 # ttk_dialog_with_widgets:
 #
 # This procedure displays a dialog box, with some extra widgets, waits for
