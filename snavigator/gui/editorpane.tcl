@@ -1599,8 +1599,8 @@ itcl::class Editor& {
 	${f} configure -iconname [get_indep String EditGotoLine]
 	${f} transient ${topw}
 
-	frame ${f}.line
-	label ${f}.line.label \
+	ttk::frame ${f}.line
+	ttk::label ${f}.line.label \
 	    -text [get_indep String LineNumber] \
 	    -underline [get_indep Pos LineNumber] \
 	    -width 13 \
@@ -1609,35 +1609,25 @@ itcl::class Editor& {
 	set line 0
 	set char 0
 
-	entry ${f}.line.entry \
+	ttk::entry ${f}.line.entry \
 	    -width 14 \
-	    -relief sunken \
-	    -bd 3 \
 	    -textvariable $itk_option(-linenumber_var) \
 	    -exportselection n
 
-	${f}.line.entry select to end
+	${f}.line.entry selection range 0 end
 
-	button ${f}.line.button \
+	ttk::button ${f}.line.button \
 	    -text [get_indep String Goto] \
 	    -underline [get_indep Pos Goto] \
 	    -command "${this} proceed_gotoline ${f}"
 
-	pack ${f}.line.label \
-	    -side left
-	pack ${f}.line.entry \
-	    -side left
-	pack ${f}.line.button \
-	    -side left \
-	    -pady 10 \
-	    -padx 20
+	bind ${f}.line.entry <Return>   "${f}.line.button invoke"
+	bind ${f}.line.entry <KP_Enter> "${f}.line.button invoke"
 
-	bind ${f}.line.entry <Return> "${f}.line.button invoke"
-	focus ${f}.line.entry
-
-	pack ${f}.line \
-	    -side top \
-	    -fill both
+        grid ${f}.line -sticky news  -ipadx 15 -ipady 10
+	grid ${f}.line.label  -row 0 -column 0
+        grid ${f}.line.entry  -row 0 -column 1
+        grid ${f}.line.button -row 0 -column 2 -padx {15 0}
 
 	focus ${f}.line.entry
 	${f} move_to_mouse

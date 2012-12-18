@@ -1,3 +1,4 @@
+(ENHANCE) Port the 'go to line' dialog to Ttk
 (ENHANCE) Port the window with the progressbar when creating a new project
 (ENHANCE) Port Tk's choose color dialog to Ttk Widgets
 (ENHANCE) Port the 'preferences' dialog to Ttk widgets
