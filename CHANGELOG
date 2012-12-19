@@ -1,3 +1,4 @@
+(INTERNAL) Removed tkTable
 (BUGFIX) Fix cancelling in Windows the choose font dialog
 (ENHANCE) Use tk_chooseColor
 (ENHANCE) Simplify the dialog to choose fonts and add all the available ones

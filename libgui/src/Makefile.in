@@ -33,7 +33,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-DIST_COMMON = $(srcdir)/tkTable_version.in $(srcdir)/Makefile.in \
+DIST_COMMON =  $(srcdir)/Makefile.in \
 	$(srcdir)/Makefile.am $(am__include_HEADERS_DIST)
 subdir = src
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -49,10 +49,6 @@ LIBRARIES = $(noinst_LIBRARIES)
 ARFLAGS = cru
 libgui_a_AR = $(AR) $(ARFLAGS)
 libgui_a_LIBADD =
-am__objects_1 = tkTable.$(OBJEXT) tkTableCell.$(OBJEXT) \
-	tkTableCellSort.$(OBJEXT) tkTableCmds.$(OBJEXT) \
-	tkTableEdit.$(OBJEXT) tkTableTag.$(OBJEXT) \
-	tkTableWin.$(OBJEXT) tkTableUtil.$(OBJEXT)
 am_libgui_a_OBJECTS = paths.$(OBJEXT) subcommand.$(OBJEXT) \
 	xpmlib.$(OBJEXT) tclmain.$(OBJEXT) tkGraphCanvas.$(OBJEXT) \
 	tkCanvEdge.$(OBJEXT) tkCanvLayout.$(OBJEXT) tclhelp.$(OBJEXT) \
@@ -224,36 +220,27 @@ TBL_MAJOR_VERSION = 2
 TBL_MINOR_VERSION = 7
 TBL_VERSION = $(TBL_MAJOR_VERSION).$(TBL_MINOR_VERSION)
 
-# tkTable version info
-
-# This sets the name that tkTable will define for itself when loaded
-# If you change this, then the demos won't work, but it might be necessary
-# for those with another built-in "table" command
-TBL_COMMAND = table
 INCLUDES = $(LIBGUI_CFLAGS) $(TCLHDIR) \
 $(TKHDIR) \
 $(TK_XINCLUDES) $(TCL_DEFS) $(TK_DEFS) \
 $(TKHDIR)/../unix $(TKHDIR)/../win \
 -DTBL_VERSION=\"$(TBL_VERSION)\"\
 -DTBL_COMMAND=\"$(TBL_COMMAND)\"\
--DTBL_RUNTIME=\"tkTable.tcl\" -DTBL_RUNTIME_DIR=\"$(guidir)\"\
+-DTBL_RUNTIME_DIR=\"$(guidir)\"\
 -DSTATIC_BUILD
-
-TKTABLE_SOURCES = tkTable.c tkTableCell.c tkTableCellSort.c \
-tkTableCmds.c tkTableEdit.c tkTableTag.c tkTableWin.c tkTableUtil.c
 
 libgui_a_SOURCES = guitcl.h paths.c subcommand.c subcommand.h \
 xpmlib.c tclmain.c tkGraphCanvas.c \
 tkCanvEdge.c tkCanvLayout.c tkCanvLayout.h tclhelp.c tclgetdir.c \
 tclwinprint.c tclsizebox.c tclshellexe.c tclmapi.c tclwinfont.c	\
 tclwingrab.c tclwinmode.c tclwinpath.c tclmsgbox.c tclcursor.c \
-tkWinPrintText.c tkWinPrintCanvas.c tkWarpPointer.c $(TKTABLE_SOURCES)
+tkWinPrintText.c tkWinPrintCanvas.c tkWarpPointer.c
 
 all: all-am
 
 .SUFFIXES:
 .SUFFIXES: .c .o .obj
-$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/tkTable_version.in $(am__configure_deps)
+$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
@@ -472,9 +459,6 @@ uninstall-am: uninstall-includeHEADERS
 #define TBL_MINOR_VERSION 7
 #define TBL_VERSION "2.7"
 
-tkTable.tcl.h: $(srcdir)/tkTable.tcl
-	sed -e '/^$\#/d' -e '/^$$/d' -e 's/\"/\\"/g' -e 's/^/"/' -e 's/$$/\\n"/' <$(srcdir)/tkTable.tcl >tkTable.tcl.h || rm tkTable.tcl.h 
-
 # Defining lib_LIBRARIES conditionally doesn't do the right thing.
 install-exec-local:
 @INSTALL_LIBGUI_TRUE@	@$(NORMAL_INSTALL)
@@ -502,16 +486,6 @@ tclwinfont.$(OBJEXT): tclwinfont.c guitcl.h
 tclwingrab.$(OBJEXT): tclwingrab.c guitcl.h
 tclwinpath.$(OBJEXT): tclwinpath.c guitcl.h subcommand.h
 tclwinmode.$(OBJEXT): tclwinmode.c guitcl.h
-tkTable.$(OBJEXT): tkTable.c tkTable.h tkTableInitScript.h tkTable.tcl.h
-tkTableCell.$(OBJEXT): tkTableCell.c tkTable.h
-tkTableCellSort.$(OBJEXT): tkTableCellSort.c tkTable.h
-tkTableCmds.$(OBJEXT): tkTableCmds.c tkTable.h
-tkTableEdit.$(OBJEXT): tkTableEdit.c tkTable.h
-tkTableTag.$(OBJEXT): tkTableTag.c tkTable.h
-tkTablePs.$(OBJECT): tkTablePs.c tkTable.h
-tkTableWin.$(OBJEXT):tkTableWin.c  tkTable.h
-tkTableUtil.$(OBJEXT): tkTableUtil.c tkTable.h
-tkTable.tcl.h: tkTable.tcl
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
