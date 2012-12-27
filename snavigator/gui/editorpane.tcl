@@ -1014,123 +1014,88 @@ itcl::class Editor& {
 	}
 
 	set s [sourcenav::Window ${s}]
-	set strchk ${s}.strchk
+        set exF [ttk::frame ${s}.exF -padding 5]
+	set strchk ${exF}.strchk
 	set strs ${strchk}.string
 	set chk ${strchk}.chk
-	set but ${s}.but
+	set but ${exF}.but
 
 	${s} title [sn_title [get_indep String EditSearchFor]]
 	${s} on_close "${this} Delete_Trace_SearchString ${but}.start; itcl::delete object ${s}"
 
-	frame ${strchk}
+	ttk::frame ${strchk}
 
-	frame ${strs}
-	label ${strs}.label \
+	ttk::frame ${strs}
+	ttk::label ${strs}.label \
 	    -text [get_indep String SearchPattern] \
 	    -underline [get_indep Pos SearchPattern] \
 	    -anchor w
-	entry ${strs}.entry \
+	ttk::entry ${strs}.entry \
 	    -width 30 \
-	    -bd 3 \
-	    -relief sunken \
 	    -exportselection no \
 	    -textvariable [itcl::scope edit_SearchString]
-	${strs}.entry select to end
-	bind ${strs}.entry <Return> "${but}.start invoke"
-	pack ${strs}.label \
-	    -side left \
-	    -padx 5
-	pack ${strs}.entry \
-	    -side left \
-	    -padx 5 \
-	    -fill x \
-	    -expand y
+	${strs}.entry selection range 0 end
 
-	frame ${but}
+	bind ${strs}.entry <Return>   "${but}.start invoke"
+	bind ${strs}.entry <KP_Enter> "${but}.start invoke"
+
+	ttk::frame ${but}
 	if {${edit_SearchString} == ""} {
 	    set state disabled
 	} else {
 	    set state normal
 	}
-	button ${but}.start \
+	ttk::button ${but}.start \
 	    -text [get_indep String UtilSearch] \
 	    -underline [get_indep Pos UtilSearch] \
 	    -state ${state} \
 	    -command "${this} SearchForNext"
 	# Trace the button to enable/disable it, when string is (not) empty.
 	Trace_SearchString ${but}.start
-	button ${but}.cancel \
+	ttk::button ${but}.cancel \
 	    -text [get_indep String Cancel] \
 	    -underline [get_indep Pos Cancel] \
 	    -command "
 		${this} Delete_Trace_SearchString ${but}.start
 		itcl::delete object ${s}"
-	pack ${but}.start \
-	    -side top \
-	    -fill x \
-	    -padx 10 \
-	    -pady 5
-	pack ${but}.cancel \
-	    -side top \
-	    -fill x \
-	    -padx 10 \
-	    -pady 5
 
-	frame ${chk}
-	checkbutton ${chk}.case \
+	ttk::frame ${chk}
+	ttk::checkbutton ${chk}.case \
 	    -text [get_indep String IgnoreCase] \
 	    -underline [get_indep Pos IgnoreCase] \
 	    -variable [itcl::scope edit_SearchNoCase] \
 	    -onvalue "-nocase" \
 	    -offvalue ""
-	checkbutton ${chk}.regexp \
+	ttk::checkbutton ${chk}.regexp \
 	    -text [get_indep String RegExp] \
 	    -underline [get_indep Pos RegExp] \
 	    -variable [itcl::scope edit_SearchMethod] \
 	    -onvalue "-regexp" \
 	    -offvalue "-exact"
-	checkbutton ${chk}.forward \
+	ttk::checkbutton ${chk}.forward \
 	    -text [get_indep String SQLFfor] \
 	    -underline [get_indep Pos SQLFfor] \
 	    -variable [itcl::scope edit_SearchDirection] \
 	    -onvalue "-forwards" \
 	    -offvalue "-backwards"
-	pack ${chk}.case \
-	    -side top \
-	    -anchor nw \
-	    -padx 35
-	pack ${chk}.regexp \
-	    -side top \
-	    -anchor nw \
-	    -padx 35
-	pack ${chk}.forward \
-	    -side top \
-	    -anchor nw \
-	    -padx 35
+
+        pack ${exF} -fill both -expand 1
+        pack ${strs}.label -side left  -padx 5
+        pack ${strs}.entry -side left  -padx 5  -fill x  -expand y
+
+        pack ${strs}   -side top  -fill x         -expand y
+        pack ${chk}    -side top  -fill x -pady 5 -expand y
+	pack ${strchk} -side left -fill x -pady 5 -expand y
+	pack ${but}    -side left         -pady 5 -anchor nw 
+
+	pack ${but}.start  -side top -fill x -padx 10 -pady {17 5}
+	pack ${but}.cancel -side top -fill x -padx 10 -pady 5
+
+	pack ${chk}.case    -side top -anchor nw -padx 35
+	pack ${chk}.regexp  -side top -anchor nw -padx 35
+	pack ${chk}.forward -side top -anchor nw -padx 35
 
 	# Bind_focus_enter $s "focus $strs.entry".
-
-	pack ${strs} \
-	    -side top \
-	    -fill x \
-	    -pady 5 \
-	    -expand y
-	pack ${chk} \
-	    -side top \
-	    -fill x \
-	    -pady 5 \
-	    -expand y
-	pack ${strchk} \
-	    -side left \
-	    -fill x \
-	    -pady 20 \
-	    -fill x \
-	    -expand y
-	pack ${but} \
-	    -anchor nw \
-	    -side left \
-	    -padx 20 \
-	    -pady 5
 	focus ${strs}.entry
 
 	${s} move_to_mouse
@@ -1326,7 +1291,7 @@ itcl::class Editor& {
     method Delete_Trace_SearchString {btn} {
 	trace vdelete [itcl::scope edit_SearchString] w [list ${this} \
 	  StringModified_cb ${btn}]
-	catch {unset edit_SearchString}
+#	catch {unset edit_SearchString}
     }
 
     method Replace_String {btn} {
@@ -1375,142 +1340,61 @@ itcl::class Editor& {
 	}
 	${s} transient ${foc}
 
-	frame ${strchk}
-	pack ${strchk} \
-	    -side left \
-	    -expand y \
-	    -fill x
-
-	frame ${strs}
-	pack ${strs} \
-	    -side top \
-	    -expand y \
-	    -fill x
+        set exFrame   [ttk::frame ${s}.exFrame -padding 10]
+        set strsFrame [ttk::frame ${exFrame}.strsFrame]
 
 	#find string
-	frame ${str1}
-	pack ${str1} \
-	    -side top \
-	    -expand y \
-	    -fill x \
-	    -pady 5 \
-	    -padx 5
-	label ${str1}.label \
-	    -width 14 \
+	ttk::label ${strsFrame}.labelF -width 14 -anchor w \
 	    -text [get_indep String SearchPattern] \
-	    -underline [get_indep Pos SearchPattern] \
-	    -anchor w
-	pack ${str1}.label \
-	    -side left
-	entry ${str1}.entry \
-	    -relief sunken \
-	    -bd 3 \
-	    -exportselection no \
+	    -underline [get_indep Pos SearchPattern]
+
+        ttk::entry ${strsFrame}.entryF -exportselection no \
 	    -textvariable [itcl::scope edit_SearchString]
-	bind ${str1}.entry <Tab> "focus ${str2}.entry"
-	bind ${str1}.entry <Return> "${buts}.next invoke"
-	${str1}.entry select to end
-	pack ${str1}.entry \
-	    -side left \
-	    -fill x \
-	    -expand y
+
+	${strsFrame}.entryF selection range 0 end
 
 	Trace_SearchString ${buts}.all
 
 	#replace with string
-	frame ${str2}
-	pack ${str2} \
-	    -side top \
-	    -expand y \
-	    -fill x \
-	    -pady 5 \
-	    -padx 5
-	label ${str2}.label \
-	    -width 14 \
-	    -text [get_indep String ReplacePattern] \
-	    -underline [get_indep Pos ReplacePattern] \
-	    -anchor w
-	pack ${str2}.label \
-	    -side left
-	entry ${str2}.entry \
-	    -relief sunken \
-	    -bd 3 \
-	    -exportselection no \
+	ttk::label ${strsFrame}.labelR -width 14 -anchor w \
+	    -text [get_indep String ReplacePattern]        \
+	    -underline [get_indep Pos ReplacePattern]
+	ttk::entry ${strsFrame}.entryR -exportselection no \
 	    -textvariable [itcl::scope edit_ReplaceString]
-	pack ${str2}.entry \
-	    -side left \
-	    -fill x \
-	    -expand y
-	bind ${str2}.entry <Return> "${buts}.next invoke"
-	bind ${str2}.entry <Tab> "focus ${str1}.entry"
+
+	bind ${strsFrame}.entryR <Return> "${exFrame}.buttons.next invoke"
 
 	#checkbuttons
-	frame ${chks}
-	pack ${chks} \
-	    -side top \
-	    -expand y \
-	    -fill x \
-	    -pady 10 \
-	    -padx 10
+	ttk::checkbutton ${strsFrame}.case    -onvalue "-nocase" -offvalue ""             \
+	    -text [get_indep String IgnoreCase] -underline [get_indep Pos IgnoreCase]     \
+	    -variable [itcl::scope edit_SearchNoCase]
 
-	checkbutton ${chks}.case \
-	    -text [get_indep String IgnoreCase] \
-	    -underline [get_indep Pos IgnoreCase] \
-	    -variable [itcl::scope edit_SearchNoCase] \
-	    -onvalue "-nocase" \
-	    -offvalue ""
+	ttk::checkbutton ${strsFrame}.regexp  -onvalue "-regexp" -offvalue "-exact"       \
+	    -text [get_indep String RegExp] -underline [get_indep Pos RegExp]             \
+	    -variable [itcl::scope edit_SearchMethod]
 
-	checkbutton ${chks}.regexp \
-	    -text [get_indep String RegExp] \
-	    -underline [get_indep Pos RegExp] \
-	    -variable [itcl::scope edit_SearchMethod] \
-	    -onvalue "-regexp" \
-	    -offvalue "-exact"
-
-	checkbutton ${chks}.forward \
-	    -text [get_indep String SQLFfor] \
-	    -underline [get_indep Pos SQLFfor] \
-	    -variable [itcl::scope edit_SearchDirection] \
-	    -onvalue "-forwards" \
-	    -offvalue "-backwards"
-	pack ${chks}.case \
-	    -anchor nw \
-	    -side top \
-	    -padx 35
-	pack ${chks}.regexp \
-	    -anchor nw \
-	    -side top \
-	    -padx 35
-	pack ${chks}.forward \
-	    -anchor nw \
-	    -side top \
-	    -padx 35
+        ttk::checkbutton ${strsFrame}.forward -onvalue "-forwards" -offvalue "-backwards" \
+            -text [get_indep String SQLFfor] -underline [get_indep Pos SQLFfor]           \
+            -variable [itcl::scope edit_SearchDirection]
 
 	#buttons
-	frame ${buts}
-	pack ${buts} \
-	    -side right \
-	    -pady 5 \
-	    -padx 5
-
-	button ${buts}.cancel \
-	    -text [get_indep String Cancel] \
+	set buttonFrame [ttk::frame ${exFrame}.buttons]
+        ttk::button ${buttonFrame}.cancel -text [get_indep String Cancel] \
 	    -underline [get_indep Pos Cancel] \
 	    -command "
-		${this} Delete_Trace_SearchString ${buts}.cancel
+		${this} Delete_Trace_SearchString ${buttonFrame}.cancel
 		itcl::delete object ${s}
 	    "
-	button ${buts}.next \
-	    -text [get_indep String UtilSearch] \
+	ttk::button ${buttonFrame}.next -text [get_indep String UtilSearch] \
 	    -underline [get_indep Pos UtilSearch] \
 	    -command "
-		${this} SearchForNext
-		if {\$SearchFoundLength > 0} {
-						${buts}.replace config -state normal
-					} else {
-						${buts}.replace config -state disabled
-					}
-	    "
+                ${this} SearchForNext
+                if {\$SearchFoundLength > 0} {
+                    ${buttonFrame}.replace config -state normal
+                } else {
+                    ${buttonFrame}.replace config -state disabled
+                }
+            "
 
 	# We check whether the pattern can be found at the insertation point.
 	# It must be also selected
@@ -1527,43 +1411,37 @@ itcl::class Editor& {
 	} else {
 	    set state disabled
 	}
-	button ${buts}.replace \
-	    -text [get_indep String PafReplace] \
-	    -underline [get_indep Pos PafReplace] \
-	    -state ${state} \
-	    -command "${this} Replace_String ${buts}.replace"
+	ttk::button ${buttonFrame}.replace -text [get_indep String PafReplace] \
+	    -underline [get_indep Pos PafReplace] -state ${state} \
+	    -command "${this} Replace_String ${buttonFrame}.replace"
 	if {${edit_SearchString} == ""} {
 	    set state disabled
 	} else {
 	    set state normal
 	}
-	button ${buts}.all \
-	    -text [get_indep String All] \
-	    -state ${state} \
-	    -command "${this} ReplaceAll ${w}"
+        ttk::button ${buttonFrame}.all -text [get_indep String All] \
+                -state ${state} -command "${this} ReplaceAll ${w}"
 
-	pack ${buts}.next \
-	    -fill x \
-	    -side top \
-	    -padx 10 \
-	    -pady 5
-	pack ${buts}.cancel \
-	    -fill x \
-	    -side top \
-	    -padx 10 \
-	    -pady 5
-	pack ${buts}.replace \
-	    -fill x \
-	    -side top \
-	    -padx 10 \
-	    -pady 5
-	pack ${buts}.all \
-	    -fill x \
-	    -side top \
-	    -padx 10 \
-	    -pady 5
+	grid ${exFrame}                  -sticky news
+	grid ${strsFrame} ${buttonFrame} -sticky news
 
-	focus ${str1}.entry
+        grid ${strsFrame}.labelF ${strsFrame}.entryF -padx {0 10} -sticky ew
+        grid ${strsFrame}.labelR ${strsFrame}.entryR -padx {0 10} -sticky ew -pady 5
+
+	grid ${strsFrame}.case     -padx 30 -sticky w -columnspan 2 -pady {10 0}
+	grid ${strsFrame}.regexp   -padx 30 -sticky w -columnspan 2
+	grid ${strsFrame}.forward  -padx 30 -sticky w -columnspan 2
+
+	grid ${buttonFrame}.next
+	grid ${buttonFrame}.cancel  -pady 5
+	grid ${buttonFrame}.replace -pady {0 5}
+	grid ${buttonFrame}.all
+
+        grid columnconfigure ${s}         0 -weight 1
+        grid columnconfigure ${exFrame}   0 -weight 1 
+        grid columnconfigure ${strsFrame} 1 -weight 1
+
+	focus ${strsFrame}.entryF
 
 	${s} move_to_mouse
 	catch {${s} resizable yes no}
