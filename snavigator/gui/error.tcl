@@ -81,7 +81,7 @@ proc sn_wait_dialog {parent TextString ititle {cmd ""} {ok_str ""}} {
     }
     ${w} on_close "itcl::delete object ${w} ; set tkPriv(${w},button) -1"
 
-    frame ${w}.msg_bitmap
+    ttk::frame ${w}.msg_bitmap
 
     if {${ititle} != ""} {
         label ${w}.msg_bitmap.bitmap -image info_image
@@ -89,17 +89,17 @@ proc sn_wait_dialog {parent TextString ititle {cmd ""} {ok_str ""}} {
         label ${w}.msg_bitmap.bitmap -image error_image
     }
 
-    label ${w}.msg_bitmap.msg -text ${TextString} -relief flat
+    ttk::label ${w}.msg_bitmap.msg -text ${TextString}
 
-    pack ${w}.msg_bitmap.bitmap -side left -padx 5m
-    pack ${w}.msg_bitmap.msg -side right -expand y -fill both -padx 5 -pady 5
+    pack ${w}.msg_bitmap.bitmap -side left  -padx 5m
+    pack ${w}.msg_bitmap.msg    -side right -expand y -fill both -padx 5 -pady 5
 
     pack ${w}.msg_bitmap -expand y -fill both -pady 5
 
     if {${ok_str} == ""} {
         set ok_str [get_indep String Cancel]
     }
-    sn_motif_buttons ${w} bottom 0 ${ok_str}
+    sn_ttk_buttons ${w} bottom 0 ${ok_str}
 
     if {${cmd} == ""} {
         ${w}.button_0 configure -command "
