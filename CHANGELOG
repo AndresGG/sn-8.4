@@ -1,3 +1,4 @@
+(ENHANCE) Port the "Abbreviations" dialog to Ttk, now with scrollbar
 (ENHANCE) Port the 'Find-Replace' dialog to Ttk
 (ENHANCE) Port the 'Find dialog' to Ttk
 (ENHANCE) Port the 'go to line' dialog to Ttk

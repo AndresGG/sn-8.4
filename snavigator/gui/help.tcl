@@ -393,11 +393,12 @@ proc sn_show_abbrav {} {
     sourcenav::Window ${t}
     ${t} configure -title [list [get_indep String Abrav]]
 
-    sn_motif_buttons ${t} bottom 0 [get_indep String ok]
+    sn_ttk_buttons ${t} bottom 0 [get_indep String ok]
 
     ${t}.button_0 config -command "itcl::delete object ${t}"
 
-    text ${t}.a -width 50 -wrap none -spacing1 2
+    text ${t}.a -width 50 -wrap none -spacing1 2 -yscrollcommand "${t}.scr set"
+    ttk::scrollbar ${t}.scr -command [list ${t}.a yview]
     set bw 0
     set max 0
     set sc_str ""
@@ -406,8 +407,8 @@ proc sn_show_abbrav {} {
         set desc [convert_scope_to_plain_str ${sc}]
 
         set f ${t}.a.${sc}
-        frame ${f}
-        button ${f}.${sc} -image type_${sc}_image -bd ${bw}
+        ttk::frame ${f}
+        ttk::button ${f}.${sc} -image type_${sc}_image
         pack ${f}.${sc}
         pack ${f}
 
@@ -431,8 +432,8 @@ proc sn_show_abbrav {} {
     ${t}.a insert end "\t[get_indep String Private]\n"
 
     set idx [${t}.a index "insert linestart"]
-    frame ${t}.a.p
-    button ${t}.a.p.b -image cls_br_p_image -bd ${bw}
+    ttk::frame ${t}.a.p
+    ttk::button ${t}.a.p.b -image cls_br_p_image
     pack ${t}.a.p.b
     pack ${t}.a.p
 
@@ -442,8 +443,8 @@ proc sn_show_abbrav {} {
     ${t}.a tag add protected ${idx} insert
 
     set idx [${t}.a index "insert linestart"]
-    frame ${t}.a.pub
-    button ${t}.a.pub.b -image cls_br__image -bd ${bw}
+    ttk::frame ${t}.a.pub
+    ttk::button ${t}.a.pub.b -image cls_br__image
     pack ${t}.a.pub.b
     pack ${t}.a.pub
 
@@ -452,32 +453,32 @@ proc sn_show_abbrav {} {
 
     ${t}.a tag add public ${idx} insert
 
-    frame ${t}.a.v
-    button ${t}.a.v.v -image cls_br_v_image -bd ${bw}
+    ttk::frame ${t}.a.v
+    ttk::button ${t}.a.v.v -image cls_br_v_image
     pack ${t}.a.v.v
     pack ${t}.a.v
 
     ${t}.a window create end -window ${t}.a.v
     ${t}.a insert end " v\t[get_indep String Virtual]\n"
 
-    frame ${t}.a.s
-    button ${t}.a.s.s -image cls_br_s_image -bd ${bw}
+    ttk::frame ${t}.a.s
+    ttk::button ${t}.a.s.s -image cls_br_s_image
     pack ${t}.a.s.s
     pack ${t}.a.s
 
     ${t}.a window create end -window ${t}.a.s
     ${t}.a insert end " s\t[get_indep String Static]\n"
 
-    frame ${t}.a.pl
-    button ${t}.a.pl.pl -image cls_br_+_image -bd ${bw}
+    ttk::frame ${t}.a.pl
+    ttk::button ${t}.a.pl.pl -image cls_br_+_image
     pack ${t}.a.pl.pl
     pack ${t}.a.pl
 
     ${t}.a window create end -window ${t}.a.pl
     ${t}.a insert end " +\t[get_indep String PafAbrOverride]\n"
 
-    frame ${t}.a.min
-    button ${t}.a.min.mi -image cls_br_-_image -bd ${bw}
+    ttk::frame ${t}.a.min
+    ttk::button ${t}.a.min.mi -image cls_br_-_image
     pack ${t}.a.min.mi
     pack ${t}.a.min
 
@@ -488,42 +489,15 @@ proc sn_show_abbrav {} {
 
     ${t}.a config -state disabled -height ${height}
 
-    pack ${t}.a -anchor w -fill x
+    pack ${t}.a   -side left -fill x
+    pack ${t}.scr -side left -fill y
 
     ${t} move_to_mouse
-    catch {${t} resizable yes no}
 
     tkwait visibility ${win}
 
     set idx [lindex [split [${t}.a index end] "."] 0]
     update idletasks
 
-    # This is a nasty hack, dude.
-    after idle [list abbr_correction ${t}.a]
+    return
 }
-
-proc abbr_correction {ed} {
-    update idletasks
-
-    if {![winfo exists ${ed}] || [${ed} yview] == "0 0"} {
-        return
-    }
-
-    set steps 0
-    while {[winfo exists ${ed}] && [${ed} yview] != "0 1"} {
-        set height [${ed} cget -height]
-        incr height +2
-        ${ed} config -height ${height}
-        update idletasks
-
-        #what happens if the screen height is lesser that
-        #the should be window hight. Break the loop here
-        #after enough steps.
-        if {${steps} > 20} {
-            break
-        }
-        incr steps
-    }
-}
-
-
