@@ -489,10 +489,11 @@ proc sn_show_abbrav {} {
 
     ${t}.a config -state disabled -height ${height}
 
-    pack ${t}.a   -side left -fill x
+    pack ${t}.a   -side left -fill x -expand yes
     pack ${t}.scr -side left -fill y
 
     ${t} move_to_mouse
+#    catch {${t} resizable no yes}
 
     tkwait visibility ${win}
 

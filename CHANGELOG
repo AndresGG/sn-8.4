@@ -1,3 +1,4 @@
+(BUGFIX) Forgot that someone may want to resize the "Abbreviations" dialog
 (ENHANCE) Port the "Abbreviations" dialog to Ttk, now with scrollbar
 (ENHANCE) Port the 'Find-Replace' dialog to Ttk
 (ENHANCE) Port the 'Find dialog' to Ttk
