@@ -493,7 +493,6 @@ proc sn_show_abbrav {} {
     pack ${t}.scr -side left -fill y
 
     ${t} move_to_mouse
-#    catch {${t} resizable no yes}
 
     tkwait visibility ${win}
 

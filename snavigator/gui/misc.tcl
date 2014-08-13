@@ -115,7 +115,7 @@ proc sn_splash_dialog {type} {
 proc sn_show_version_window {} {
 
     set w [sn_splash_dialog about]
-    sn_motif_buttons ${w} bottom 0 [get_indep String ok]
+    sn_ttk_buttons ${w} bottom 0 [get_indep String ok]
     ${w}.button_0 configure -command "
             destroy ${w}
             set tkPriv(button) -1
