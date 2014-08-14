@@ -492,7 +492,7 @@ itcl_class Retriever& {
         pack ${w}.checkbtns -in ${w}.top -side bottom -fill x -padx 10m -pady 3m
     }
     proc warning_many_matches {} {
-        ttk_dialog_with_widgets .retr-info [get_indep String ManyMatchesTitle]\
+        TtkDialog::ttk_dialog_with_widgets .retr-info [get_indep String ManyMatchesTitle]\
           [get_indep String ManyMatchesINFO] info ok ok \
           "Retriever&::add_donot_call_checkbutton" ok [get_indep String Ok]
     }
