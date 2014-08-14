@@ -38,11 +38,10 @@ proc PRINT_pagecounter_dialog {pageno} {
 	#Display the page number
 	if {![winfo exists .error]} {
 		#create the dialog box so that it doesn't wait for closing
+        PRINT_cancel
 		sn_error_dialog \
 			$msg \
-			[get_indep String Print] \
-			"" \
-			"PRINT_cancel"
+			[get_indep String Print]
 	} else {
 		.error.msg_bitmap.msg config -text [format [get_indep String NowPrintingPage] $pageno]
 	}

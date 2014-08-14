@@ -644,7 +644,9 @@ proc MessageBox {args} {
 
     CenterDialog $path
 
+    grab $path
     tkwait variable TtkDialog::pressedButton
+    grab release $path
 
     return $pressedButton
 }
@@ -697,9 +699,11 @@ proc ttk_dialog {w title text icon default cancel buttons labels} {
             -default $default -cancel $cancel                            \
             -buttons $buttons -labels $mix                               \
             -command TtkDialog::Callback -parent ""
+
     if {![winfo viewable $w]} {
         tkwait visibility $w
     }
+
     if {[regexp {^(\.)([^\.]*)$} $w]} {
         CenterDialog $w
     }
@@ -758,7 +762,9 @@ proc ttk_dialog_with_widgets {w title text icon default cancel createWidgetsCmd 
 
     CenterDialog $w
 
+    grab $w
     tkwait variable TtkDialog::pressedButton
+    grab release $w
 
     return $pressedButton
 }

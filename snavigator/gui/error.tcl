@@ -20,7 +20,7 @@
 # error.tcl - Routines for error handling.
 # Copyright (C) 1998 Cygnus Solutions.
 
-proc sn_error_dialog {TextString {ititle ""} {wait "wait"} {cmd ""}} {
+proc sn_error_dialog {TextString {ititle ""} {parent ""}} {
     if {[sn_batch_mode]} {
         if {${ititle} != ""} {
             set err "${ititle}: ${TextString}"
@@ -34,19 +34,15 @@ proc sn_error_dialog {TextString {ititle ""} {wait "wait"} {cmd ""}} {
     set TextString [string range ${TextString} 0 999]
     sn_log "Error <${TextString}>"
 
-    if {${ititle} == ""} {
+    if {${ititle} eq ""} {
         set title [get_indep String Error]
     } else {
         set title ${ititle}
     }
 
-    # FIXME: is cmd actually used anywhere?
-    # When should we run it? Would it ever not get run?
+    TtkDialog::MessageBox $parent.error -title "$title" -message $TextString -icon error -type ok 
 
-    # FIXME : the regular msg box might not be perfect but
-    # at least it works, improve it later!
-
-    return [tk_messageBox -message $TextString -icon error -title $title]
+    return
 }
 
 proc sn_wait_dialog {parent TextString ititle {cmd ""} {ok_str ""}} {
