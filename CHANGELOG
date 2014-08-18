@@ -1,3 +1,4 @@
+(INTERNAL) Removed tk_dialog as it is no longer used
 (ENHANCE) Changed all tk_dialog calls to TtkDialog::ttk_dialog
 (ENHANCE) Port the error that appears when parsing a file fails to ttk_dialog
 (INTERNAL) Removed tk_dialog_with_widgets as it is no longer used
