@@ -1,3 +1,4 @@
+(ENHANCE) Changed all tk_dialog calls to TtkDialog::ttk_dialog
 (ENHANCE) Port the error that appears when parsing a file fails to ttk_dialog
 (INTERNAL) Removed tk_dialog_with_widgets as it is no longer used
 (BUGFIX) Used ttk_dialog_with_widgets without putting the namespace

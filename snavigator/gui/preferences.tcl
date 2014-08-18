@@ -1204,9 +1204,10 @@ itcl_class Preferences& {
         global sn_options
 
         if {${ask} == "ask"} {
-            set answer [tk_dialog auto [get_indep String Reparse]\
-              [get_indep String DoYouWantToReparse] question_image 0\
-              [get_indep String Ok] [get_indep String Cancel]]
+            set answer [TtkDialog::ttk_dialog auto [get_indep String Reparse] \
+                [get_indep String DoYouWantToReparse] question ok cancel      \
+                [list ok cancel]                                              \
+                [list [get_indep String Ok] [get_indep String Cancel]]]
             if {${answer} != 0} {
                 return "break"
             }
@@ -1228,9 +1229,10 @@ itcl_class Preferences& {
 
         #databases couldn't be removed
         if {${ret} != 1} {
-            set answer [tk_dialog auto [get_indep String Delete]\
-              [get_indep String DatabaseFilesCouldNotBeDeleted] question_image\
-              0 [get_indep String Continue] [get_indep String Cancel]]
+            set answer [TtkDialog::ttk_dialog auto [get_indep String Delete] \
+                [get_indep String DatabaseFilesCouldNotBeDeleted] question  \
+                continue cancel [list continue cancel]                      \
+                [list [get_indep String Continue] [get_indep String Cancel]]]
             if {${answer} != 0} {
                 return "break"
             }
@@ -1989,10 +1991,11 @@ itcl_class Preferences& {
 
             #ask the user to reparse the project
             if {${xref_reenabled}} {
-                set answer [tk_dialog auto [sn_title [get_indep String\
-                  MultiXRef]] "[get_indep String XRefReenabled]"\
-                  question_image 0 [get_indep String Reparse]\
-                  [get_indep String DonotReparse]]
+                set answer [TtkDialog::tk_dialog auto                      \
+                    [sn_title [get_indep String MultiXRef]]                \
+                    "[get_indep String XRefReenabled]" question            \
+                    reparse donnotreparse [list reparse donnotreparse]     \
+                    [list [get_indep String Reparse] [get_indep String DonotReparse]]]
                 if {${answer} == 0} {
                     Reparse
                 }
@@ -2023,9 +2026,11 @@ itcl_class Preferences& {
         #user if he wants to save the new settings as default
         if {!${new_project} && ${from_save_as_default} != "default" &&\
           ${default}} {
-            #set res [tk_dialog .info  #	[get_indep String Preferences] \
-              #	[get_indep String SaveAsDefault]  #	question_image 0 \
-              #	[get_indep String Save] [get_indep String DonotSave]]
+                #set res [TtkDialog::ttk_dialog .info                   \
+                        [get_indep String Preferences]                  \
+                        [get_indep String SaveAsDefault]  question      \
+                        save donotsave [list save donotsave]            \
+                        [list [get_indep String Save] [get_indep String DonotSave]]]
             #if {$res != 0} {
             #	set default 0
             #}

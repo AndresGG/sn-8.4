@@ -119,7 +119,7 @@ proc sn_debugger {{working_dir ""} {dbg_program ""} {gdb_command ""}} {
 			if {!\[info exists sn_socket_port\]} {
 				set ret \[catch {set sn_socket_port \[socket \$host \$port\]}\]
 				if {\$ret} {
-					tk_dialog .warn-sn Error \$err error_image 0 Ok
+					TtkDialog::ttk_dialog .warn-sn Error \$err error ok ok ok Ok
 					return
 				}
 			}
@@ -131,7 +131,7 @@ proc sn_debugger {{working_dir ""} {dbg_program ""} {gdb_command ""}} {
 					}
 				} err\]
 			if {\$ret} {
-				tk_dialog .warn-sn Error \$err error_image 0 Ok
+				TtkDialog::ttk_dialog .warn-sn Error \$err error ok ok ok Ok
 				return
 			}
 		}"

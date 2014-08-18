@@ -1016,8 +1016,8 @@ proc sn_tcl_tk_init {} {
     if {[info exists sn_arguments(help)]} {
         if {$tcl_platform(platform) == "windows"} {
             #on windows it has to be a dialog box.
-            tk_dialog auto "Valid Option Parameters" $sn_arguments(help)\
-              info_image -1 [get_indep String Ok]
+            TtkDialog::ttk_dialog auto "Valid Option Parameters"        \
+                $sn_arguments(help) info ok ok ok [get_indep String Ok]
         } else {
             puts stdout $sn_arguments(help)
         }

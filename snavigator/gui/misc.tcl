@@ -1191,9 +1191,10 @@ proc sn_quit {{exit ""}} {
 
     #verify if xref is running in the background
     if {${exit} == "" && [sn_processes_running]} {
-        set answer [tk_dialog auto [sn_title [get_indep String Exit]]\
-          "[get_indep String XRefIsRunning], [get_indep String ProjExit]"\
-          question_image 0 [get_indep String Yes] [get_indep String No]]
+        set answer [TtkDialog:ttk_dialog auto [sn_title [get_indep String Exit]] \
+            "[get_indep String XRefIsRunning], [get_indep String ProjExit]"      \
+            question yes no [list yes no]                                        \
+            [list [get_indep String Yes] [get_indep String No]]]
         if {${answer} != 0} {
             return 0
         }
@@ -2353,9 +2354,10 @@ proc sn_delete_current_project {{interactive 1}} {
         regsub -all {/} ${pfile} {\\} pfile
     }
     if {${interactive}} {
-        set answer [tk_dialog auto [get_indep String ProjectDelete]\
-          "[get_indep String DeleteProjectQuestion] \"${pfile}\" ?"\
-          question_image 0 [get_indep String Yes] [get_indep String No]]
+        set answer [TtkDialog::ttk_dialog auto [get_indep String ProjectDelete] \
+            "[get_indep String DeleteProjectQuestion] \"${pfile}\" ?"           \
+            question yes no [list yes no]                                       \
+            [list [get_indep String Yes] [get_indep String No]]]
 
         if {${answer} != 0} {
             return 0
@@ -2751,9 +2753,10 @@ proc sn_db_open_files {{show_error 1} {exit_if_db_crashed 1}} {
     if {[sn_db_panic_check $sn_options(db_files_prefix)] == "died"} {
         sn_log "db process seems to have been crashed!!"
         if {${exit_if_db_crashed}} {
-            set answer [tk_dialog auto [sn_title [get_indep String Error]]\
-              [get_indep String DataBaseUnusable] error_image 0\
-              [get_indep String Exit] [get_indep String Continue]]
+            set answer [TtkDialog::ttk_dialog auto [sn_title [get_indep String Error]] \
+                [get_indep String DataBaseUnusable] error exit exit           \
+                [list exit continue]                                          \
+                [list [get_indep String Exit] [get_indep String Continue]]]
             if {${answer} == 0} {
                 sn_quit exit_any_way
                 delete_interp
@@ -2954,8 +2957,9 @@ proc sn_upgrade_project {product_version project_version} {
         return "break"
     }
     set msg [get_indep String OlderProjectOpened]
-    set answer [tk_dialog auto [get_indep String OpenProject] ${msg}\
-      question_image 0 [get_indep String Reparse] [get_indep String Cancel]]
+    set answer [TtkDialog::ttk_dialog auto [get_indep String OpenProject] ${msg} \
+        question reparse cancel [list reparse cancel]                            \
+        [list [get_indep String Reparse] [get_indep String Cancel]]]
     if {${answer} != 0} {
         return "break"
     }
@@ -3049,9 +3053,10 @@ proc sn_read_project {projfile} {
 	} else {
 		# project is locked, do some error handling
 		puts "project is locked"
-		set ret [tk_dialog auto [get_indep String ExternalEditor] ${lock_error} \
-				question_image 0 \
-				[get_indep String ok] [get_indep String ProjForceUnlock]]
+		set ret [TtkDialog::ttk_dialog auto [get_indep String ExternalEditor] \
+                ${lock_error} question ok projforceunlock                     \
+                [list ok projforceunlock]                                     \
+                [list [get_indep String ok] [get_indep String ProjForceUnlock]]]
 	        
 		# force unlock has been chosen
 		if { ${ret} == 1 } {
@@ -3177,9 +3182,11 @@ proc sn_read_project {projfile} {
         return 0
     }
     if {${ret} == -2} {
-        set answer [tk_dialog auto [sn_title [get_indep String Error]]\
-          [get_indep String DataBaseCrashed] error_image 0 [get_indep String\
-          Reparse] [get_indep String Continue] [get_indep String Exit]]
+        set answer [TtkDialog::ttk_dialog auto [sn_title [get_indep String Error]] \
+            [get_indep String DataBaseCrashed] error reparse continue              \
+            [list reparse continue exit]                                           \
+            [list [get_indep String Reparse] [get_indep String Continue]           \
+            [get_indep String Exit]]]
 
         switch -- ${answer} {
             0 {
@@ -3802,9 +3809,10 @@ proc event_LoadPipeInput {eventfd sc} {
 proc sn_ask_continue_other_types {} {
     global ProcessingCancelled
     #user canceled the process
-    set res [tk_dialog auto [get_indep String Processing] [get_indep String\
-      ContinueParsingOtherTypes] question_image 0 [get_indep String Continue]\
-      [get_indep String Stop]]
+    set res [TtkDialog::ttk_dialog auto [get_indep String Processing]   \
+        [get_indep String ContinueParsingOtherTypes] question           \
+        continue stop [list continue stop]                              \
+        [list [get_indep String Continue] [get_indep String Stop]]]
     if {${res} == 0} {
         set ProcessingCancelled 0
         return 1
@@ -3815,9 +3823,10 @@ proc sn_ask_continue_other_types {} {
 #ask to continue parsing
 proc sn_ask_continue_parsing {} {
     global ProcessingCancelled
-    set res [tk_dialog auto [get_indep String Parsing] [get_indep String\
-      ContinueParsing] question_image 0 [get_indep String Continue]\
-      [get_indep String Stop]]
+    set res [TtkDialog::ttk_dialog auto [get_indep String Parsing]      \
+        [get_indep String ContinueParsing] question continue stop       \
+        [list continue stop]                                            \
+        [list [get_indep String Continue] [get_indep String Stop]]]
     if {${res} == 0} {
         set ProcessingCancelled 0
         return 1
@@ -3868,12 +3877,8 @@ proc sn_handle_parse_error {} {
         default {
                 #error occured by the parser, ask to continue parsing
                 #by skipping the last file
-#                set res [tk_dialog auto [get_indep String Scanning]\
-                  "${event_LoadPipeInput_last_accessed_file}:\n[get_indep\
-                  String ErrorByScanning]" question_image 0 [get_indep String\
-                  Continue] [get_indep String Stop]]
                 set res [TtkDialog::ttk_dialog auto [get_indep String Scanning] \
-                        "${event_LoadPipeInput_last_accessed_file}:\n[get_indep\
+                        "${event_LoadPipeInput_last_accessed_file}:\n[get_indep \
                         String ErrorByScanning]" question ok stop               \
                         [list ok stop] [list [get_indep String Continue]        \
                         [get_indep String Stop]]]

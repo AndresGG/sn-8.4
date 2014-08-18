@@ -413,10 +413,11 @@ itcl::class Make {
 
         #ask to save changed files before running make
         if {${modified}} {
-            set answer [tk_dialog auto [get_indep String MultiMake]\
-              [get_indep String WantToFastSave] error_image 0\
-              [get_indep String Yes] [get_indep String No] [get_indep String\
-              Cancel]]
+            set answer [TtkDialog::ttk_dialog auto [get_indep String MultiMake] \
+                [get_indep String WantToFastSave] error yes cancel              \
+                [list yes no cancel]                                            \
+                [list [get_indep String Yes] [get_indep String No]              \
+                [get_indep String Cancel]]]
             if {${answer} == 2} {
                 return
             }

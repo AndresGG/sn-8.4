@@ -2880,9 +2880,9 @@ proc xref_termometer_init {} {
 }
 
 proc xref_cancel {} {
-    set answer [tk_dialog auto [get_indep String XrefGeneration]\
-      [get_indep String CancelXref] question_image 0 [get_indep String Ok]\
-      [get_indep String Cancel]]
+    set answer [TtkDialog::ttk_dialog auto [get_indep String XrefGeneration] \
+        [get_indep String CancelXref] question ok cancel [list ok cancel]    \
+        [list [get_indep String Ok] [get_indep String Cancel]]]
 
     #be sure that xref is still running
     if {${answer} == 0 && [sn_processes_running]} {

@@ -32,8 +32,8 @@ proc snpdbg_session {} {
     set notimp 0
 
     if {$notimp} {
-        tk_dialog auto "Not Implemented Yet!" "Not Implemented Yet!" \
-          question_image 0 Ok
+        TtkDialog::ttk_dialog auto "Not Implemented Yet!" "Not Implemented Yet!" \
+          info ok ok ok Ok
         exit
     }
 

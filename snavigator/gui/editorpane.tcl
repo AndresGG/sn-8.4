@@ -929,7 +929,7 @@ itcl::class Editor& {
 
 		#wait until the contents are readed,
 		#some times the executed program is so fast, that the
-		#following command failes.
+		#following command fails.
 		catch {fileevent ${fd} readable "wait_editor_end ${fd}"}
 		after 500
 		# FIXME : This will block the GUI for 0.5 sec, that is not acceptable
@@ -937,7 +937,9 @@ itcl::class Editor& {
 	    return ""
 	} else {
 		# raise error that there is no editor defined
-		tk_dialog auto [get_indep String ExternalEditor] [get_indep String ExternalEditorNotDefined] question_image 0 [get_indep String ok]
+		TtkDialog::ttk_dialog auto [get_indep String ExternalEditor]  \
+            [get_indep String ExternalEditorNotDefined]               \
+            question ok ok ok [get_indep String ok]
 	}
     }
 
@@ -2675,14 +2677,15 @@ itcl::class Editor& {
 	set file [sn_convert_FileName ${file}]
 	set xref [sn_processes_running]
 
-	#Save file as a file, that not exist in the project
+	#Save file as a file, that doe not exist in the project
 	#when xref is running (fastsave only)
 	if {${xref} && ${fast} == 0} {
 	    #focus $editor
-	    set answer [tk_dialog auto [get_indep String SaveAsFastSaveTitle] \
-	      "[get_indep String XRefIsRunning]\n[get_indep String \
-	      SaveAsFastSave]\n${file} ?" question_image 0 [get_indep String \
-	      FastSave] [get_indep String Cancel]]
+	    set answer [TtkDialog::ttk_dialog auto                       \
+                [get_indep String SaveAsFastSaveTitle]               \
+	            "[get_indep String XRefIsRunning]\n[get_indep String SaveAsFastSave]\n${file} ?" \
+                question fastsave cancel [list fastsave cancel]      \
+                [list [get_indep String FastSave] [get_indep String Cancel]]]
 	    if {${answer} != 0} {
 		return 0
 	    }
@@ -2798,10 +2801,11 @@ itcl::class Editor& {
 	#test if the file has been modified external
 	if {[file exists ${ff}] && ${file_mtime} != 0 && ${file_mtime} != \
 	  [file mtime ${ff}]} {
-	    set answer [tk_dialog auto [get_indep String \
-	      FileModifiedOutsideTitle] "[format [get_indep String \
-	      FileModifiedOutside] ${ff}]" question_image 0 [get_indep String \
-	      Overwrite] [get_indep String Cancel]]
+	    set answer [TtkDialog::ttk_dialog auto                          \
+                [get_indep String FileModifiedOutsideTitle]             \
+                "[format [get_indep String FileModifiedOutside] ${ff}]" \
+                question overwrite cancel [list overwrite cancel]       \
+                [list [get_indep String Overwrite] [get_indep String Cancel]]]
 	    if {${answer} != 0} {
 		return 0
 	    }
@@ -3122,8 +3126,9 @@ itcl::class Editor& {
 	    }
 
 	    focus $itk_component(editor)
-	    set answer [tk_dialog auto ${title} "${file} ${txt}" \
-	      question_image 0 ${ok} [get_indep String Cancel]]
+	    set answer [TtkDialog::ttk_dialog auto ${title} "${file} ${txt}" \
+                question ok cancel [list ok cancel]                      \
+                [list ${ok} [get_indep String Cancel]]]
 	} else {
 	    #file not modified
 	    set answer 0
@@ -3182,10 +3187,11 @@ itcl::class Editor& {
 		set answer 1
 	    } else {
 		focus $itk_component(editor)
-		set answer [tk_dialog auto ${title} "${file} ${txt}" \
-		  question_image 0 [get_indep String Save] [get_indep String \
-		  EditFastSave] [get_indep String DonotSave] \
-		  [get_indep String Cancel]]
+		set answer [TtkDialog::ttk_dialog auto ${title} "${file} ${txt}"      \
+                question save cancel                                          \
+                [list save donnotsave editfastsave cancel]                    \
+                [list [get_indep String Save] [get_indep String EditFastSave] \
+                [get_indep String DonotSave] [get_indep String Cancel]]]
 	    }
 	    switch -- ${answer} {
 	    0 {
@@ -3872,10 +3878,11 @@ itcl::class Editor& {
 	    #if selection availiable ask to print selection only
 	    if {! [catch {set lst [${t} get sel.first sel.last]}] && ${lst} \
 	      != ""} {
-		set answer [tk_dialog auto [get_indep String Print] \
-		  [get_indep String PrintSelection] question_image 0 \
-		  [get_indep String All] [get_indep String Marked] \
-		  [get_indep String Cancel]]
+		set answer [TtkDialog::ttk_dialog auto [get_indep String Print] \
+                [get_indep String PrintSelection] question all cancel   \
+                [list all marked cancel]                                \
+                [list [get_indep String All] [get_indep String Marked]  \
+                [get_indep String Cancel]]]
 		if {${answer} == 2} {
 		    return
 		}
