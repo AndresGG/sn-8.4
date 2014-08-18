@@ -3868,10 +3868,15 @@ proc sn_handle_parse_error {} {
         default {
                 #error occured by the parser, ask to continue parsing
                 #by skipping the last file
-                set res [tk_dialog auto [get_indep String Scanning]\
+#                set res [tk_dialog auto [get_indep String Scanning]\
                   "${event_LoadPipeInput_last_accessed_file}:\n[get_indep\
                   String ErrorByScanning]" question_image 0 [get_indep String\
                   Continue] [get_indep String Stop]]
+                set res [TtkDialog::ttk_dialog auto [get_indep String Scanning] \
+                        "${event_LoadPipeInput_last_accessed_file}:\n[get_indep\
+                        String ErrorByScanning]" question ok stop               \
+                        [list ok stop] [list [get_indep String Continue]        \
+                        [get_indep String Stop]]]
                 if {${res} == 0} {
                     #continue
                     set ProcessingCancelled 3

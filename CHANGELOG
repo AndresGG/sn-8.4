@@ -1,4 +1,5 @@
-(INTERNAL) Removed tk_dialog_with_widgets as it is no longer used.
+(ENHANCE) Port the error that appears when parsing a file fails to ttk_dialog
+(INTERNAL) Removed tk_dialog_with_widgets as it is no longer used
 (BUGFIX) Used ttk_dialog_with_widgets without putting the namespace
 (ENHANCE) Made the "Source-Navigator has found more than one match" warning use ttk_dialog_with_widges
 (ENHANCE) Made sn_error_dialog use TtkDialog::MessageBox
