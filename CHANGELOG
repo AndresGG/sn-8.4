@@ -1,3 +1,4 @@
+(ENHANCE) Changed all sn_motif_buttons calls to sn_ttk_buttons
 (INTERNAL) Removed tk_dialog as it is no longer used
 (ENHANCE) Changed all tk_dialog calls to TtkDialog::ttk_dialog
 (ENHANCE) Port the error that appears when parsing a file fails to ttk_dialog

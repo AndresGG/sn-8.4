@@ -52,7 +52,7 @@ itcl_class Elix& {
         ${NoteBook} add debug -label [get_indep String ElixDebug]\
           -under [get_indep Pos ElixDebug]
 
-        sn_motif_buttons ${this} bottom 0 [get_indep String ok]\
+        sn_ttk_buttons ${this} bottom 0 [get_indep String ok]\
           [get_indep String Apply] [get_indep String cancel]
 
         ${this}.button_0 config -command " ${this} apply "

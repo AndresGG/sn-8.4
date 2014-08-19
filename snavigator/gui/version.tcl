@@ -419,7 +419,7 @@ proc sn_rcs_checkin {marked_files} {
 
     pack ${w}.ctrl.lock.lock -pady 10 -fill x
 
-    sn_motif_buttons ${w}.ctrl bottom -1 [get_indep String ok]\
+    sn_ttk_buttons ${w}.ctrl bottom -1 [get_indep String ok]\
       [get_indep String cancel]
 
     ${checkin} config -command " set ${w}-select_status \[set ${w}.withlock\] "
@@ -557,7 +557,7 @@ proc sn_rcs_checkout {marked_files {bsy 1}} {
 
     pack ${w}.ctrl.lock.lock -side left -padx 10 -fill x
 
-    sn_motif_buttons ${w}.ctrl bottom -1 [get_indep String ok]\
+    sn_ttk_buttons ${w}.ctrl bottom -1 [get_indep String ok]\
       [get_indep String cancel]
 
     ${checkout} config -command " set ${w}-select_status \[set ${w}.withlock\] "
@@ -694,7 +694,7 @@ proc sn_rcs_lockunlockdel {cmd marked_files {bsy 1}} {
     set cancel ${w}.ctrl.button_1
 
     frame ${w}.ctrl
-    sn_motif_buttons ${w}.ctrl bottom 0 [get_indep String ok]\
+    sn_ttk_buttons ${w}.ctrl bottom 0 [get_indep String ok]\
       [get_indep String cancel]
 
     ${lock} config -command " set ${w}-select_status [list ${cmd}] "
@@ -872,7 +872,7 @@ proc sn_rcs_diff {basewindow files} {
     set cancel ${w}.ctrl.button_1
 
     frame ${w}.ctrl
-    sn_motif_buttons ${w}.ctrl bottom 0 [get_indep String ok]\
+    sn_ttk_buttons ${w}.ctrl bottom 0 [get_indep String ok]\
       [get_indep String cancel]
 
     set cmd $sn_verctl_options(${rcstype},checkout-individual-to-stdout)

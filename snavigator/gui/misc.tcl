@@ -3449,7 +3449,7 @@ proc sn_parse_uptodate {{files_to_check ""} {disp_win 1}} {
 
         ${w} configure -title [get_indep String FileNotExist]
 
-        sn_motif_buttons ${w} bottom 0 [get_indep String Hide]\
+        sn_ttk_buttons ${w} bottom 0 [get_indep String Hide]   \
           [get_indep String Delete] [get_indep String Continue]\
           [get_indep String cancel]
 

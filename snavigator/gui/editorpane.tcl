@@ -3902,7 +3902,7 @@ itcl::class Editor& {
 	set print_dialog [sourcenav::Window ${print_dialog} \
 	    -leader ${t}]
 
-	sn_motif_buttons ${print_dialog} bottom 0 [get_indep String ok] \
+	sn_ttk_buttons ${print_dialog} bottom 0 [get_indep String ok] \
 	  [get_indep String cancel]
 	${print_dialog}.button_0 config \
 	    -command "Editor&::print_file ${print_dialog} ${t}"

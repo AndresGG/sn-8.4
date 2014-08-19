@@ -1289,7 +1289,7 @@ after idle "update idletasks ; if \[winfo exists $top\] \{pack propagate $top\}"
 
 	$print_dialog transient $toplw
 
-	sn_motif_buttons $print_dialog bottom 0 [get_indep String ok]\
+	sn_ttk_buttons $print_dialog bottom 0 [get_indep String ok]\
 		[get_indep String cancel]
 	$print_dialog.button_0 config -command "$this print_it"
 	$print_dialog.button_1 config -command "itcl::delete object $print_dialog"

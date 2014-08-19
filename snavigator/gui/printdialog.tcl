@@ -240,8 +240,8 @@ itcl::class PrintDialog {
         frame $itk_component(hull).actionframe -relief {flat} -border {2}
 
         # Buttons 
-        sn_motif_buttons $itk_component(hull).actionframe bottom 0 [get_indep String\
-          SQLPprintit] [get_indep String cancel]
+        sn_ttk_buttons $itk_component(hull).actionframe bottom 0 \
+            [get_indep String SQLPprintit] [get_indep String cancel]
 
         if {${action} == ""} {
             if {${canvas} != ""} {

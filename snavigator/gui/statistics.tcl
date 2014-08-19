@@ -147,7 +147,7 @@ proc sn_statistic {{files ""}} {
     }
     ${s} configure -title [sn_title "[get_indep String Statistics]${t}"]
 
-    sn_motif_buttons ${s} bottom 0 [get_indep String Close]
+    sn_ttk_buttons ${s} bottom 0 [get_indep String Close]
     ${s}.button_0 config -command " sn_statistic_destroy ${s} "
 
     set sta ${s}.statistic

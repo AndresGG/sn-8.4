@@ -400,7 +400,7 @@ itcl::class Class& {
         set title [string trimright [get_indep String Mixer] "."]
         ${t} title ${title}
         ${t} configure -iconname ${title}
-        sn_motif_buttons ${t} bottom 0 [get_indep String ok]
+        sn_ttk_buttons ${t} bottom 0 [get_indep String ok]
         ${t}.button_0 config -command "itcl::delete object ${t}"
         ${t} bind_tk <Return> "${t}.button_0 invoke"
         frame ${t}.chk

@@ -2109,8 +2109,8 @@ itcl::class XRef& {
         ${t} configure -title [sn_title ${title}]
         ${t} configure -iconname ${title}
 
-        sn_motif_buttons ${t} bottom 0 [get_indep String ok] [get_indep String\
-          cancel]
+        sn_ttk_buttons ${t} bottom 0 [get_indep String ok]      \
+            [get_indep String cancel]
 
         ${t}.button_0 config -command { set xref_filter_status "ok" }
 

@@ -350,7 +350,7 @@ itcl::class Retr& {
         ${t} configure -title ${title}
         ${t} configure -iconname ${title}
 
-        sn_motif_buttons ${t} bottom 0 [get_indep String UtilSearch]\
+        sn_ttk_buttons ${t} bottom 0 [get_indep String UtilSearch]\
           [get_indep String Close]
         ${t}.button_0 config -state ${btnstate} -command " ${this}\
           start_search "

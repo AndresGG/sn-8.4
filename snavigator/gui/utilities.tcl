@@ -1079,7 +1079,7 @@ proc sn_prompt_for_files {title pars} {
 
     ${w} configure -title ${title}
 
-    sn_motif_buttons ${w} bottom 0 [get_indep String ok] [get_indep String\
+    sn_ttk_buttons ${w} bottom 0 [get_indep String ok] [get_indep String\
       cancel]
 
     ${w}.button_0 configure -command " set ${w}-select_status ok "
