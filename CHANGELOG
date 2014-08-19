@@ -1,3 +1,4 @@
+(BUGFIX) Fix invoking the "Revision Control Editor" dialog
 (INTERNAL) Removed sn_motif_buttons
 (ENHANCE) Changed all sn_motif_buttons calls to sn_ttk_buttons
 (INTERNAL) Removed tk_dialog as it is no longer used

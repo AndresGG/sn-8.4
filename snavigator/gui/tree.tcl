@@ -50,7 +50,7 @@ itcl_class Tree {
 
 	if {$withframe} {
 	    set lframe $thisTail.fr
-	    ttk::frame $lframe -bd 2 -relief sunken
+	    ttk::frame $lframe -relief sunken
 	} else {
 	    set lframe $thisTail
 	}
