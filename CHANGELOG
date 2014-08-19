@@ -26,6 +26,9 @@
 (ENHANCE) Ported the 'new project' dialog to use Ttk widgets
 (ENHANCE) Update the project management window to use Ttk widgets
 (INTERNAL) Add tile extension for Ttk widgets support
+(BUGFIX) Updated the copyright notice to 2007-2014
+(BUGFIX) Fix invoking the "Revision Control Editor" dialog
+(INTERNAL) Removed tkTable
 (BUGFIX) Fix cancelling in Windows the choose font dialog
 (ENHANCE) Use tk_chooseColor
 (ENHANCE) Simplify the dialog to choose fonts and add all the available ones
