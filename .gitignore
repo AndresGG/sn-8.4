@@ -5,6 +5,8 @@ Makefile
 *.lo
 config.log
 config.status
+confdefs.h
+tile/
 db4/PORT/.libs/
 db4/PORT/clib_port.h
 db4/PORT/config.log

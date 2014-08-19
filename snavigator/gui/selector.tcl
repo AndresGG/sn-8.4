@@ -19,14 +19,15 @@
 #
 
 # FIXME: We will need to rewrite this class when removing Tree!
-itcl_class Selector& {
+itcl::class Selector& {
     inherit Tree
 
     constructor {args} {
+# FIXME: Why doesn't itk_initialize work?
 #        eval itk_initialize $args
         set cmd ""
-        foreach c ${config} {
-            append cmd "-${c} {[virtual set ${c}]} "
+        foreach {c value} ${args} {
+            append cmd "${c} \"${value}\" "
         }
         eval Tree::constructor -withframe y\
           -exportselection ${exportselection} -have_filter 0 ${cmd}
@@ -91,6 +92,11 @@ itcl_class Selector& {
         }
     }
 
+    #  METHOD:  config - used to change public attributes
+    method config {args} { 
+        eval configure $args
+    }
+
     method set_selection {} {
         if {${direct_ent} != ""} {
             global ${this}-e-name
@@ -101,7 +107,7 @@ itcl_class Selector& {
         return [${this} marked]
     }
 
-    public exec_button ""
+    public variable exec_button ""
 
     method fill {{bsy 1}} {
         if {![winfo exists ${thull}] || ![winfo exists ${entry}]} {
@@ -278,7 +284,7 @@ itcl_class Selector& {
         ${button} config -state ${state}
     }
 
-    public contents {} {
+    public method contents {} {
         if {[winfo exists ${this}]} {
             set y [${this} nearest 0]
 
@@ -325,7 +331,7 @@ itcl_class Selector& {
 
     }
 
-    public filter {*} {
+    public variable filter {*} {
         if {[winfo exists ${this}]} {
             ${entry} delete 0 end
             ${entry} insert end ${filter}
@@ -342,33 +348,33 @@ itcl_class Selector& {
         }
     }
 
-    public script {}
+    public variable script {}
 
-    protected entry {}
-    public sort {-increasing}
-    public direct_ent {}
-    public advised {}
-    public exportselection 0 {
+    protected variable entry {}
+    public variable sort {-increasing}
+    public variable direct_ent {}
+    public variable advised {}
+    public variable exportselection 0 {
         if {[winfo exists ${this}]} {
             ${this} config_tk -exportselection ${exportselection}
         }
     }
-    public nocase 1
-    public filter_width 22 {
+    public variable nocase 1
+    public variable filter_width 22 {
         if {[winfo exists ${entry}]} {
             ${entry} config -width ${filter_width}
         }
     }
-    protected imagecmd ""
-    public eval 0
-    public image "" {
+    protected variable imagecmd ""
+    public variable eval 0
+    public variable image "" {
         set imagecmd "-image"
     }
-    public bitmap "" {
+    public variable bitmap "" {
         set imagecmd "-bitmap"
         set image ${bitmap}
     }
-    public must_exist 0
-    public entrycommand ""
-    protected thull ""
+    public variable must_exist 0
+    public variable entrycommand ""
+    protected variable thull ""
 }
