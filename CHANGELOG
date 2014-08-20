@@ -1,3 +1,4 @@
+(BUGFIX) Fix some syntax that used to be ok in former versions of Tcl
 (BUGFIX) Changed the discard command for rcs to 'co -f -r'
 (BUGFIX) Updated the copyright notice to 2007-2014
 (BUGFIX) Fix invoking the "Revision Control Editor" dialog
