@@ -411,25 +411,25 @@ proc sn_rcs_checkin {marked_files} {
     set checkin ${w}.ctrl.button_0
     set cancel ${w}.ctrl.button_1
 
-    frame ${w}.ctrl
-    frame ${w}.ctrl.lock
+    ttk::frame ${w}.ctrl
+    ttk::frame ${w}.ctrl.lock
 
-    checkbutton ${w}.ctrl.lock.lock -text [get_indep String ChooseWithLock]\
+    ttk::checkbutton ${w}.ctrl.lock.lock -text [get_indep String ChooseWithLock]\
       -variable ${w}.withlock
 
-    pack ${w}.ctrl.lock.lock -pady 10 -fill x
+    pack ${w}.ctrl.lock.lock -pady 10
 
     sn_ttk_buttons ${w}.ctrl bottom -1 [get_indep String ok]\
       [get_indep String cancel]
 
     ${checkin} config -command " set ${w}-select_status \[set ${w}.withlock\] "
-    ${cancel} config -command " set ${w}-select_status cancel "
+    ${cancel}  config -command " set ${w}-select_status cancel "
 
-    frame ${w}.ctrl.heading
-    label ${w}.ctrl.heading.lb -text [get_indep String Comment]
+    ttk::frame ${w}.ctrl.heading
+    ttk::label ${w}.ctrl.heading.lb -text [get_indep String Comment]
     pack ${w}.ctrl.heading.lb -side left -padx 5
 
-    frame ${w}.ctrl.rem
+    ttk::frame ${w}.ctrl.rem
     set t ${w}.ctrl.rem.t
     text ${t} -height 4 -width 65 -wrap none
 
