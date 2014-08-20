@@ -549,10 +549,10 @@ proc sn_rcs_checkout {marked_files {bsy 1}} {
     set checkout ${w}.ctrl.button_0
     set cancel ${w}.ctrl.button_1
 
-    frame ${w}.ctrl
-    frame ${w}.ctrl.lock
+    ttk::frame ${w}.ctrl
+    ttk::frame ${w}.ctrl.lock
 
-    checkbutton ${w}.ctrl.lock.lock -text [get_indep String ChooseWithLock]\
+    ttk::checkbutton ${w}.ctrl.lock.lock -text [get_indep String ChooseWithLock]\
       -variable ${w}.withlock
 
     pack ${w}.ctrl.lock.lock -side left -padx 10 -fill x
@@ -563,10 +563,10 @@ proc sn_rcs_checkout {marked_files {bsy 1}} {
     ${checkout} config -command " set ${w}-select_status \[set ${w}.withlock\] "
     ${cancel} config -command " set ${w}-select_status cancel "
 
-    frame ${w}.ctrl.vers
+    ttk::frame ${w}.ctrl.vers
     global ${w}.ctrl.vers
-    entry ${w}.ctrl.vers.e -textvariable ${w}.ctrl.vers
-    label ${w}.ctrl.vers.l -text [get_indep String ChooseRevision]
+    ttk::entry ${w}.ctrl.vers.e -textvariable ${w}.ctrl.vers
+    ttk::label ${w}.ctrl.vers.l -text [get_indep String ChooseRevision]
     pack ${w}.ctrl.vers.l -side left
     pack ${w}.ctrl.vers.e -side left -fill x -expand y -padx 5
     pack ${w}.ctrl.vers -pady 2

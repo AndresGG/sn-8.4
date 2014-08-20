@@ -1,3 +1,4 @@
+(ENHANCE) Port the 'Check Out' dialog to Ttk
 (BUGFIX) Fix invoking the "Revision Control Editor" dialog
 (INTERNAL) Removed sn_motif_buttons
 (ENHANCE) Changed all sn_motif_buttons calls to sn_ttk_buttons
