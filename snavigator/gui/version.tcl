@@ -955,7 +955,7 @@ proc sn_rcs_diff {basewindow files} {
 
         set cmd "${status}${rev} ${relative_f} > ${t_m_p} 2> ${err}"
 
-        if {[catch [eval exec -- ${cmd}] msg]} {
+        if {[catch {eval exec -- ${cmd}} msg]} {
 	    # Move back to working directory.
 	    if {$sn_verctl_options($rcstype,use-relative-path)} {
 		cd $currentworkdir

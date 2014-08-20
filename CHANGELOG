@@ -29,6 +29,8 @@
 (ENHANCE) Ported the 'new project' dialog to use Ttk widgets
 (ENHANCE) Update the project management window to use Ttk widgets
 (INTERNAL) Add tile extension for Ttk widgets support
+(BUGFIX) Fix some syntax that used to be ok in former versions of Tcl
+(BUGFIX) Changed the discard command for rcs to 'co -f -r'
 (BUGFIX) Updated the copyright notice to 2007-2014
 (BUGFIX) Fix invoking the "Revision Control Editor" dialog
 (INTERNAL) Removed tkTable
