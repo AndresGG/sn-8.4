@@ -28,7 +28,7 @@ sn_add_version_control_system rcs -default yes \
 	-checkout-individual-to-stdout "co -p" \
 	-checkout-with-lock yes \
 	-delete-revision "rcs -o" \
-	-discard "unco" \
+	-discard "co -f -r" \
 	-history "rlog" \
 	-history-pattern { {"^-----" "^====="} } \
 	-history-individual "rlog -r" \
