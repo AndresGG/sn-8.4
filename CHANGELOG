@@ -1,3 +1,4 @@
+(ENHANCE) Port the Revision control Lock and Unlock dialogs to Ttk
 (ENHANCE) Port the 'Check In' dialog to Ttk
 (ENHANCE) Port the 'Check Out' dialog to Ttk
 (BUGFIX) Fix invoking the "Revision Control Editor" dialog

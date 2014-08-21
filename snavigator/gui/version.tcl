@@ -693,17 +693,17 @@ proc sn_rcs_lockunlockdel {cmd marked_files {bsy 1}} {
     set lock ${w}.ctrl.button_0
     set cancel ${w}.ctrl.button_1
 
-    frame ${w}.ctrl
+    ttk::frame ${w}.ctrl
     sn_ttk_buttons ${w}.ctrl bottom 0 [get_indep String ok]\
       [get_indep String cancel]
 
     ${lock} config -command " set ${w}-select_status [list ${cmd}] "
     ${cancel} config -command " set ${w}-select_status cancel "
 
-    frame ${w}.ctrl.vers
+    ttk::frame ${w}.ctrl.vers
     global ${w}.ctrl.vers
-    entry ${w}.ctrl.vers.e -textvariable ${w}.ctrl.vers
-    label ${w}.ctrl.vers.l -text [get_indep String ChooseRevision]
+    ttk::entry ${w}.ctrl.vers.e -textvariable ${w}.ctrl.vers
+    ttk::label ${w}.ctrl.vers.l -text [get_indep String ChooseRevision]
 
     pack ${w}.ctrl.vers.l -side left
     pack ${w}.ctrl.vers.e -side left -fill x -expand y -padx 5
