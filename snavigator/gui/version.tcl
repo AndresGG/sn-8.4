@@ -871,7 +871,7 @@ proc sn_rcs_diff {basewindow files} {
     set diff ${w}.ctrl.button_0
     set cancel ${w}.ctrl.button_1
 
-    frame ${w}.ctrl
+    ttk::frame ${w}.ctrl
     sn_ttk_buttons ${w}.ctrl bottom 0 [get_indep String ok]\
       [get_indep String cancel]
 
@@ -880,25 +880,25 @@ proc sn_rcs_diff {basewindow files} {
     ${diff} config -command " set ${w}-select_status [list ${cmd}] "
     ${cancel} config -command " set ${w}-select_status cancel "
 
-    frame ${w}.ctrl.vers
+    ttk::frame ${w}.ctrl.vers
     global ${w}.ignoreWhitespace ${w}.ignoreCase
     # ignore whitespace by default
     set ${w}.ignoreWhitespace 1
     set ${w}.ignoreCase 0
 
     global ${w}.ctrl.vers
-    entry ${w}.ctrl.vers.e -textvariable ${w}.ctrl.vers
-    label ${w}.ctrl.vers.l -text [get_indep String ChooseRevision]
+    ttk::entry ${w}.ctrl.vers.e -textvariable ${w}.ctrl.vers
+    ttk::label ${w}.ctrl.vers.l -text [get_indep String ChooseRevision]
 
     pack ${w}.ctrl.vers.l -side left
     pack ${w}.ctrl.vers.e -side left -fill x -expand y -padx 5
     pack ${w}.ctrl.vers -pady 2
-    frame ${w}.ctrl.opt
-    checkbutton ${w}.ctrl.opt.ws -text [get_indep String IgnoreWS]\
-      -variable ${w}.ignoreWhitespace -anchor w
+    ttk::frame ${w}.ctrl.opt
+    ttk::checkbutton ${w}.ctrl.opt.ws -text [get_indep String IgnoreWS]\
+      -variable ${w}.ignoreWhitespace
     pack ${w}.ctrl.opt.ws -fill x -expand y
-    checkbutton ${w}.ctrl.opt.ca -text [get_indep String IgnoreCase]\
-      -variable ${w}.ignoreCase -anchor w
+    ttk::checkbutton ${w}.ctrl.opt.ca -text [get_indep String IgnoreCase]\
+      -variable ${w}.ignoreCase
     pack ${w}.ctrl.opt.ca -fill x -expand y
     pack ${w}.ctrl.opt -fill x -expand y
     pack ${w}.ctrl -side left -fill both
