@@ -648,16 +648,15 @@ proc sn_rcs_discard {marked_files {bsy 1}} {
 	cd [sn_rcs_get_common_path $files]
     }
 
-    set result [sn_rcs_exec "${cmd} ${relative_files}"]
+    catch {sn_rcs_exec "${cmd} ${relative_files}"} result
 
     # Move back to working directory.
     if {$sn_verctl_options($rcstype,use-relative-path)} {
 	cd $currentworkdir
     }
 
-    RevisionCtrl&::refresh ${marked_files}
-
     if {${result} == ""} {
+        RevisionCtrl&::refresh ${marked_files}
         return 0
     }
     return 1
