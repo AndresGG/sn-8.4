@@ -301,7 +301,6 @@ itcl::class RevisionCtrl& {
         if {${files} == ""} {
             return
         }
-
         # Block the UI while running the command.
         tixBusy $itk_component(hull) on
 
