@@ -43,12 +43,19 @@ itcl::class RevisionCtrl& {
         # Top:	Selected Files, Actions, Unloaded Files
         # Bottom: Symbols and history
         #------------------------------------------------------------------
-        PanedWindow $itk_component(hull).p -width 900 -height 600 -fraction "0.55"\
-          -orientation y -min 0
+        ttk::panedwindow $itk_component(hull).p -width 900 -height 600     \
+                -orient vertical
 
-        set tp [lindex [$itk_component(hull).p panes] 0]
-        set bp [lindex [$itk_component(hull).p panes] 1]
+        set tp [ttk::frame $itk_component(hull).p.tp -borderwidth 1 \
+                -relief solid]
+        set bp [ttk::frame $itk_component(hull).p.bp -borderwidth 1 \
+                -relief solid]
 
+        $itk_component(hull).p add $tp -weight 3
+        $itk_component(hull).p add $bp -weight 2
+
+puts "Top panel: $tp"
+puts "Bottom panel: $bp"
         #--------------------------------------------------------------
         # Split the top part into selected and (actions+unloaded)
         #--------------------------------------------------------------
@@ -101,12 +108,17 @@ itcl::class RevisionCtrl& {
         #------------------------------------------------------------------
         # Split the bottom part into Symbols and History
         #------------------------------------------------------------------
-        PanedWindow ${bp}.rcslog -fraction 0.2 -orientation x
+        set rcslog [ttk::panedwindow ${bp}.rcslog -orient horizontal]
 
-        pack ${bp}.rcslog -fill both -expand y
+        pack ${rcslog} -fill both -expand y
 
-        set symbols [lindex [${bp}.rcslog panes] 0]
-        set history [lindex [${bp}.rcslog panes] 1]
+        set symbols [ttk::frame ${bp}.rcslog.symbols -borderwidth 1 \
+                -relief solid]
+        set history [ttk::frame ${bp}.rcslog.history -borderwidth 1 \
+                -relief solid]
+
+        ${rcslog} add $symbols -weight 1
+        ${rcslog} add $history -weight 1
 
         #------------------------------------------------------------------
         # Build views-chooser in express line
@@ -137,7 +149,7 @@ itcl::class RevisionCtrl& {
 
         pack $itk_component(hull).p -fill both -expand y
 
-        label ${selected}.label -anchor w -text [get_indep String ChooseFiles]
+        ttk::label ${selected}.label -anchor w -text [get_indep String ChooseFiles]
 
         set itk_option(-input) ${proj_files}
 
@@ -151,7 +163,7 @@ itcl::class RevisionCtrl& {
           -selectmode extended -font ${font}\
           -bitmap @$sn_path(bitmapdir)/file.xbm -contents $itk_option(-input)
 
-        set rcs_hist_top ${history}.top
+        set rcs_hist_top  ${history}.top
         set rcs_hist_show ${history}.show
         ${selected_list} treebind <Double-1> "${this} edit_file"
         ${selected_list} treebind <Double-3> "${this} edit_file"
@@ -159,7 +171,7 @@ itcl::class RevisionCtrl& {
         ${selected_list} treebind <space> "${this} edit_file; break"
 
         pack ${selected}.label -fill x
-        pack ${selected_list} -fill both -expand y
+        pack ${selected_list}  -fill both -expand y
 
         ${this} configure -title [sn_title [get_indep String RevisionControlEditorNoKey]]
         ${this} configure -iconname Editor
@@ -168,8 +180,8 @@ itcl::class RevisionCtrl& {
         # Build bottom paned window
         #------------------------------------------------------------------
 
-        frame ${rcs_hist_top}
-        label ${rcs_hist_top}.l -text [get_indep String ChooseHistory]\
+        ttk::frame ${rcs_hist_top}
+        ttk::label ${rcs_hist_top}.l -text [get_indep String ChooseHistory]\
           -textvariable ${this}-history
         pack ${rcs_hist_top}.l -fill x -expand y -side left
 
@@ -182,16 +194,16 @@ itcl::class RevisionCtrl& {
         set rcs_symb_top ${symbols}.top
         set rcs_symb_show ${symbols}.show
 
-        label ${rcs_symb_top} -text [get_indep String SymbolicTags]
+        ttk::label ${rcs_symb_top} -text [get_indep String SymbolicTags]
 
         listbox ${rcs_hist_show} -font ${font}
 
-        pack ${rcs_hist_top} -fill x
+        pack ${rcs_hist_top}  -fill x
         pack ${rcs_hist_show} -fill both -expand y
 
         listbox ${rcs_symb_show} -font ${font}
 
-        pack ${rcs_symb_top} -fill x -pady 5
+        pack ${rcs_symb_top}  -fill x -pady 5
         pack ${rcs_symb_show} -fill both -expand y
 
         #---------------------------------------------------------------------

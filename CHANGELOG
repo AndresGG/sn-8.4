@@ -1,3 +1,4 @@
+(ENHANCE) Port the "Revision Control Editor" to Ttk
 (ENHANCE) Port the procedure sn_loading_message to Ttk
 (ENHANCE) Port the selector mega widget to Ttk widgets
 (ENHANCE) Port the Compare Revisions dialog to Ttk
