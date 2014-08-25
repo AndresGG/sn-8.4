@@ -43,7 +43,7 @@ itcl::class Selector& {
         if {${direct_ent} != ""} {
             set direct_ent ${thull}.direct_ent
 
-            entry ${direct_ent} -relief ridge -borderwidth 2\
+            ttk::entry ${direct_ent} -relief ridge -borderwidth 2\
               -exportselection 0 -textvariable ${this}-e-name
 
             ::bind ${direct_ent} <KeyPress> "[info class] @@ check_input\
@@ -61,8 +61,8 @@ itcl::class Selector& {
             ${this} direct_ent select range 0 end
         }
 
-        frame ${thull}.filter
-        label ${thull}.filter.label -text [get_indep String Pattern]
+        ttk::frame ${thull}.filter
+        ttk::label ${thull}.filter.label -text [get_indep String Pattern]
 
         set entry ${thull}.filter.entry
         entry ${entry} -relief sunken -exportselection 0 -width ${filter_width}

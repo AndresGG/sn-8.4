@@ -1,3 +1,4 @@
+(ENHANCE) Port the selector mega widget to Ttk widgets
 (ENHANCE) Port the Compare Revisions dialog to Ttk
 (ENHANCE) Port the Revision control Lock and Unlock dialogs to Ttk
 (ENHANCE) Port the 'Check In' dialog to Ttk
