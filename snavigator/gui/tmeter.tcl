@@ -358,15 +358,15 @@ proc sn_loading_message {{str ""} {title ""} {first_interp 1}\
         wm transient ${w} .
         wm title ${w} ${title}
 
-        frame ${w}.m -bg ${bg}
+        ttk::frame ${w}.m
         pack ${w}.m -fill both -expand y
 
-        label ${w}.m.img -bg black -cursor ${cursor} -image company_image \
+        ttk::label ${w}.m.img -cursor ${cursor} -image company_image \
             -anchor w
         pack ${w}.m.img -padx 5 -pady 5 -side left -anchor w -side left
 
 
-        frame ${w}.m.cfr -bg ${bg}
+        ttk::frame ${w}.m.cfr
         pack ${w}.m.cfr -side left -fill both -expand y -side left -pady 5
 
         set cmd [list label ${w}.m.cfr.lbl -bg ${bg} -cursor ${cursor}\
@@ -378,7 +378,7 @@ proc sn_loading_message {{str ""} {title ""} {first_interp 1}\
         eval ${cmd}
         pack ${w}.m.cfr.lbl -side top -fill x -anchor w -expand y
 
-        button ${w}.btn -bg ${bg} -font $sn_options(def,layout-font)\
+        ttk::button ${w}.btn \
           -text [get_indep String Cancel] -command " sn_loading_cancel "\
           -state disabled
 
