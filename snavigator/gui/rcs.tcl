@@ -313,7 +313,6 @@ puts "Bottom panel: $bp"
         if {${files} == ""} {
             return
         }
-
         # Block the UI while running the command.
         tixBusy $itk_component(hull) on
 

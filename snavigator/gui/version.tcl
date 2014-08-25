@@ -244,7 +244,6 @@ proc sn_rcs_history {file revision syms history} {
 	set currentworkdir [pwd]
 	cd [sn_rcs_get_common_path $file]
     }
-
     set output [sn_rcs_exec ${cmd} 0]
 
     # Move back to working directory.
@@ -344,10 +343,10 @@ proc sn_rcs_get_version_nums {file revisions} {
 	set currentworkdir [pwd]
 	cd [sn_rcs_get_common_path $file]
     }
-
-    if {[catch {sn_rcs_exec "$sn_verctl_options(${rcstype},history) ${relative_file}"\
+    if {[catch {sn_rcs "$sn_verctl_options(${rcstype},history) ${relative_file}"\
       0} output]} {
-        return 0
+        sn_log $output
+        error "$output"
     }
 
     # Move back to working directory.
@@ -496,7 +495,6 @@ proc sn_rcs_checkin {marked_files} {
 	    set currentworkdir [pwd]
 	    cd [sn_rcs_get_common_path $files]
 	}
-
         set status [expr ![catch {sn_rcs_exec ${cmd}}]]
 
 	# Move back to working directory.
@@ -530,9 +528,9 @@ proc sn_rcs_checkout {marked_files {bsy 1}} {
     set relative_files [sn_rcs_process_filenames $sn_verctl_options($rcstype,use-relative-path) $files]
     set versions ""
     if {[catch {sn_rcs_get_version_nums ${files} versions} msg]} {
+        sn_error_dialog $msg
         return
     }
-
     set w [sourcenav::Window::next_window_name]
     sourcenav::Window ${w}
     ${w} withdraw
@@ -607,7 +605,6 @@ proc sn_rcs_checkout {marked_files {bsy 1}} {
 	    set currentworkdir [pwd]
 	    cd [sn_rcs_get_common_path $files]
 	}
-
         set status [expr ![catch {sn_rcs_exec "${cmd} ${relative_files}"}]]
 
 	# Move back to working directory.
@@ -648,16 +645,15 @@ proc sn_rcs_discard {marked_files {bsy 1}} {
 	cd [sn_rcs_get_common_path $files]
     }
 
-    set result [sn_rcs_exec "${cmd} ${relative_files}"]
+    catch {sn_rcs_exec "${cmd} ${relative_files}"} result
 
     # Move back to working directory.
     if {$sn_verctl_options($rcstype,use-relative-path)} {
 	cd $currentworkdir
     }
 
-    RevisionCtrl&::refresh ${marked_files}
-
     if {${result} == ""} {
+        RevisionCtrl&::refresh ${marked_files}
         return 0
     }
     return 1
@@ -711,7 +707,10 @@ proc sn_rcs_lockunlockdel {cmd marked_files {bsy 1}} {
     pack ${w}.ctrl -side left -fill both
 
     set revisions ""
-    catch {sn_rcs_get_version_nums ${files} revisions}
+    if {[catch {sn_rcs_get_version_nums ${files} revisions} error]} {
+        sn_error_dialog ${error}
+        return
+    }
     set ${w}.ctrl.vers [lindex ${revisions} 0]
 
     Selector& ${w}.syms -contents ${revisions} -height 5 -width 10 -sort ""
@@ -742,7 +741,6 @@ proc sn_rcs_lockunlockdel {cmd marked_files {bsy 1}} {
 			set currentworkdir [pwd]
 			cd [sn_rcs_get_common_path $files]
 		    }
-
                     set result [expr ![catch {sn_rcs_exec\
                       "${cmdline}${rev} ${relative_files}"}]]
 
@@ -762,7 +760,6 @@ proc sn_rcs_lockunlockdel {cmd marked_files {bsy 1}} {
 			    set currentworkdir [pwd]
 			    cd [sn_rcs_get_common_path $files]
 			}
-
                         set result [expr ![catch {sn_rcs_exec\
                           "${cmdline}${rev} ${relative_files}"}]]
 
@@ -778,7 +775,6 @@ proc sn_rcs_lockunlockdel {cmd marked_files {bsy 1}} {
 			    set currentworkdir [pwd]
 			    cd [sn_rcs_get_common_path $files]
 			}
-
                         set result [expr ![catch {sn_rcs_exec\
                           "${cmdline} ${relative_files}"}]]
 
@@ -799,7 +795,6 @@ proc sn_rcs_lockunlockdel {cmd marked_files {bsy 1}} {
 			    set currentworkdir [pwd]
 			    cd [sn_rcs_get_common_path $files]
 			}
-
                         set result [expr ![catch {sn_rcs_exec\
                           "${cmdline}${rev} ${relative_files}"}]]
 
@@ -816,7 +811,6 @@ proc sn_rcs_lockunlockdel {cmd marked_files {bsy 1}} {
 			    set currentworkdir [pwd]
 			    cd [sn_rcs_get_common_path $relative_files]
 			}
-
                         set result [expr ![catch {sn_rcs_exec\
                           "${cmdline} ${files}"}]]
 
@@ -905,7 +899,12 @@ proc sn_rcs_diff {basewindow files} {
 
     set versions ""
 
-    sn_rcs_get_version_nums ${files} versions
+    if {[catch {sn_rcs_get_version_nums ${files} versions} error]} {
+        sn_error_dialog $error
+        destroy ${w}
+        tixBusy $basewindow off
+        return
+    }
 
     set ${w}.ctrl.vers [lindex ${versions} 0]
     Selector& ${w}.syms -contents ${versions} -height 5 -width 10 -sort ""
