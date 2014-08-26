@@ -54,8 +54,6 @@ itcl::class RevisionCtrl& {
         $itk_component(hull).p add $tp -weight 3
         $itk_component(hull).p add $bp -weight 2
 
-puts "Top panel: $tp"
-puts "Bottom panel: $bp"
         #--------------------------------------------------------------
         # Split the top part into selected and (actions+unloaded)
         #--------------------------------------------------------------
