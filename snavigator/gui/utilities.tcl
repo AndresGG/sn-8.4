@@ -1086,13 +1086,13 @@ proc sn_prompt_for_files {title pars} {
 
     ${w}.button_1 configure -command " set ${w}-select_status cancel "
 
-    pack [frame ${w}.browsers] -side left
+    pack [ttk::frame ${w}.browsers] -side left
 
     set width 7
     foreach p ${pars} {
         set l [lindex ${p} 0]
         if {[string length ${l}] > ${width}} {
-            set width [expr [string length ${l}] * 2]
+            set width [string length ${l}]
         }
     }
     set cou 0
@@ -1102,19 +1102,19 @@ proc sn_prompt_for_files {title pars} {
         set b [lindex ${p} 2]
 
         set fr ${w}.entrys-${cou}
-        pack [frame ${fr}] -side left -side top -fill x -expand y
-        pack [label ${fr}.l -text ${l} -width ${width}] -anchor w -side left
+        pack [ttk::frame ${fr}] -side left -side top -fill x -expand y
+        pack [ttk::label ${fr}.l -text ${l} -width ${width}] -anchor w -side left
 
-        set ew [entry ${fr}.e -width 60]
-        pack ${ew} -fill x -expand y -padx 10 -side left
+        set ew [ttk::entry ${fr}.e -width 60]
+        pack ${ew} -fill x -expand y -padx 10 -pady 5 -side left
         ${ew} insert end ${e}
 
         bind ${ew} <Return> "${w}.button_0 invoke; break"
         bind ${ew} <Escape> "${w}.button_1 invoke; break"
 
         if {${b} != "n"} {
-            pack [button ${fr}.b -text [get_indep String Choose] -command\
-              " sn_prompt_fileselector ${ew} ${b} "] -side left
+            pack [ttk::button ${fr}.b -text [get_indep String Choose] -width 4 \
+                    -command " sn_prompt_fileselector ${ew} ${b} "] -side left
         }
         incr cou
     }
