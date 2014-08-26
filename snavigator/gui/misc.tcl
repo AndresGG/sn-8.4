@@ -3469,15 +3469,15 @@ proc sn_parse_uptodate {{files_to_check ""} {disp_win 1}} {
         }
 
         #add some comments to the not found files
-        label ${w}.notfound -text [get_indep String FilesNotFound] -anchor nw\
+        ttk::label ${w}.notfound -text [get_indep String FilesNotFound] -anchor nw\
           -justify left
         pack ${w}.notfound -side top -fill x
 
         # do the listbox, incl scrollbars
         set files_not_found [lsort -dictionary ${files_not_found}]
         listbox ${w}.sel -height ${len} -width 40 -yscroll "${w}.yscr set" -xscroll "${w}.xscr set"
-	scrollbar ${w}.xscr -orient horizontal -command "${w}.sel xview"
-	scrollbar ${w}.yscr -orient vertical -command "${w}.sel yview"
+        ttk::scrollbar ${w}.xscr -orient horizontal -command "${w}.sel xview"
+        ttk::scrollbar ${w}.yscr -orient vertical -command "${w}.sel yview"
         eval ${w}.sel insert 0 ${files_not_found}
 
         # FIXME: we need to find a better way to do this or else
