@@ -1,3 +1,4 @@
+(BUGFIX) The 'Scanning project' window wasn't fully ported to Ttk
 (ENHANCE) Ported the 'Files not found' dialog to Ttk
 (BUGFIX) Removed two 'puts' that were there for debugging
 (ENHANCE) Port the "Revision Control Editor" to Ttk

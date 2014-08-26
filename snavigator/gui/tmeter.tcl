@@ -86,19 +86,21 @@ proc make_scale_window {filenum {enable_cancel 0}} {
 
     #use a normal termometer (not bad unix scaler)
     set sn_progress_value 0
-    ttk::progressbar ${thull}.scale -maximum ${filenum} -orient horizontal \
+    ttk::frame ${thull}.bt
+    ttk::progressbar ${thull}.bt.scale -maximum ${filenum} -orient horizontal \
         -variable sn_progress_value
 
-    ttk::button ${thull}.cancel -text [get_indep String Cancel]             \
+    ttk::button ${thull}.bt.cancel -text [get_indep String Cancel]             \
         -command "sn_processing_canceled 2"
 
     pack ${thull}.i.run -side left -padx 2 -pady 1 -anchor w
     pack ${thull}.i.filename -side left -fill x -anchor w -padx 10 -pady 20
     pack ${thull}.i -fill x -anchor w
 
-    pack ${thull}.scale -fill x -padx 20 -pady 20
+    pack ${thull}.bt.scale -fill x -padx 20 -pady 20
+    pack ${thull}.bt -side top -fill both
     if {${enable_cancel}} {
-        pack ${thull}.cancel -side top -pady 2
+        pack ${thull}.bt.cancel -side top -pady 2
     }
 
     catch {${thull} resizable yes no}
@@ -114,7 +116,7 @@ proc make_scale_window {filenum {enable_cancel 0}} {
 
     catch {${thull} grab set}
 
-    window_configure ${thull} deiconify ${thull}.scale
+    window_configure ${thull} deiconify ${thull}.bt.scale
 
     # Ugh! Why does the window get mapped without
     # having the contents drawn under Windows?
