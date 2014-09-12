@@ -42,14 +42,18 @@ itcl::class snIdeTargetMgr {
 
     public method CreateDialog {} {
 
+        itk_component add exFrame {
+            ttk::frame $itk_component(hull).exFrame
+        }
+
         itk_component add btlabel {
-            label $itk_component(hull).btlabel \
-                -text [get_indep String IDETMBuildTargets] \
+            ttk::label $itk_component(exFrame).btlabel \
+                -text [get_indep String IDETMBuildTargets]  \
                 -under [get_indep Pos IDETMBuildTargets]
         }
 
         itk_component add lbframe {
-            label $itk_component(hull).lbframe \
+            ttk::label $itk_component(exFrame).lbframe \
                 -relief sunken -borderwidth 2
         }
 
@@ -63,78 +67,82 @@ itcl::class snIdeTargetMgr {
         }
 
         itk_component add scrolly {
-            scrollbar $itk_component(lbframe).scrolly \
+            ttk::scrollbar $itk_component(lbframe).scrolly \
                 -orient vertical \
                 -command [list $itk_component(tmlist) yview]
         }
 
-	itk_component add create {
-            button $itk_component(hull).create \
+        itk_component add create {
+            ttk::button $itk_component(exFrame).create \
                 -width 11 \
                 -command "${this} create_cb" \
                 -text [get_indep String IDETMCreateTarget] \
-                -under [get_indep Pos IDETMCreateTarget]
+                -underline [get_indep Pos IDETMCreateTarget]
         }
 
-	itk_component add rename {
-            button $itk_component(hull).rename \
+        itk_component add rename {
+            ttk::button $itk_component(exFrame).rename \
                 -width 11 \
                 -command "${this} rename_target_cb" \
                 -text  [get_indep String IDETMRenameTarget] \
-                -under [get_indep Pos IDETMRenameTarget]
+                -underline [get_indep Pos IDETMRenameTarget]
         }
 
-	itk_component add edit {
-            button $itk_component(hull).edit \
+        itk_component add edit {
+            ttk::button $itk_component(exFrame).edit \
                 -width 11 \
                 -command "${this} edit_target" \
                 -text  [get_indep String IDETMEditTarget] \
-                -under [get_indep Pos IDETMEditTarget]
+                -underline [get_indep Pos IDETMEditTarget]
         }
 
 # FIXME: If you select a rule and then press duplicate and
 # then triple click in the entry, you will still be able to
 # press the duplicate button (which will generate an error)
 
-	itk_component add dup {
-            button $itk_component(hull).dup \
+        itk_component add dup {
+           ttk::button $itk_component(exFrame).dup \
                 -width 11 \
                 -command "${this} copy_target_cb" \
                 -text  [get_indep String IDETMCopyTarget] \
-                -under [get_indep Pos IDETMCopyTarget]
+                -underline [get_indep Pos IDETMCopyTarget]
         }
 
-	itk_component add del {
-            button $itk_component(hull).del \
+        itk_component add del {
+            ttk::button $itk_component(exFrame).del \
                 -width 11 \
                 -command "${this} delete_target_cb" \
                 -text  [get_indep String IDETMDeleteTarget] \
-                -under [get_indep Pos IDETMDeleteTarget]
+                -underline [get_indep Pos IDETMDeleteTarget]
         }
 
-	itk_component add done {
-            button $itk_component(hull).done \
+        itk_component add done {
+            ttk::button $itk_component(exFrame).done \
                 -width 11 \
                 -command "${this} done_cb" \
                 -text  [get_indep String IDETargetMgrDone] \
-                -under [get_indep Pos IDETargetMgrDone]
+                -underline [get_indep Pos IDETargetMgrDone]
         }
 
-	itk_component add entry {
-            entry $itk_component(hull).entry \
+        itk_component add entry {
+            ttk::entry $itk_component(exFrame).entry \
         }
 
+        # Pack the externalFrame so that everything has the
+        # themed background
+
+        pack $itk_component(exFrame) -expand true -fill both
 
         # Grid the frame that will contain the listbox and
         # the scrollbar
 
-	grid $itk_component(tmlist) -row 0 -column 0 -sticky news
+        grid $itk_component(tmlist)  -row 0 -column 0 -sticky news
         grid $itk_component(scrolly) -row 0 -column 1 -sticky ns
 
-        grid rowconfigure $itk_component(lbframe) 0 -weight 1
+        grid rowconfigure    $itk_component(lbframe) 0 -weight 1
         grid columnconfigure $itk_component(lbframe) 0 -weight 1
 
-        # Grid the rest of the widgets into the parent frame
+        # Grid the rest of the widgets into the external frame
 
         grid $itk_component(btlabel) -row 0 -column 0 -sticky w \
             -padx 10 -pady 5
@@ -149,11 +157,11 @@ itcl::class snIdeTargetMgr {
 
 
         grid $itk_component(entry) -row 7 -column 0 \
-            -sticky ew -padx 10
+            -sticky ew -padx 10 -pady 7
         grid $itk_component(done)  -row 7 -column 1
 
         grid columnconfigure $itk_component(hull) 0 -weight 1
-        grid rowconfigure $itk_component(hull) 6 -weight 1
+        grid rowconfigure    $itk_component(hull) 6 -weight 1
 
         # Get a list of targets
         set targets [GetTargetsList]
