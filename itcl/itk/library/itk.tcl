@@ -150,3 +150,24 @@ itk::usual Text {
 itk::usual Toplevel {
     keep -background -cursor
 }
+
+itk::usual TLabel {
+    keep -cursor  -font
+}
+
+itk::usual TButton {
+    keep -cursor -width -underline
+}
+
+itk::usual TScrollbar {
+    keep -cursor 
+}
+
+itk::usual TEntry {
+    keep -cursor -width
+}
+
+itk::usual TFrame {
+    keep -cursor
+}
+
