@@ -51,6 +51,10 @@ itcl::body sourcenav::DirDialog::constructor { args } {
 
     ${this} transient [winfo parent $itk_component(hull)]
 
+    itk_component add exFrame {
+        ttk::frame $itk_component(hull).exFrame
+    }
+
     sn_ttk_buttons $itk_component(hull) bottom 0 [get_indep String ok]\
         [get_indep String cancel]
 
@@ -67,7 +71,7 @@ itcl::body sourcenav::DirDialog::constructor { args } {
     } {}
 
     itk_component add tree {
-        Tree $itk_component(hull).dirtree \
+        Tree $itk_component(exFrame).dirtree \
             -fillselection 0 \
             -selectmode browse \
             -exportselection 0 \
@@ -84,6 +88,8 @@ itcl::body sourcenav::DirDialog::constructor { args } {
     itk_component add treew {
         $itk_component(tree) tree
     } {}
+
+    pack $itk_component(exFrame) -side top -expand y -fill both
 
     pack $itk_component(tree) -side top -expand y -fill both -padx 5 -pady 5
 

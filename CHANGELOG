@@ -1,3 +1,4 @@
+(BUGFIX) The 'Select directory' had non-themed border around the dir tree
 (ENHANCE) Ported the "Build Setting" dialog to Ttk
 (ENHANCE) Added itk support for some ttk widgets
 (ENHANCE) Port the 'Tools->Debugger' dialog to Ttk
