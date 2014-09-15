@@ -41,26 +41,28 @@ itcl::class Make {
         #add toolbar icons
         if {$itk_option(-toolbar) != ""} {
             set toolbarf $itk_option(-toolbar).toolbarf
-            pack [frame ${toolbarf}] -side left
+            pack [ttk::frame ${toolbarf}] -side left -expand yes -fill x
             #prev
-            button ${toolbarf}.prev -takefocus 0 -text [get_indep String Prev]\
-              -image del_image -command [itcl::code ${this} incr_selected_line -1]
+            ttk::button ${toolbarf}.prev -takefocus 0 -text [get_indep String Prev]\
+              -image del_image -command [itcl::code ${this} incr_selected_line -1] \
+              -style Toolbutton
             balloon_bind_info ${toolbarf}.prev [get_indep String PrevINFO]
             pack ${toolbarf}.prev -side left -fill x -expand n
             #next
-            button ${toolbarf}.next -takefocus 0 -text [get_indep String Next]\
-              -image add_image -command [itcl::code ${this} incr_selected_line +1]
+            ttk::button ${toolbarf}.next -takefocus 0 -text [get_indep String Next]\
+              -image add_image -command [itcl::code ${this} incr_selected_line +1] \
+              -style Toolbutton
             balloon_bind_info ${toolbarf}.next [get_indep String NextINFO]
             pack ${toolbarf}.next -side left -fill x -expand n
         }
 
         #Frame for command input
         set input $itk_component(hull).input
-        frame ${input}
+        ttk::frame ${input}
         pack ${input} -side top -padx 5 -fill x
 
         set entries ${input}.entries
-        frame ${entries}
+        ttk::frame ${entries}
         pack ${entries} -fill x -expand y -side left -anchor nw -fill x
 
 # FIXME: This widget should not have a file selection button
@@ -81,11 +83,11 @@ itcl::class Make {
         pack ${entries}.entry -side top -expand y -fill x -anchor nw
 
         #add choose button for the make command to evtl. choose an executable
-        button ${entries}.entry.choose -text [get_indep String Choose]\
+        ttk::button ${entries}.entry.choose -text [get_indep String Choose]\
           -command [list sn_choose_file [${entries}.entry component entry]\
-          $sn_options(executable_defaultext)]
+          $sn_options(executable_defaultext)] -width 3
         balloon_bind_info ${entries}.entry.choose [get_indep String ChooseINFO]
-        pack ${entries}.entry.choose -side right -before ${entries}.entry.arrow
+        pack ${entries}.entry.choose -side right -before ${entries}.entry.arrow -padx {2 0}
 
         #starting directory
         Combo& ${entries}.dir -labelwidth 14 -anchor ne -label\
@@ -94,10 +96,11 @@ itcl::class Make {
         bind [${entries}.dir component entry] <Return> "${this} ExecMake"
         pack ${entries}.dir -side top -expand y -fill x -anchor nw
 
-        button ${entries}.dir.choose -text [get_indep String Choose]\
-          -command [list sn_choose_dir [${entries}.dir component entry]]
+        ttk::button ${entries}.dir.choose -text [get_indep String Choose]\
+          -command [list sn_choose_dir [${entries}.dir component entry]] \
+          -width 3
         balloon_bind_info ${entries}.dir.choose [get_indep String ChooseINFO]
-        pack ${entries}.dir.choose -side right -before ${entries}.dir.arrow
+        pack ${entries}.dir.choose -side right -before ${entries}.dir.arrow -padx {2 0}
 
 # FIXME : all the hard coded strings in this class need to go into the string table.
         # targets list
@@ -133,20 +136,20 @@ itcl::class Make {
 
         #Buttons start
         set btns ${input}.buttons
-        frame ${btns}
+        ttk::frame ${btns}
         pack ${btns} -side right -anchor nw -fill x
-        button ${btns}.start -text [get_indep String StartMake] -command "${this} ExecMake"
+        ttk::button ${btns}.start -text [get_indep String StartMake] -command "${this} ExecMake"
         balloon_bind_info ${btns}.start [get_indep String StartMakeINFO]
         pack ${btns}.start -side top -padx 8 -pady 4 -fill x
 
 # FIXME : put in string table!
         #Button cancel, if needed
-        button ${btns}.cancel -takefocus 0 -text "Stop" -command " ${this}\
+        ttk::button ${btns}.cancel -takefocus 0 -text "Stop" -command " ${this}\
           close_make cancel " -state disabled
         balloon_bind_info ${btns}.cancel [get_indep String CancelMakeINFO]
         pack ${btns}.cancel -side top -padx 8 -pady 4 -fill x
 
-        button ${btns}.launch -takefocus 0 -text "Debug" -width 8 -command\
+        ttk::button ${btns}.launch -takefocus 0 -text "Debug" -width 8 -command\
           " ${this} cb_launch_build "
         pack ${btns}.launch -side top -padx 8 -pady 4 -fill x
 
@@ -162,8 +165,8 @@ itcl::class Make {
 
         # Lock down bindings for this widget so we only use ours
         bindtags $browser $browser
-	bind $browser <ButtonPress-1> [itcl::code $this text_b1_down %W %x %y]
-	bind $browser <B1-Motion> [itcl::code $this text_b1_motion %W %x %y]
+        bind $browser <ButtonPress-1> [itcl::code $this text_b1_down %W %x %y]
+        bind $browser <B1-Motion> [itcl::code $this text_b1_motion %W %x %y]
         bind $browser <Double-1> [itcl::code $this text_b1_double %W %x %y]
 
 
@@ -173,10 +176,10 @@ itcl::class Make {
 
         pack ${browser} -side bottom -fill both -expand y
 
-        set scroll_y [scrollbar $itk_component(hull).y \
+        set scroll_y [ttk::scrollbar $itk_component(hull).y \
 	    -orient vertical \
 	    -command "${browser} yview"]
-	${browser} configure -yscrollcommand "${scroll_y} set"
+        ${browser} configure -yscrollcommand "${scroll_y} set"
         pack ${scroll_y} -side right -fill y -before ${browser}
 
         Update_Layout
