@@ -1,3 +1,4 @@
+(BUGFIX) Fix the 'Tools->Build Settings' dialog
 (ENHANCE) Port the 'Tools->Build' dialog to Ttk
 (BUGFIX) The 'Select directory' had non-themed border around the dir tree
 (ENHANCE) Ported the "Build Setting" dialog to Ttk

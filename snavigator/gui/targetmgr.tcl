@@ -53,7 +53,7 @@ itcl::class snIdeTargetMgr {
         }
 
         itk_component add lbframe {
-            ttk::label $itk_component(exFrame).lbframe \
+            ttk::frame $itk_component(exFrame).lbframe \
                 -relief sunken -borderwidth 2
         }
 
@@ -72,8 +72,12 @@ itcl::class snIdeTargetMgr {
                 -command [list $itk_component(tmlist) yview]
         }
 
+        itk_component add btFrame {
+            ttk::frame $itk_component(exFrame).btframe
+        }
+
         itk_component add create {
-            ttk::button $itk_component(exFrame).create \
+            ttk::button $itk_component(btFrame).create \
                 -width 11 \
                 -command "${this} create_cb" \
                 -text [get_indep String IDETMCreateTarget] \
@@ -81,7 +85,7 @@ itcl::class snIdeTargetMgr {
         }
 
         itk_component add rename {
-            ttk::button $itk_component(exFrame).rename \
+            ttk::button $itk_component(btFrame).rename \
                 -width 11 \
                 -command "${this} rename_target_cb" \
                 -text  [get_indep String IDETMRenameTarget] \
@@ -89,7 +93,7 @@ itcl::class snIdeTargetMgr {
         }
 
         itk_component add edit {
-            ttk::button $itk_component(exFrame).edit \
+            ttk::button $itk_component(btFrame).edit \
                 -width 11 \
                 -command "${this} edit_target" \
                 -text  [get_indep String IDETMEditTarget] \
@@ -101,7 +105,7 @@ itcl::class snIdeTargetMgr {
 # press the duplicate button (which will generate an error)
 
         itk_component add dup {
-           ttk::button $itk_component(exFrame).dup \
+           ttk::button $itk_component(btFrame).dup \
                 -width 11 \
                 -command "${this} copy_target_cb" \
                 -text  [get_indep String IDETMCopyTarget] \
@@ -109,7 +113,7 @@ itcl::class snIdeTargetMgr {
         }
 
         itk_component add del {
-            ttk::button $itk_component(exFrame).del \
+            ttk::button $itk_component(btFrame).del \
                 -width 11 \
                 -command "${this} delete_target_cb" \
                 -text  [get_indep String IDETMDeleteTarget] \
@@ -149,19 +153,23 @@ itcl::class snIdeTargetMgr {
         grid $itk_component(lbframe) -row 1 -column 0 -rowspan 6 \
             -sticky news -padx 10
 
-        grid $itk_component(create) -row 1 -column 1
-        grid $itk_component(rename) -row 2 -column 1
-        grid $itk_component(edit)   -row 3 -column 1
-        grid $itk_component(dup)    -row 4 -column 1
-        grid $itk_component(del)    -row 5 -column 1
+        # Grid the buttons
 
+        grid $itk_component(btFrame) -row 1 -column 1 -rowspan 6 \
+            -sticky news -padx {0 10}
+
+        grid $itk_component(create) -row 0 -column 0 -pady 5
+        grid $itk_component(rename) -row 1 -column 0 -pady 5
+        grid $itk_component(edit)   -row 2 -column 0 -pady 5
+        grid $itk_component(dup)    -row 3 -column 0 -pady 5
+        grid $itk_component(del)    -row 4 -column 0 -pady 5
 
         grid $itk_component(entry) -row 7 -column 0 \
             -sticky ew -padx 10 -pady 7
-        grid $itk_component(done)  -row 7 -column 1
+        grid $itk_component(done)  -row 7 -column 1 -padx {0 10}
 
-        grid columnconfigure $itk_component(hull) 0 -weight 1
-        grid rowconfigure    $itk_component(hull) 6 -weight 1
+        grid columnconfigure $itk_component(exFrame) 0 -weight 1
+        grid rowconfigure    $itk_component(exFrame) 1 -weight 1
 
         # Get a list of targets
         set targets [GetTargetsList]

@@ -152,7 +152,7 @@ itk::usual Toplevel {
 }
 
 itk::usual TLabel {
-    keep -cursor  -font
+    keep -cursor -font -anchor
 }
 
 itk::usual TButton {

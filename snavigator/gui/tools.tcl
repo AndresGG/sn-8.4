@@ -302,7 +302,11 @@ itcl::class LabelEntryButton& {
             ttk::label $itk_component(hull).label
         } {
             rename -width -labelwidth labelWidth Width
-            keep -underline -anchor -text
+# FIXME: I don't understand why this doesn't work where the
+# invoke doesn't include an anchor
+#            keep -underline -anchor -text
+# But this does:
+             keep -underline -text
         }
 
         # entry for path
@@ -336,7 +340,6 @@ itcl::class LabelEntryButton& {
         pack $itk_component(label)  -side left -fill x
         pack $itk_component(entry)  -side left -fill both -expand y
         pack $itk_component(button) -side left -fill x    -padx {4 0}
-
 
         # Link up the widget and the -value option
         $itk_component(entry) configure -textvariable \
