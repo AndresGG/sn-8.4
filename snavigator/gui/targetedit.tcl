@@ -117,8 +117,8 @@ itcl::class snEditTarget {
 	if {[$tchain_obj GetUserTargetEditGUI] != ""} {
 	    # Add custom GUI tab.
 	    itk_component add custompage {
-		$itk_component(notebook) add custom \
-			-label "Custom"
+		$itk_component(notebook) add $itk_component(notebook).custom \
+			-text "Custom"
 	    }
     
 	    [$tchain_obj GetUserTargetEditGUI] $itk_component(custompage) "[itcl::code $b_target]"
@@ -154,21 +154,24 @@ itcl::class snEditTarget {
 
         # Create notebook widget
         itk_component add notebook {
-            tixNoteBook $itk_component(hull).notebook \
+            ttk::notebook $itk_component(hull).notebook \
                 -width 200 -height 200
         } {}
+puts "Notebook: $itk_component(notebook)"
+        ttk::notebook::enableTraversal $itk_component(notebook)
 
         # Add the leafs
         AddSrcPage
+puts Hola1
         AddLibPage
         AddRulesPage
         AddLinkPage
 
         # Add Build Directory Widget
         itk_component add bdirlbl {
-            label $itk_component(hull).bdirlbl \
+            ttk::label $itk_component(hull).bdirlbl \
                 -text [get_indep String IDETEBuildDir] \
-                -under [get_indep Pos IDETEBuildDir]
+                -underline [get_indep Pos IDETEBuildDir]
         }
 
         itk_component add bdirleb {
@@ -181,9 +184,9 @@ itcl::class snEditTarget {
         # Add Target Type combobox
 
         itk_component add ttypelbl {
-            label $itk_component(hull).ttypelbl \
+            ttk::label $itk_component(hull).ttypelbl \
                 -text [get_indep String IDETETargetType] \
-                -under [get_indep Pos IDETETargetType]
+                -underline [get_indep Pos IDETETargetType]
         }
 
         itk_component add ttypecbx {
@@ -201,9 +204,9 @@ itcl::class snEditTarget {
         # Add Tool Chain combobox
 
         itk_component add tchainlbl {
-            label $itk_component(hull).tchainlbl \
+            ttk::label $itk_component(hull).tchainlbl \
                 -text [get_indep String IDETEToolChain] \
-                -under [get_indep Pos IDETEToolChain]
+                -underline [get_indep Pos IDETEToolChain]
         }
 
         itk_component add tchaincbx {
@@ -221,14 +224,14 @@ itcl::class snEditTarget {
 
         # Add OK/Cancel Buttons
         itk_component add ok {
-            button $itk_component(hull).ok \
+            ttk::button $itk_component(hull).ok \
                 -width 11 \
                 -command "${this} ok_cb" \
                 -text [get_indep String IDETEOK]
         }
 
         itk_component add cancel {
-            button $itk_component(hull).cancel \
+            ttk::button $itk_component(hull).cancel \
                 -width 11 \
                 -command "${this} cancel_cb" \
                 -text [get_indep String IDETECancel]
@@ -296,14 +299,19 @@ itcl::class snEditTarget {
 
         # Add leafs for source files.
 
+        itk_component add src {
+            ttk::frame $itk_component(notebook).src
+        } {}
+
+
         itk_component add sourcepage {
-            $itk_component(notebook) add src \
-                -label [get_indep String IDETESourceFilesTab] \
-                -under [get_indep Pos IDETESourceFilesTab]
+            $itk_component(notebook) add $itk_component(src) \
+                -text [get_indep String IDETESourceFilesTab] \
+                -underline [get_indep Pos IDETESourceFilesTab]
         }
 
         itk_component add trfr1 {
-            frame $itk_component(sourcepage).trfr1 \
+            frame $itk_component(src).trfr1 \
                 -relief sunken -borderwidth 2
         }
 
@@ -325,7 +333,7 @@ itcl::class snEditTarget {
 
 
         itk_component add trfr2 {
-            frame $itk_component(sourcepage).trfr2 \
+            frame $itk_component(src).trfr2 \
                 -relief sunken -borderwidth 2
         }
 
@@ -484,9 +492,9 @@ itcl::class snEditTarget {
         # Add leafs for libraries files.
 
         itk_component add libpage {
-            $itk_component(notebook) add lib \
-                -label [get_indep String IDETELibraryFileTab] \
-                -under [get_indep Pos IDETELibraryFileTab]
+            $itk_component(notebook) add $itk_component(notebook).lib \
+                -text [get_indep String IDETELibraryFileTab] \
+                -underline [get_indep Pos IDETELibraryFileTab]
         }
 
 # FIXME: change all these widget and component names to something more readable
@@ -621,9 +629,9 @@ itcl::class snEditTarget {
         # Add page for build rules.
 
         itk_component add buildpage {
-            $itk_component(notebook) add buildpage \
-                -label [get_indep String IDETEBuildRulesTab] \
-                -under [get_indep Pos IDETEBuildRulesTab]
+            $itk_component(notebook) add $itk_component(notebook).buildpage \
+                -text [get_indep String IDETEBuildRulesTab] \
+                -underline [get_indep Pos IDETEBuildRulesTab]
         }
 
         itk_component add buildruletable {
@@ -689,9 +697,9 @@ itcl::class snEditTarget {
         # Add leafs for linking rules
 
         itk_component add linkpage {
-            $itk_component(notebook) add link \
-                -label [get_indep String IDETELinkRulesTab] \
-                -under [get_indep Pos IDETELinkRulesTab]
+            $itk_component(notebook) add $itk_component(notebook).link \
+                -text [get_indep String IDETELinkRulesTab] \
+                -underline [get_indep Pos IDETELinkRulesTab]
         }
 
         # Binary output file name

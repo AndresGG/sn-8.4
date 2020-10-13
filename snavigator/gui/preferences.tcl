@@ -66,7 +66,6 @@ itcl_class Preferences& {
         ${NoteBook} add ${NoteBook}.proj -text [get_indep String ProjectMenu] \
           -underline [get_indep Pos ProjectMenu]                              \
           -state [tool_availiable proj 1]
-        ttk::notebook::enableTraversal ${NoteBook}
 
         ttk::frame ${NoteBook}.edit
         ${this} AddEditor ${NoteBook} edit
