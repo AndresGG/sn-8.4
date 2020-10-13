@@ -1,3 +1,4 @@
+(BUGIFX) Added an 'extern' so it would compile in a current Linux distro
 (BUGFIX) The dialogs shouldn't appear when the version control programs aren't there
 (BUGFIX) sn_rcs_discard would break sn if rcs wasn't installed
 (BUGFIX) Fix some syntax that used to be ok in former versions of Tcl
