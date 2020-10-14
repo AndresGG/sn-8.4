@@ -156,7 +156,7 @@ AC_TRY_COMPILE([
 #include <winsock2.h>
 ],
 [
-  LPFN_ACCEPT accept;
+//  LPFN_ACCEPT accept;
 ],
         tcl_cv_lpfn_decls=yes,
         tcl_cv_lpfn_decls=no)

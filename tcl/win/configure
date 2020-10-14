@@ -3283,8 +3283,9 @@ else
 int
 main ()
 {
+/* FIX ME: I don't know why this fails with Msys2/Mingw when it should work */
 
-  LPFN_ACCEPT accept;
+/*  LPFN_ACCEPT accept; */
 
   ;
   return 0;

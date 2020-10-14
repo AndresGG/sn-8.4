@@ -40,18 +40,19 @@ static int platformId;		/* Running under NT, or 95/98? */
 /*
  * Unlike Borland and Microsoft, we don't register exception handlers
  * by pushing registration records onto the runtime stack.  Instead, we
- * register them by creating an EXCEPTION_REGISTRATION within the activation
+ * register them by creating an TCL_EXCEPTION_REGISTRATION within the activation
  * record.
  */
-
-typedef struct EXCEPTION_REGISTRATION {
-    struct EXCEPTION_REGISTRATION* link;
+#ifndef TCL_EXCEPTION_REGISTRATION
+typedef struct TCL_EXCEPTION_REGISTRATION {
+    struct TCL_EXCEPTION_REGISTRATION* link;
     EXCEPTION_DISPOSITION (*handler)( struct _EXCEPTION_RECORD*, void*,
 				      struct _CONTEXT*, void* );
     void* ebp;
     void* esp;
     int status;
-} EXCEPTION_REGISTRATION;
+} TCL_EXCEPTION_REGISTRATION;
+#endif
 
 #endif
 
@@ -285,7 +286,7 @@ DllMain(hInst, reason, reserved)
     LPVOID reserved;		/* Not used. */
 {
 #if defined(HAVE_NO_SEH) && !defined(_WIN64)
-    EXCEPTION_REGISTRATION registration;
+    TCL_EXCEPTION_REGISTRATION registration;
 #endif
 
     switch (reason) {
@@ -304,7 +305,7 @@ DllMain(hInst, reason, reserved)
 	__asm__ __volatile__ (
 
 	    /*
-	     * Construct an EXCEPTION_REGISTRATION to protect the call to
+	     * Construct an TCL_EXCEPTION_REGISTRATION to protect the call to
 	     * Tcl_Finalize
 	     */
 
@@ -318,7 +319,7 @@ DllMain(hInst, reason, reserved)
 	    "movl	%[error],	0x10(%%edx)"	"\n\t" /* status */
 
 	    /*
-	     * Link the EXCEPTION_REGISTRATION on the chain
+	     * Link the TCL_EXCEPTION_REGISTRATION on the chain
 	     */
 
 	    "movl	%%edx,		%%fs:0"		"\n\t"
@@ -330,7 +331,7 @@ DllMain(hInst, reason, reserved)
 	    "call	_Tcl_Finalize"			"\n\t"
 
 	    /*
-	     * Come here on a normal exit. Recover the EXCEPTION_REGISTRATION
+	     * Come here on a normal exit. Recover the TCL_EXCEPTION_REGISTRATION
 	     * and store a TCL_OK status
 	     */
 
@@ -340,7 +341,7 @@ DllMain(hInst, reason, reserved)
 	    "jmp	2f"				"\n"
 
 	    /*
-	     * Come here on an exception. Get the EXCEPTION_REGISTRATION that
+	     * Come here on an exception. Get the TCL_EXCEPTION_REGISTRATION that
 	     * we previously put on the chain.
 	     */
 
@@ -351,7 +352,7 @@ DllMain(hInst, reason, reserved)
 
 	    /*
 	     * Come here however we exited. Restore context from the
-	     * EXCEPTION_REGISTRATION in case the stack is unbalanced.
+	     * TCL_EXCEPTION_REGISTRATION in case the stack is unbalanced.
 	     */
 
 	    "2:"					"\t"
@@ -530,7 +531,7 @@ TclpCheckStackSpace()
 {
 
 #if defined(HAVE_NO_SEH) && !defined(__WIN64__)
-    EXCEPTION_REGISTRATION registration;
+    TCL_EXCEPTION_REGISTRATION registration;
 #endif
     int retval = 0;
 
@@ -551,7 +552,7 @@ TclpCheckStackSpace()
     __asm__ __volatile__ (
 
         /*
-         * Construct an EXCEPTION_REGISTRATION to protect the
+         * Construct an TCL_EXCEPTION_REGISTRATION to protect the
          * call to __alloca
          */
         "leal   %[registration], %%edx"         "\n\t"
@@ -564,7 +565,7 @@ TclpCheckStackSpace()
         "movl   %[error],       0x10(%%edx)"    "\n\t" /* status */
         
         /*
-         * Link the EXCEPTION_REGISTRATION on the chain
+         * Link the TCL_EXCEPTION_REGISTRATION on the chain
          */
         "movl   %%edx,          %%fs:0"         "\n\t"
 
@@ -578,7 +579,7 @@ TclpCheckStackSpace()
         "call   __alloca"                       "\n\t"
 
         /*
-         * Come here on a normal exit. Recover the EXCEPTION_REGISTRATION
+         * Come here on a normal exit. Recover the TCL_EXCEPTION_REGISTRATION
          * and store a TCL_OK status
          */
         "movl   %%fs:0,         %%edx"          "\n\t"
@@ -587,7 +588,7 @@ TclpCheckStackSpace()
         "jmp    2f"                             "\n"
 
         /*
-         * Come here on an exception. Get the EXCEPTION_REGISTRATION
+         * Come here on an exception. Get the TCL_EXCEPTION_REGISTRATION
          * that we previously put on the chain.
          */
         "1:"                                    "\t"
@@ -596,7 +597,7 @@ TclpCheckStackSpace()
         
         /* 
          * Come here however we exited.  Restore context from the
-         * EXCEPTION_REGISTRATION in case the stack is unbalanced.
+         * TCL_EXCEPTION_REGISTRATION in case the stack is unbalanced.
          */
         
         "2:"                                    "\t"
@@ -1102,7 +1103,7 @@ TclWinCPUID(
 
 #   else
 
-    EXCEPTION_REGISTRATION registration;
+    TCL_EXCEPTION_REGISTRATION registration;
 
     /*
      * Execute the CPUID instruction with the given index, and store results
@@ -1111,7 +1112,7 @@ TclWinCPUID(
 
     __asm__ __volatile__(
 	/*
-	 * Construct an EXCEPTION_REGISTRATION to protect the CPUID
+	 * Construct an TCL_EXCEPTION_REGISTRATION to protect the CPUID
 	 * instruction (early 486's don't have CPUID)
 	 */
 
@@ -1125,7 +1126,7 @@ TclWinCPUID(
 	"movl	%[error],	0x10(%%edx)"	"\n\t" /* status */
 
 	/*
-	 * Link the EXCEPTION_REGISTRATION on the chain
+	 * Link the TCL_EXCEPTION_REGISTRATION on the chain
 	 */
 
 	"movl	%%edx,		%%fs:0"		"\n\t"
@@ -1144,7 +1145,7 @@ TclWinCPUID(
 	"movl	%%edx,		0xc(%%edi)"	"\n\t"
 
 	/*
-	 * Come here on a normal exit. Recover the EXCEPTION_REGISTRATION and
+	 * Come here on a normal exit. Recover the TCL_EXCEPTION_REGISTRATION and
 	 * store a TCL_OK status.
 	 */
 
@@ -1154,7 +1155,7 @@ TclWinCPUID(
 	"jmp	2f"				"\n"
 
 	/*
-	 * Come here on an exception. Get the EXCEPTION_REGISTRATION that we
+	 * Come here on an exception. Get the TCL_EXCEPTION_REGISTRATION that we
 	 * previously put on the chain.
 	 */
 
@@ -1164,7 +1165,7 @@ TclWinCPUID(
 
 	/*
 	 * Come here however we exited. Restore context from the
-	 * EXCEPTION_REGISTRATION in case the stack is unbalanced.
+	 * TCL_EXCEPTION_REGISTRATION in case the stack is unbalanced.
 	 */
 
 	"2:"					"\t"

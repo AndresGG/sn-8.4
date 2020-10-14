@@ -56,7 +56,11 @@ sizebox_wndproc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
   struct sizebox_userdata *su;
 
+#ifdef _WIN64
+  su = (struct sizebox_userdata *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
+#else
   su = (struct sizebox_userdata *) GetWindowLong (hwnd, GWL_USERDATA);
+#endif
 
   switch (msg)
     {
@@ -109,9 +113,16 @@ sizebox_event_proc (ClientData cd, XEvent *event_ptr)
 
   if (event_ptr->type == DestroyNotify)
     {
+#ifdef _WIN64
+      su = (struct sizebox_userdata *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
+      SetWindowLongPtr (hwnd, GWLP_USERDATA, 0);
+      SetWindowLongPtr (hwnd, GWLP_WNDPROC, (LONG_PTR) su->wndproc);	  
+#else
       su = (struct sizebox_userdata *) GetWindowLong (hwnd, GWL_USERDATA);
       SetWindowLong (hwnd, GWL_USERDATA, 0);
       SetWindowLong (hwnd, GWL_WNDPROC, (LONG) su->wndproc);
+#endif
+
       ckfree ((char *) su);
       DestroyWindow (hwnd);
     }
@@ -151,9 +162,16 @@ sizebox_create (Tk_Window tkwin, Window parent, ClientData cd)
 
   su = (struct sizebox_userdata *) ckalloc (sizeof *su);
   su->tkwin = tkwin;
+
+#ifdef _WIN64
+  su->wndproc = (WNDPROC) GetWindowLong (hwnd, GWLP_WNDPROC);
+  SetWindowLongPtr (hwnd, GWLP_USERDATA, (LONG_PTR) su);
+  SetWindowLongPtr (hwnd, GWLP_WNDPROC, (LONG_PTR) sizebox_wndproc);	  
+#else
   su->wndproc = (WNDPROC) GetWindowLong (hwnd, GWL_WNDPROC);
   SetWindowLong (hwnd, GWL_USERDATA, (LONG) su);
   SetWindowLong (hwnd, GWL_WNDPROC, (LONG) sizebox_wndproc);
+#endif
 
   SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0,
 	       SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
