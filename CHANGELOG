@@ -1,3 +1,5 @@
+(INTERNAL) Changed copyright messages in 'about' dialog
+(INTERNAL) Made some changes to compile in Msys2/Mingw, db4 still doesn't
 (BUGIFX) Added an 'extern' so it would compile in a current Linux distro
 (BUGFIX) The dialogs shouldn't appear when the version control programs aren't there
 (BUGFIX) sn_rcs_discard would break sn if rcs wasn't installed
